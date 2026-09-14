@@ -140,10 +140,18 @@
         02. 貴賓與行程細節
       </label>
 
-      <div>
-        <label class="text-[11px] text-gray-400 uppercase tracking-wider block mb-1">貴賓稱呼與聯絡電話</label>
-        <input type="text" id="custInfo" placeholder="e.g. Vincent 0915623298"
-               class="w-full bg-noir border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-gold-500 transition-colors">
+      <!-- 拆分為：稱呼 與 電話 -->
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="text-[11px] text-gray-400 uppercase tracking-wider block mb-1">貴賓稱呼</label>
+          <input type="text" id="custName" placeholder="e.g. Vincent"
+                 class="w-full bg-noir border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-gold-500 transition-colors">
+        </div>
+        <div>
+          <label class="text-[11px] text-gray-400 uppercase tracking-wider block mb-1">聯絡電話</label>
+          <input type="tel" id="custPhone" placeholder="0915xxxxxx"
+                 class="w-full bg-noir border border-white/10 rounded-xl px-3.5 py-2.5 text-sm font-mono text-white placeholder-gray-600 focus:outline-none focus:border-gold-500 transition-colors">
+        </div>
       </div>
 
       <div>
@@ -335,11 +343,16 @@
 
     // 送出前先驗證後端最新費率 (方案 A)
     async function requestOrder() {
-      const custInfo = document.getElementById('custInfo').value.trim();
-      if (!custInfo) {
-        alert('請填寫貴賓稱呼與聯絡電話');
+      const custName = document.getElementById('custName').value.trim();
+      const custPhone = document.getElementById('custPhone').value.trim();
+
+      if (!custName || !custPhone) {
+        alert('請完整填寫貴賓稱呼與聯絡電話');
         return;
       }
+
+      // 自動組合為完整字串送入後端
+      const custInfo = `${custName} (${custPhone})`;
 
       const btn = document.getElementById('btnSubmit');
       btn.disabled = true;
