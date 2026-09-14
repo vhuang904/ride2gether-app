@@ -256,12 +256,12 @@
 
     // 核心設定與費率引擎參數
     let currentService = 'PABILI';
-    const RATES = {
-      RIDE_MOTO: { base: 50, baseKm: 2, perKm: 10, commType: 'PERCENT', commVal: 0.15, icon: '🛵', name: '尊榮機車' },
-      RIDE_CAR:  { base: 120, baseKm: 3, perKm: 22, commType: 'PERCENT', commVal: 0.20, icon: '🚗', name: '商務轎車' },
-      EXPRESS:   { base: 60, baseKm: 2, perKm: 12, commType: 'FIXED', commVal: 15,   icon: '📦', name: '極速快遞' },
-      PABILI:    { base: 70, baseKm: 2, perKm: 11, commType: 'FIXED', commVal: 10,   icon: '🛍️', name: '尊榮代購' }
-    };
+    let RATES = {
+  RIDE_MOTO: { base: 40, baseKm: 2, perKm: 10, commType: 'PERCENT', commVal: 0.15, icon: '🛵', name: '尊榮機車' },
+  RIDE_CAR:  { base: 70, baseKm: 2, perKm: 18, commType: 'PERCENT', commVal: 0.20, icon: '🚗', name: '商務轎車' },
+  EXPRESS:   { base: 50, baseKm: 2, perKm: 12, commType: 'FIXED',   commVal: 15,   icon: '📦', name: '極速快遞' },
+  PABILI:    { base: 60, baseKm: 2, perKm: 11, commType: 'FIXED',   commVal: 10,   icon: '🛍️', name: '尊榮代購' }
+};
 
     // 請替換為你 Apps Script 發布的 Web App URL
     const GAS_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbxuT2lHTit53Ezz1eAzKwgIkSM7OVwzQMbGkA-TvYGVerxsNKnZgy5kDz-aVJkB2lJZ/exec";
@@ -373,6 +373,42 @@
 
     // 初始化試算
     calculateEstimate();
+    // 自動從 Google 試算表拉取最新 Rate_Config
+    async function fetchLatestRates() {
+      try {
+        const res = await fetch(GAS_WEBHOOK_URL);
+        const data = await res.json();
+        if (data.status === "SUCCESS" && data.rates) {
+          Object.keys(data.rates).forEach(k => {
+            if (RATES[k]) {
+              RATES[k].base = data.rates[k].base;
+              RATES[k].baseKm = data.rates[k].baseKm;
+              RATES[k].perKm = data.rates[k].perKm;
+              RATES[k].commType = data.rates[k].commType;
+              RATES[k].commVal = data.rates[k].commVal;
+            }
+          });
+
+          // 自動更新卡片顯示的起步價文字
+          const motoTxt = document.querySelector('#card-RIDE_MOTO .font-mono');
+          const carTxt = document.querySelector('#card-RIDE_CAR .font-mono');
+          const expTxt = document.querySelector('#card-EXPRESS .font-mono');
+          const pabTxt = document.querySelector('#card-PABILI .font-mono');
+          if (motoTxt) motoTxt.innerText = `起步 ₱${RATES.RIDE_MOTO.base}`;
+          if (carTxt) carTxt.innerText = `起步 ₱${RATES.RIDE_CAR.base}`;
+          if (expTxt) expTxt.innerText = `起步 ₱${RATES.EXPRESS.base}`;
+          if (pabTxt) pabTxt.innerText = `起步 ₱${RATES.PABILI.base}`;
+
+          calculateEstimate();
+          console.log("✅ 成功同步 Google 試算表最新費率！", RATES);
+        }
+      } catch (err) {
+        console.warn("使用預設費率中:", err);
+      }
+    }
+
+    // 啟動時自動同步
+    fetchLatestRates();
   </script>
 </body>
 </html>
