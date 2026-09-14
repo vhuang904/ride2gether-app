@@ -103,7 +103,7 @@
           <div class="text-2xl mb-2">🛵</div>
           <div class="font-semibold text-sm text-white">尊榮機車</div>
           <div class="text-xs text-gray-400 mt-0.5">Moto Express</div>
-          <div class="text-[11px] text-gold-400/80 mt-2 font-mono">起步 ₱50</div>
+          <div id="badge-RIDE_MOTO" class="text-[11px] text-gold-400/80 mt-2 font-mono">--</div>
         </div>
 
         <!-- 四輪商務接送 -->
@@ -112,7 +112,7 @@
           <div class="text-2xl mb-2">🚗</div>
           <div class="font-semibold text-sm text-white">商務轎車</div>
           <div class="text-xs text-gray-400 mt-0.5">Sedan / MPV</div>
-          <div class="text-[11px] text-gold-400/80 mt-2 font-mono">起步 ₱120</div>
+          <div id="badge-RIDE_CAR" class="text-[11px] text-gold-400/80 mt-2 font-mono">--</div>
         </div>
 
         <!-- 專人即時快遞 -->
@@ -121,7 +121,7 @@
           <div class="text-2xl mb-2">📦</div>
           <div class="font-semibold text-sm text-white">極速快遞</div>
           <div class="text-xs text-gray-400 mt-0.5">Instant Parcel</div>
-          <div class="text-[11px] text-gold-400/80 mt-2 font-mono">起步 ₱60</div>
+          <div id="badge-EXPRESS" class="text-[11px] text-gold-400/80 mt-2 font-mono">--</div>
         </div>
 
         <!-- 專屬跑腿採買 -->
@@ -130,7 +130,7 @@
           <div class="text-2xl mb-2">🛍️</div>
           <div class="font-semibold text-sm text-white">尊榮代購</div>
           <div class="text-xs text-gray-400 mt-0.5">Pabili Service</div>
-          <div class="text-[11px] text-gold-400 mt-2 font-mono">起步 ₱70</div>
+          <div id="badge-PABILI" class="text-[11px] text-gold-400 mt-2 font-mono">--</div>
         </div>
       </div>
     </section>
@@ -451,15 +451,16 @@
             }
           });
 
-          // 自動更新卡片顯示的起步價文字
-          const motoTxt = document.querySelector('#card-RIDE_MOTO .font-mono');
-          const carTxt = document.querySelector('#card-RIDE_CAR .font-mono');
-          const expTxt = document.querySelector('#card-EXPRESS .font-mono');
-          const pabTxt = document.querySelector('#card-PABILI .font-mono');
-          if (motoTxt) motoTxt.innerText = `起步 ₱${RATES.RIDE_MOTO.base}`;
-          if (carTxt) carTxt.innerText = `起步 ₱${RATES.RIDE_CAR.base}`;
-          if (expTxt) expTxt.innerText = `起步 ₱${RATES.EXPRESS.base}`;
-          if (pabTxt) pabTxt.innerText = `起步 ₱${RATES.PABILI.base}`;
+          // 直接以 ID 精準填入 Google 試算表的起步價
+          const motoEl = document.getElementById('badge-RIDE_MOTO');
+          const carEl  = document.getElementById('badge-RIDE_CAR');
+          const expEl  = document.getElementById('badge-EXPRESS');
+          const pabEl  = document.getElementById('badge-PABILI');
+
+          if (motoEl) motoEl.innerText = `起步 ₱${RATES.RIDE_MOTO.base}`;
+          if (carEl)  carEl.innerText  = `起步 ₱${RATES.RIDE_CAR.base}`;
+          if (expEl)  expEl.innerText  = `起步 ₱${RATES.EXPRESS.base}`;
+          if (pabEl)  pabEl.innerText  = `起步 ₱${RATES.PABILI.base}`;
 
           calculateEstimate();
           console.log("✅ 成功同步 Google 試算表最新費率！", RATES);
