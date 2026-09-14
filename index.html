@@ -167,6 +167,21 @@
         <input type="number" id="itemCost" value="0" oninput="calculateEstimate()"
                class="w-full bg-noir border border-white/10 rounded-xl px-3.5 py-2.5 text-sm font-mono text-white placeholder-gray-600 focus:outline-none focus:border-gold-500 transition-colors">
       </div>
+      <!-- 加速小費 / 自訂加價 -->
+      <div>
+        <div class="flex justify-between items-center mb-1.5">
+          <label class="text-[11px] text-gray-400 uppercase tracking-wider">🔥 司機加速小費 (Priority Tip)</label>
+          <span class="text-[10px] text-gold-400">100% 給予司機，提升搶單速度</span>
+        </div>
+        <div class="grid grid-cols-4 gap-2 mb-2">
+          <button type="button" onclick="setTip(0)" class="tip-btn py-1.5 rounded-lg border border-gold-500/30 text-xs text-gold-300 bg-obsidian active:scale-95 transition">₱0</button>
+          <button type="button" onclick="setTip(20)" class="tip-btn py-1.5 rounded-lg border border-white/10 text-xs text-gray-300 bg-obsidian active:scale-95 transition">+₱20</button>
+          <button type="button" onclick="setTip(50)" class="tip-btn py-1.5 rounded-lg border border-white/10 text-xs text-gray-300 bg-obsidian active:scale-95 transition">+₱50</button>
+          <button type="button" onclick="setTip(100)" class="tip-btn py-1.5 rounded-lg border border-white/10 text-xs text-gray-300 bg-obsidian active:scale-95 transition">+₱100</button>
+        </div>
+        <input type="number" id="priorityTip" value="0" placeholder="或自訂加價金額" oninput="calculateEstimate()"
+               class="w-full bg-noir border border-white/10 rounded-xl px-3.5 py-2 text-sm font-mono text-white placeholder-gray-600 focus:outline-none focus:border-gold-500 transition-colors">
+      </div>
     </section>
 
     <!-- 尊榮動態價格儀表 -->
@@ -280,16 +295,34 @@
       calculateEstimate();
     }
 
+    let selectedTip = 0;
+
+    function setTip(val) {
+      selectedTip = val;
+      document.getElementById('priorityTip').value = val;
+      document.querySelectorAll('.tip-btn').forEach(btn => {
+        btn.classList.remove('border-gold-500/50', 'text-gold-300');
+        btn.classList.add('border-white/10', 'text-gray-300');
+      });
+      event.target.classList.remove('border-white/10', 'text-gray-300');
+      event.target.classList.add('border-gold-500/50', 'text-gold-300');
+      calculateEstimate();
+    }
+
     function calculateEstimate() {
       const dist = parseFloat(document.getElementById('distance').value);
       document.getElementById('distVal').innerText = `${dist.toFixed(1)} km`;
 
       const itemCost = parseFloat(document.getElementById('itemCost').value) || 0;
+      const tip = parseFloat(document.getElementById('priorityTip').value) || 0;
       const rule = RATES[currentService];
 
       const extraKm = Math.max(0, dist - rule.baseKm);
-      const deliveryFee = rule.base + (extraKm * rule.perKm);
-      const totalCustomerPay = deliveryFee + itemCost;
+      const surgeMultiplier = rule.surgeMultiplier || 1;
+      const surgeFlat = rule.surgeFlat || 0;
+
+      const deliveryFee = (rule.base + (extraKm * rule.perKm)) * surgeMultiplier + surgeFlat;
+      const totalCustomerPay = deliveryFee + itemCost + tip;
 
       let commission = 0;
       if (rule.commType === 'PERCENT') {
@@ -310,22 +343,51 @@
         return;
       }
 
+      const btn = document.getElementById('btnSubmit');
+      btn.disabled = true;
+      btn.innerText = "驗證最新費率中...";
+
+      try {
+        const res = await fetch(GAS_WEBHOOK_URL);
+        const data = await res.json();
+        if (data.status === "SUCCESS" && data.rates) {
+          const remote = data.rates[currentService];
+          const local = RATES[currentService];
+
+          if (remote && (remote.surgeMultiplier !== local.surgeMultiplier || remote.surgeFlat !== local.surgeFlat || remote.base !== local.base)) {
+            RATES[currentService] = { ...RATES[currentService], ...remote };
+            calculateEstimate();
+            const latestTotal = document.getElementById('estTotal').innerText;
+            
+            const confirmPrice = confirm(`⚠️ 區域需求或天候狀況有所更新：\n最新預估總額已調整為 ₱${latestTotal}。\n\n是否確認送出訂單？`);
+            if (!confirmPrice) {
+              btn.disabled = false;
+              btn.innerText = "呼叫專屬司機 (REQUEST NOW)";
+              return;
+            }
+          }
+        }
+      } catch (err) {
+        console.warn("驗證失敗，採用當前畫面費率送出", err);
+      }
+
+      btn.disabled = false;
+      btn.innerText = "呼叫專屬司機 (REQUEST NOW)";
+
       const dist = parseFloat(document.getElementById('distance').value);
       const itemList = document.getElementById('itemList').value.trim() || '-';
       const itemCost = parseFloat(document.getElementById('itemCost').value) || 0;
+      const tip = parseFloat(document.getElementById('priorityTip').value) || 0;
 
-      // 開啟雷達 Modal
       document.getElementById('dispatchModal').classList.remove('hidden');
       document.getElementById('radarSection').classList.remove('hidden');
       document.getElementById('matchedCard').classList.add('hidden');
       document.getElementById('modalOrderId').innerText = '調度生成中...';
 
-      // 產生本地展示 Order ID
       const mockId = 'OD-' + Math.floor(1000 + Math.random() * 9000);
       activeOrderId = mockId;
       document.getElementById('modalOrderId').innerText = mockId;
 
-      // 發送 API 到 Google Apps Script 驅動真實 Telegram 推播
       try {
         await fetch(GAS_WEBHOOK_URL, {
           method: 'POST',
@@ -337,15 +399,15 @@
             serviceId: currentService,
             customerInfo: custInfo,
             distance: dist,
-            itemList: itemList,
-            itemCost: itemCost
+            itemList: itemList + (tip > 0 ? ` (🔥含小費: ₱${tip})` : ''),
+            itemCost: itemCost,
+            tip: tip
           })
         });
       } catch (e) {
         console.warn('API Submitted in background:', e);
       }
 
-      // 啟動輪詢模擬（向 Partner 示範接單完成）
       startPollingDriver(mockId);
     }
 
