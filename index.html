@@ -63,7 +63,6 @@
       backdrop-filter: blur(16px);
       -webkit-backdrop-filter: blur(16px);
     }
-    /* Radar pulse animation */
     @keyframes ping-slow {
       0% { transform: scale(0.9); opacity: 0.8; }
       70% { transform: scale(2.2); opacity: 0; }
@@ -76,7 +75,7 @@
 </head>
 <body class="text-gray-200 min-h-screen flex flex-col justify-between selection:bg-gold-500 selection:text-black">
 
-  <!-- 頂部頂級品牌 Header -->
+  <!-- 頂部品牌 Header -->
   <header class="sticky top-0 z-40 glass-panel border-b border-white/5 px-6 py-4 flex items-center justify-between">
     <div>
       <h1 class="font-serif text-lg tracking-widest gold-gradient-text font-bold uppercase">Ride2gether</h1>
@@ -167,6 +166,7 @@
         <input type="number" id="itemCost" value="0" oninput="calculateEstimate()"
                class="w-full bg-noir border border-white/10 rounded-xl px-3.5 py-2.5 text-sm font-mono text-white placeholder-gray-600 focus:outline-none focus:border-gold-500 transition-colors">
       </div>
+
       <!-- 加速小費 / 自訂加價 -->
       <div>
         <div class="flex justify-between items-center mb-1.5">
@@ -174,7 +174,7 @@
           <span class="text-[10px] text-gold-400">100% 給予司機，提升搶單速度</span>
         </div>
         <div class="grid grid-cols-4 gap-2 mb-2">
-          <button type="button" onclick="setTip(0)" class="tip-btn py-1.5 rounded-lg border border-gold-500/30 text-xs text-gold-300 bg-obsidian active:scale-95 transition">₱0</button>
+          <button type="button" onclick="setTip(0)" class="tip-btn py-1.5 rounded-lg border border-gold-500/50 text-xs text-gold-300 bg-obsidian active:scale-95 transition">₱0</button>
           <button type="button" onclick="setTip(20)" class="tip-btn py-1.5 rounded-lg border border-white/10 text-xs text-gray-300 bg-obsidian active:scale-95 transition">+₱20</button>
           <button type="button" onclick="setTip(50)" class="tip-btn py-1.5 rounded-lg border border-white/10 text-xs text-gray-300 bg-obsidian active:scale-95 transition">+₱50</button>
           <button type="button" onclick="setTip(100)" class="tip-btn py-1.5 rounded-lg border border-white/10 text-xs text-gray-300 bg-obsidian active:scale-95 transition">+₱100</button>
@@ -192,12 +192,12 @@
           <span class="text-[10px] uppercase tracking-widest text-gray-400 block mb-1">即時動態預估總額</span>
           <div class="text-3xl font-serif font-bold text-white tracking-tight flex items-baseline">
             <span class="text-gold-400 text-lg mr-1">₱</span>
-            <span id="estTotal" class="gold-gradient-text font-mono">111.00</span>
+            <span id="estTotal" class="gold-gradient-text font-mono">0.00</span>
           </div>
         </div>
         <div class="text-right">
           <span class="text-[10px] text-gray-400 block uppercase">司機淨收益</span>
-          <span id="estPayout" class="text-xs font-mono text-emerald-400">約 ₱101.00</span>
+          <span id="estPayout" class="text-xs font-mono text-emerald-400">約 ₱0.00</span>
         </div>
       </div>
     </section>
@@ -209,7 +209,7 @@
     </button>
   </main>
 
-  <!-- 滿版派單狀態 Modal (低調奢華雷達掃描與結果) -->
+  <!-- 滿版派單狀態 Modal -->
   <div id="dispatchModal" class="fixed inset-0 z-50 bg-noir/95 backdrop-blur-xl flex flex-col items-center justify-center p-6 hidden">
     
     <!-- 雷達動畫區 -->
@@ -244,7 +244,7 @@
       <div class="bg-noir/60 rounded-xl p-3 text-left border border-white/5 space-y-1.5 text-xs">
         <div class="flex justify-between">
           <span class="text-gray-400">應付總額:</span>
-          <span id="cardPay" class="font-mono text-gold-400 font-semibold">₱111.00</span>
+          <span id="cardPay" class="font-mono text-gold-400 font-semibold">₱0.00</span>
         </div>
         <div class="flex justify-between">
           <span class="text-gray-400">服務車款:</span>
@@ -260,7 +260,7 @@
   </div>
 
   <script>
-    // PWA Service Worker 註冊
+    // 註冊 Service Worker
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('./sw.js')
@@ -269,20 +269,20 @@
       });
     }
 
-    // 核心設定與費率引擎參數
     let currentService = 'PABILI';
     let RATES = {
-  RIDE_MOTO: { base: 40, baseKm: 2, perKm: 10, commType: 'PERCENT', commVal: 0.15, icon: '🛵', name: '尊榮機車' },
-  RIDE_CAR:  { base: 70, baseKm: 2, perKm: 18, commType: 'PERCENT', commVal: 0.20, icon: '🚗', name: '商務轎車' },
-  EXPRESS:   { base: 50, baseKm: 2, perKm: 12, commType: 'FIXED',   commVal: 15,   icon: '📦', name: '極速快遞' },
-  PABILI:    { base: 60, baseKm: 2, perKm: 11, commType: 'FIXED',   commVal: 10,   icon: '🛍️', name: '尊榮代購' }
-};
+      RIDE_MOTO: { base: 40, baseKm: 2, perKm: 10, commType: 'PERCENT', commVal: 0.15, icon: '🛵', name: '尊榮機車' },
+      RIDE_CAR:  { base: 70, baseKm: 2, perKm: 18, commType: 'PERCENT', commVal: 0.20, icon: '🚗', name: '商務轎車' },
+      EXPRESS:   { base: 50, baseKm: 2, perKm: 12, commType: 'FIXED',   commVal: 15,   icon: '📦', name: '極速快遞' },
+      PABILI:    { base: 60, baseKm: 2, perKm: 11, commType: 'FIXED',   commVal: 10,   icon: '🛍️', name: '尊榮代購' }
+    };
 
-    // 請替換為你 Apps Script 發布的 Web App URL
+    // Google Apps Script 發布網址
     const GAS_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbxuT2lHTit53Ezz1eAzKwgIkSM7OVwzQMbGkA-TvYGVerxsNKnZgy5kDz-aVJkB2lJZ/exec";
 
     let pollingTimer = null;
     let activeOrderId = null;
+    let selectedTip = 0;
 
     function selectService(type) {
       currentService = type;
@@ -291,11 +291,8 @@
       });
       const target = document.getElementById(`card-${type}`);
       if (target) target.classList.add('gold-border-glow');
-      
       calculateEstimate();
     }
-
-    let selectedTip = 0;
 
     function setTip(val) {
       selectedTip = val;
@@ -336,6 +333,7 @@
       document.getElementById('estPayout').innerText = `約 ₱${driverPayout.toFixed(2)}`;
     }
 
+    // 送出前先驗證後端最新費率 (方案 A)
     async function requestOrder() {
       const custInfo = document.getElementById('custInfo').value.trim();
       if (!custInfo) {
@@ -399,7 +397,7 @@
             serviceId: currentService,
             customerInfo: custInfo,
             distance: dist,
-            itemList: itemList + (tip > 0 ? ` (🔥含小費: ₱${tip})` : ''),
+            itemList: itemList,
             itemCost: itemCost,
             tip: tip
           })
@@ -408,16 +406,38 @@
         console.warn('API Submitted in background:', e);
       }
 
+      // 啟動真實 2 秒輪詢
       startPollingDriver(mockId);
     }
 
+    // 每 2 秒向後端查詢真實接單司機
     function startPollingDriver(orderId) {
       if (pollingTimer) clearInterval(pollingTimer);
-      
-      // Demo 效果：若在現場無人點擊 Telegram，10 秒後自動模擬司機接單
-      pollingTimer = setTimeout(() => {
-        showMatchedDriver("Kuya Ben (Toyota Vios)");
-      }, 10000);
+
+      let attempts = 0;
+      const maxAttempts = 60; // 最長輪詢 2 分鐘 (60 * 2s)
+
+      pollingTimer = setInterval(async () => {
+        attempts++;
+        if (attempts > maxAttempts) {
+          clearInterval(pollingTimer);
+          alert('暫無司機接單，請稍後再試或提高小費');
+          resetApp();
+          return;
+        }
+
+        try {
+          const res = await fetch(`${GAS_WEBHOOK_URL}?action=CHECK_STATUS&orderId=${encodeURIComponent(orderId)}`);
+          const data = await res.json();
+
+          if (data.status === 'MATCHED' && data.driverName) {
+            clearInterval(pollingTimer);
+            showMatchedDriver(data.driverName);
+          }
+        } catch (err) {
+          console.warn('查詢司機狀態中...', err);
+        }
+      }, 2000);
     }
 
     function showMatchedDriver(name) {
@@ -430,11 +450,9 @@
 
     function resetApp() {
       document.getElementById('dispatchModal').classList.add('hidden');
-      if (pollingTimer) clearTimeout(pollingTimer);
+      if (pollingTimer) clearInterval(pollingTimer);
     }
 
-    // 初始化試算
-    calculateEstimate();
     // 自動從 Google 試算表拉取最新 Rate_Config
     async function fetchLatestRates() {
       try {
@@ -451,7 +469,7 @@
             }
           });
 
-          // 直接以 ID 精準填入 Google 試算表的起步價
+          // 精準填入卡片起步價
           const motoEl = document.getElementById('badge-RIDE_MOTO');
           const carEl  = document.getElementById('badge-RIDE_CAR');
           const expEl  = document.getElementById('badge-EXPRESS');
