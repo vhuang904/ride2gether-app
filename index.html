@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-Hant" class="dark">
+<html lang="en" class="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -12,11 +12,11 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="apple-touch-icon" href="https://img.icons8.com/fluency-systems-filled/192/D4AF37/crown.png">
 
-  <!-- Firebase SDK (Compat 模式) -->
+  <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
-  <!-- Tailwind CSS & Fonts -->
+  <!-- Tailwind CSS & Google Fonts -->
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -80,42 +80,49 @@
 </head>
 <body class="text-gray-200 min-h-screen flex flex-col justify-between selection:bg-gold-500 selection:text-black">
 
-  <!-- 頂部品牌 Header -->
+  <!-- Header 頂部品牌列與語言切換 -->
   <header class="sticky top-0 z-40 glass-panel border-b border-white/5 px-6 py-4 flex items-center justify-between">
     <div>
       <h1 class="font-serif text-lg tracking-widest gold-gradient-text font-bold uppercase">Ride2gether</h1>
       <p class="text-[10px] tracking-[0.25em] text-gray-400 uppercase">Private Concierge & Mobility</p>
     </div>
-    <div class="flex items-center space-x-2">
-      <span class="inline-block w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#34D399]"></span>
-      <span class="text-xs text-gray-400 font-medium">VIP 營運中</span>
+    <div class="flex items-center space-x-3">
+      <!-- 語言切換按鈕 -->
+      <button onclick="toggleLang()" id="btnLangToggle"
+              class="px-2.5 py-1 rounded-full border border-gold-500/40 bg-gold-500/10 text-gold-300 text-xs font-semibold hover:bg-gold-500/20 active:scale-95 transition flex items-center space-x-1">
+        <span id="langLabel">EN / 繁中</span>
+      </button>
+      <div class="flex items-center space-x-1.5">
+        <span class="inline-block w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#34D399]"></span>
+        <span id="txt-status-online" class="text-xs text-gray-300 font-medium">VIP Active</span>
+      </div>
     </div>
   </header>
 
   <!-- 主視窗容器 -->
   <main class="flex-1 max-w-md w-full mx-auto p-5 space-y-6 pb-24">
 
-    <!-- 步驟 1: 業務場景分層（Mobility vs Concierge 切換） -->
+    <!-- Step 1: 類別選擇 -->
     <section class="space-y-3">
-      <label class="block text-xs font-semibold uppercase tracking-widest text-gold-400">
-        01. 服務場景選擇
+      <label id="lbl-step1" class="block text-xs font-semibold uppercase tracking-widest text-gold-400">
+        01. Select Service Category
       </label>
 
-      <!-- 頂部 Segmented Control -->
+      <!-- Segmented Control -->
       <div class="grid grid-cols-2 p-1 bg-obsidian border border-white/5 rounded-xl">
         <button type="button" id="tab-mobility" onclick="switchCategory('mobility')"
                 class="py-2.5 rounded-lg text-xs font-semibold tracking-wider flex items-center justify-center space-x-2 transition-all duration-300 bg-graphite text-gold-400 shadow">
           <svg class="w-4 h-4 stroke-current fill-none stroke-[1.8]" viewBox="0 0 24 24"><circle cx="6" cy="18" r="3"/><circle cx="18" cy="18" r="3"/><path d="M6 18l4-9h4l2 4.5M10 9l2-4h3"/></svg>
-          <span>專屬出行 (Mobility)</span>
+          <span id="txt-tab-mobility">Mobility</span>
         </button>
         <button type="button" id="tab-concierge" onclick="switchCategory('concierge')"
                 class="py-2.5 rounded-lg text-xs font-semibold tracking-wider flex items-center justify-center space-x-2 transition-all duration-300 text-gray-400 hover:text-white">
           <svg class="w-4 h-4 stroke-current fill-none stroke-[1.8]" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
-          <span>禮賓管家 (Concierge)</span>
+          <span id="txt-tab-concierge">Concierge</span>
         </button>
       </div>
 
-      <!-- 出行卡片 (Mobility: 機車 / 轎車) -->
+      <!-- Mobility 服務卡片 -->
       <div id="grid-mobility" class="grid grid-cols-2 gap-3.5">
         <div onclick="selectService('RIDE_MOTO')" id="card-RIDE_MOTO"
              class="service-card cursor-pointer p-4 rounded-2xl bg-obsidian border border-white/5 hover:border-gold-500/50 transition-all duration-300 gold-border-glow flex flex-col justify-between">
@@ -123,10 +130,10 @@
             <div class="w-8 h-8 rounded-lg bg-gold-500/10 flex items-center justify-center mb-3">
               <svg class="w-5 h-5 text-gold-400 stroke-current fill-none stroke-[1.8]" viewBox="0 0 24 24"><circle cx="6" cy="18" r="3"/><circle cx="18" cy="18" r="3"/><path d="M6 18l4-9h4l2 4.5M10 9l2-4h3"/></svg>
             </div>
-            <div class="font-semibold text-sm text-white">尊榮機車</div>
-            <div class="text-[11px] text-gray-400 mt-0.5">Moto Express</div>
+            <div id="txt-card-moto-title" class="font-semibold text-sm text-white">Moto Express</div>
+            <div id="txt-card-moto-sub" class="text-[11px] text-gray-400 mt-0.5">Fast Urban Transit</div>
           </div>
-          <div id="badge-RIDE_MOTO" class="text-[11px] text-gold-400 mt-3 font-mono">起步 ₱40</div>
+          <div id="badge-RIDE_MOTO" class="text-[11px] text-gold-400 mt-3 font-mono">From ₱40</div>
         </div>
 
         <div onclick="selectService('RIDE_CAR')" id="card-RIDE_CAR"
@@ -135,14 +142,14 @@
             <div class="w-8 h-8 rounded-lg bg-gold-500/10 flex items-center justify-center mb-3">
               <svg class="w-5 h-5 text-gold-400 stroke-current fill-none stroke-[1.8]" viewBox="0 0 24 24"><path d="M3 12h18M5 12V7a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v5M4 17h16M7 17a2 2 0 1 1-4 0M21 17a2 2 0 1 1-4 0"/></svg>
             </div>
-            <div class="font-semibold text-sm text-white">商務轎車</div>
-            <div class="text-[11px] text-gray-400 mt-0.5">Sedan / MPV</div>
+            <div id="txt-card-car-title" class="font-semibold text-sm text-white">Executive Sedan</div>
+            <div id="txt-card-car-sub" class="text-[11px] text-gray-400 mt-0.5">Air-con Luxury Ride</div>
           </div>
-          <div id="badge-RIDE_CAR" class="text-[11px] text-gold-400/80 mt-3 font-mono">起步 ₱70</div>
+          <div id="badge-RIDE_CAR" class="text-[11px] text-gold-400/80 mt-3 font-mono">From ₱70</div>
         </div>
       </div>
 
-      <!-- 禮賓卡片 (Concierge: 快遞 / 代購) -->
+      <!-- Concierge 服務卡片 -->
       <div id="grid-concierge" class="grid grid-cols-2 gap-3.5 hidden">
         <div onclick="selectService('EXPRESS')" id="card-EXPRESS"
              class="service-card cursor-pointer p-4 rounded-2xl bg-obsidian border border-white/5 hover:border-gold-500/50 transition-all duration-300 flex flex-col justify-between">
@@ -150,10 +157,10 @@
             <div class="w-8 h-8 rounded-lg bg-gold-500/10 flex items-center justify-center mb-3">
               <svg class="w-5 h-5 text-gold-400 stroke-current fill-none stroke-[1.8]" viewBox="0 0 24 24"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
             </div>
-            <div class="font-semibold text-sm text-white">極速快遞</div>
-            <div class="text-[11px] text-gray-400 mt-0.5">Instant Parcel</div>
+            <div id="txt-card-exp-title" class="font-semibold text-sm text-white">Instant Parcel</div>
+            <div id="txt-card-exp-sub" class="text-[11px] text-gray-400 mt-0.5">Direct Document Delivery</div>
           </div>
-          <div id="badge-EXPRESS" class="text-[11px] text-gold-400/80 mt-3 font-mono">起步 ₱50</div>
+          <div id="badge-EXPRESS" class="text-[11px] text-gold-400/80 mt-3 font-mono">From ₱50</div>
         </div>
 
         <div onclick="selectService('PABILI')" id="card-PABILI"
@@ -162,76 +169,76 @@
             <div class="w-8 h-8 rounded-lg bg-gold-500/10 flex items-center justify-center mb-3">
               <svg class="w-5 h-5 text-gold-400 stroke-current fill-none stroke-[1.8]" viewBox="0 0 24 24"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4zM3 6h18M16 10a4 4 0 0 1-8 0"/></svg>
             </div>
-            <div class="font-semibold text-sm text-white">尊榮代購</div>
-            <div class="text-[11px] text-gray-400 mt-0.5">Pabili Service</div>
+            <div id="txt-card-pab-title" class="font-semibold text-sm text-white">Pabili Concierge</div>
+            <div id="txt-card-pab-sub" class="text-[11px] text-gray-400 mt-0.5">Queuing & Purchasing</div>
           </div>
-          <div id="badge-PABILI" class="text-[11px] text-gold-400 mt-3 font-mono">起步 ₱60</div>
+          <div id="badge-PABILI" class="text-[11px] text-gold-400 mt-3 font-mono">From ₱60</div>
         </div>
       </div>
     </section>
 
-    <!-- 步驟 2: 貴賓資訊與行程動態細節 -->
+    <!-- Step 2: 貴賓與行程細節 -->
     <section class="space-y-4 bg-obsidian/70 border border-white/5 rounded-2xl p-5 backdrop-blur-md">
-      <label class="block text-xs font-semibold uppercase tracking-widest text-gold-400">
-        02. 貴賓與行程細節
+      <label id="lbl-step2" class="block text-xs font-semibold uppercase tracking-widest text-gold-400">
+        02. Guest & Route Details
       </label>
 
       <!-- 稱呼 與 電話 -->
       <div class="grid grid-cols-2 gap-3">
         <div>
-          <label class="text-[11px] text-gray-400 uppercase tracking-wider block mb-1">貴賓稱呼</label>
-          <input type="text" id="custName" placeholder="例如：黃先生"
+          <label id="lbl-cust-name" class="text-[11px] text-gray-300 uppercase tracking-wider block mb-1">Guest Name</label>
+          <input type="text" id="custName" placeholder="e.g. Mr. Vincent"
                  class="w-full bg-noir border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-gold-500 transition-colors">
         </div>
         <div>
-          <label class="text-[11px] text-gray-400 uppercase tracking-wider block mb-1">聯絡電話</label>
+          <label id="lbl-cust-phone" class="text-[11px] text-gray-300 uppercase tracking-wider block mb-1">Mobile Number</label>
           <input type="tel" id="custPhone" placeholder="09XX-XXX-XXX"
                  class="w-full bg-noir border border-white/10 rounded-xl px-3.5 py-2.5 text-sm font-mono text-white placeholder-gray-600 focus:outline-none focus:border-gold-500 transition-colors">
         </div>
       </div>
 
-      <!-- 出行地點輸入欄位 (Mobility) -->
+      <!-- 出行路線欄位 (Mobility) -->
       <div id="fields-mobility" class="space-y-3">
         <div>
-          <label class="text-[11px] text-gray-400 uppercase tracking-wider block mb-1">上車地點</label>
-          <input type="text" id="pickupLoc" placeholder="輸入飯店、大樓或精確地址"
+          <label id="lbl-pickup" class="text-[11px] text-gray-300 uppercase tracking-wider block mb-1">Pick-up Location</label>
+          <input type="text" id="pickupLoc" placeholder="Hotel, Building or Address"
                  class="w-full bg-noir border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-gold-500 transition-colors">
         </div>
         <div>
-          <label class="text-[11px] text-gray-400 uppercase tracking-wider block mb-1">前往目的地</label>
-          <input type="text" id="dropoffLoc" placeholder="輸入下車目的地"
+          <label id="lbl-dropoff" class="text-[11px] text-gray-300 uppercase tracking-wider block mb-1">Drop-off Destination</label>
+          <input type="text" id="dropoffLoc" placeholder="Destination Name or Address"
                  class="w-full bg-noir border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-gold-500 transition-colors">
         </div>
       </div>
 
-      <!-- 管家跑腿地點輸入欄位 (Concierge) -->
+      <!-- 跑腿管家欄位 (Concierge) -->
       <div id="fields-concierge" class="space-y-3 hidden">
         <div>
-          <label class="text-[11px] text-gray-400 uppercase tracking-wider block mb-1">採買／取件店家地點</label>
-          <input type="text" id="conciergePickup" placeholder="輸入店家名稱、專櫃或取件地址"
+          <label id="lbl-store" class="text-[11px] text-gray-300 uppercase tracking-wider block mb-1">Store / Pickup Point</label>
+          <input type="text" id="conciergePickup" placeholder="Store name, Mall branch or Pickup address"
                  class="w-full bg-noir border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-gold-500 transition-colors">
         </div>
         <div>
-          <label class="text-[11px] text-gray-400 uppercase tracking-wider block mb-1">送達目的地</label>
-          <input type="text" id="conciergeDropoff" placeholder="輸入送達地址或大樓房號"
+          <label id="lbl-delivery" class="text-[11px] text-gray-300 uppercase tracking-wider block mb-1">Delivery Destination</label>
+          <input type="text" id="conciergeDropoff" placeholder="Unit, Building name or Street"
                  class="w-full bg-noir border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-gold-500 transition-colors">
         </div>
         <div id="pabiliFieldGroup">
-          <label class="text-[11px] text-gray-400 uppercase tracking-wider block mb-1">跑腿採買明細 / 送件備註</label>
-          <input type="text" id="itemList" placeholder="例如：星巴克熱拿鐵 2 杯、微糖"
+          <label id="lbl-items" class="text-[11px] text-gray-300 uppercase tracking-wider block mb-1">Purchase Items & Instructions</label>
+          <input type="text" id="itemList" placeholder="e.g. 2x Hot Latte, Sugar-free / Fragile item"
                  class="w-full bg-noir border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-gold-500 transition-colors">
         </div>
         <div id="itemCostGroup">
-          <label class="text-[11px] text-gray-400 uppercase tracking-wider block mb-1">預估商品代墊費 (PHP)</label>
+          <label id="lbl-itemcost" class="text-[11px] text-gray-300 uppercase tracking-wider block mb-1">Estimated Goods Cost (PHP)</label>
           <input type="number" id="itemCost" value="0" oninput="calculateEstimate()"
                  class="w-full bg-noir border border-white/10 rounded-xl px-3.5 py-2.5 text-sm font-mono text-white placeholder-gray-600 focus:outline-none focus:border-gold-500 transition-colors">
         </div>
       </div>
 
-      <!-- 里程動態拉桿 -->
+      <!-- 預估里程拉桿 -->
       <div>
         <div class="flex justify-between items-center mb-1">
-          <label class="text-[11px] text-gray-400 uppercase tracking-wider">預估行程里程 (公里)</label>
+          <label id="lbl-distance" class="text-[11px] text-gray-300 uppercase tracking-wider">Estimated Distance</label>
           <span id="distVal" class="text-xs font-mono text-gold-400">5.0 km</span>
         </div>
         <input type="range" id="distance" min="1" max="30" step="0.5" value="5" oninput="calculateEstimate()"
@@ -241,8 +248,8 @@
       <!-- 加速小費 -->
       <div>
         <div class="flex justify-between items-center mb-1.5">
-          <label class="text-[11px] text-gray-400 uppercase tracking-wider">🔥 專屬管家加速小費 (Priority Tip)</label>
-          <span class="text-[10px] text-gold-400">100% 給予司機，秒級搶單</span>
+          <label id="lbl-tip-title" class="text-[11px] text-gray-300 uppercase tracking-wider">Priority Tip</label>
+          <span id="lbl-tip-sub" class="text-[10px] text-gold-400">100% to driver</span>
         </div>
         <div class="grid grid-cols-4 gap-2 mb-2">
           <button type="button" onclick="setTip(0)" class="tip-btn py-1.5 rounded-lg border border-gold-500/50 text-xs text-gold-300 bg-obsidian active:scale-95 transition">₱0</button>
@@ -250,37 +257,37 @@
           <button type="button" onclick="setTip(50)" class="tip-btn py-1.5 rounded-lg border border-white/10 text-xs text-gray-300 bg-obsidian active:scale-95 transition">+₱50</button>
           <button type="button" onclick="setTip(100)" class="tip-btn py-1.5 rounded-lg border border-white/10 text-xs text-gray-300 bg-obsidian active:scale-95 transition">+₱100</button>
         </div>
-        <input type="number" id="priorityTip" value="0" placeholder="或自訂加價金額" oninput="calculateEstimate()"
+        <input type="number" id="priorityTip" value="0" placeholder="Custom Tip" oninput="calculateEstimate()"
                class="w-full bg-noir border border-white/10 rounded-xl px-3.5 py-2 text-sm font-mono text-white placeholder-gray-600 focus:outline-none focus:border-gold-500 transition-colors">
       </div>
     </section>
 
-    <!-- 尊榮動態價格儀表 (動態計算) -->
+    <!-- 價格儀表板 -->
     <section class="glass-panel border border-gold-500/20 rounded-2xl p-5 relative overflow-hidden">
       <div class="absolute -right-6 -bottom-6 w-24 h-24 bg-gold-500/10 rounded-full blur-2xl pointer-events-none"></div>
       <div class="flex justify-between items-end">
         <div>
-          <span class="text-[10px] uppercase tracking-widest text-gray-400 block mb-1">即時動態預估總額</span>
+          <span id="lbl-total-estimate" class="text-[10px] uppercase tracking-widest text-gray-400 block mb-1">Estimated Total</span>
           <div class="text-3xl font-serif font-bold text-white tracking-tight flex items-baseline">
             <span class="text-gold-400 text-lg mr-1">₱</span>
             <span id="estTotal" class="gold-gradient-text font-mono">0.00</span>
           </div>
         </div>
         <div class="text-right">
-          <span class="text-[10px] text-gray-400 block uppercase">司機淨收益</span>
-          <span id="estPayout" class="text-xs font-mono text-emerald-400">約 ₱0.00</span>
+          <span id="lbl-driver-payout" class="text-[10px] text-gray-400 block uppercase">Driver Payout</span>
+          <span id="estPayout" class="text-xs font-mono text-emerald-400">approx. ₱0.00</span>
         </div>
       </div>
     </section>
 
-    <!-- 呼叫操作按鈕 -->
+    <!-- 提交按鈕 -->
     <button onclick="requestOrder()" id="btnSubmit"
             class="w-full py-4 rounded-xl bg-gradient-to-r from-gold-500 via-gold-400 to-gold-600 text-black font-semibold tracking-wider text-sm shadow-[0_4px_25px_rgba(212,175,55,0.25)] hover:opacity-95 active:scale-[0.98] transition-all flex items-center justify-center space-x-2">
-      <span>呼叫專屬管家車隊 (REQUEST NOW)</span>
+      <span id="txt-btn-request">REQUEST PRIVATE DRIVER</span>
     </button>
   </main>
 
-  <!-- 滿版即時派單狀態 Modal (Firebase Realtime 監聽驅動) -->
+  <!-- 派單狀態 Modal -->
   <div id="dispatchModal" class="fixed inset-0 z-50 bg-noir/95 backdrop-blur-xl flex flex-col items-center justify-center p-6 hidden">
     
     <!-- 雷達掃描區 -->
@@ -293,52 +300,223 @@
         </div>
       </div>
       <div>
-        <h3 class="font-serif text-lg text-white tracking-widest uppercase">派單調度中</h3>
-        <p class="text-xs text-gray-400 mt-1">毫秒級即時網絡正為您優先調配專屬車隊...</p>
+        <h3 id="txt-modal-dispatching" class="font-serif text-lg text-white tracking-widest uppercase">Dispatching Chauffeur</h3>
+        <p id="txt-modal-connecting" class="text-xs text-gray-400 mt-1">Connecting to exclusive fleet in real-time...</p>
         <div class="inline-block mt-3 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-xs font-mono text-gold-300">
-          訂單識別碼: <span id="modalOrderId">產生中...</span>
+          <span id="txt-modal-orderid-prefix">Order ID</span>: <span id="modalOrderId">Generating...</span>
         </div>
       </div>
-      <button onclick="cancelAndReset()" class="px-5 py-2 rounded-full border border-white/10 text-xs text-gray-400 hover:text-white transition">
-        取消調度
+      <button onclick="cancelAndReset()" id="btnCancelOrder" class="px-5 py-2 rounded-full border border-white/10 text-xs text-gray-400 hover:text-white transition">
+        Cancel Request
       </button>
     </div>
 
-    <!-- 司機接單媒合成功卡片 (毫秒級翻牌) -->
+    <!-- 媒合成功卡片 -->
     <div id="matchedCard" class="w-full max-w-sm bg-obsidian border border-gold-500/40 rounded-3xl p-6 text-center space-y-5 shadow-2xl hidden">
       <div class="w-16 h-16 mx-auto rounded-full bg-emerald-500/20 border border-emerald-400 flex items-center justify-center">
         <span class="text-2xl text-emerald-400">✓</span>
       </div>
       <div>
-        <span class="text-[10px] tracking-widest text-gold-400 uppercase font-semibold">Matched Private Chauffeur</span>
-        <h4 id="driverName" class="text-xl font-bold text-white mt-0.5">特約尊榮司機</h4>
-        <p id="driverContact" class="text-xs text-gray-400 mt-1">已確認接單，即將前來為您服務</p>
+        <span id="txt-matched-badge" class="text-[10px] tracking-widest text-gold-400 uppercase font-semibold">Matched Private Chauffeur</span>
+        <h4 id="driverName" class="text-xl font-bold text-white mt-0.5">Assigned Driver</h4>
+        <p id="driverContact" class="text-xs text-gray-400 mt-1">Driver is heading to your pick-up point.</p>
       </div>
 
       <div class="bg-noir/60 rounded-xl p-3 text-left border border-white/5 space-y-2 text-xs">
         <div class="flex justify-between">
-          <span class="text-gray-400">應付總額:</span>
+          <span id="lbl-matched-pay" class="text-gray-400">Total Payable:</span>
           <span id="cardPay" class="font-mono text-gold-400 font-semibold">₱0.00</span>
         </div>
         <div class="flex justify-between">
-          <span class="text-gray-400">服務類別:</span>
-          <span id="cardService" class="text-gray-200">尊榮出行</span>
+          <span id="lbl-matched-service" class="text-gray-400">Service:</span>
+          <span id="cardService" class="text-gray-200">Mobility</span>
         </div>
-        <div class="flex justify-between" id="driverPlateRow">
-          <span class="text-gray-400">車輛識別:</span>
-          <span id="driverPlate" class="text-gray-200 font-mono">特約尊榮專車</span>
+        <div class="flex justify-between">
+          <span id="lbl-matched-plate" class="text-gray-400">Vehicle / Plate:</span>
+          <span id="driverPlate" class="text-gray-200 font-mono">Private Fleet</span>
         </div>
       </div>
 
-      <button onclick="cancelAndReset()" class="w-full py-3 rounded-xl bg-white/10 hover:bg-white/15 text-white text-xs font-semibold tracking-wider">
-        完成並返回主畫面
+      <button onclick="cancelAndReset()" id="btnDoneOrder" class="w-full py-3 rounded-xl bg-white/10 hover:bg-white/15 text-white text-xs font-semibold tracking-wider">
+        Done
       </button>
     </div>
 
   </div>
 
   <script>
-    // --- 1. FIREBASE 正式配置 ---
+    // --- 1. 雙語字典系統 (預設英文 EN) ---
+    let currentLang = localStorage.getItem('r2g_lang') || 'en';
+
+    const I18N = {
+      en: {
+        langBtn: "EN",
+        statusOnline: "VIP Active",
+        step1: "01. Select Service Category",
+        tabMobility: "Mobility",
+        tabConcierge: "Concierge",
+        motoTitle: "Moto Express",
+        motoSub: "Fast Urban Transit",
+        carTitle: "Executive Sedan",
+        carSub: "Air-con Luxury Ride",
+        expTitle: "Instant Parcel",
+        expSub: "Direct Document Delivery",
+        pabTitle: "Pabili Concierge",
+        pabSub: "Queuing & Purchasing",
+        step2: "02. Guest & Route Details",
+        custName: "Guest Name",
+        custNamePh: "e.g. Mr. Vincent",
+        custPhone: "Mobile Number",
+        pickup: "Pick-up Location",
+        pickupPh: "Hotel, Building or Address",
+        dropoff: "Drop-off Destination",
+        dropoffPh: "Destination Name or Address",
+        store: "Store / Pickup Point",
+        storePh: "Store name, Mall branch or Pickup address",
+        delivery: "Delivery Destination",
+        deliveryPh: "Unit, Building name or Street",
+        items: "Purchase Items & Instructions",
+        itemsPh: "e.g. 2x Hot Latte, Sugar-free / Fragile item",
+        itemcost: "Estimated Goods Cost (PHP)",
+        distance: "Estimated Distance",
+        tipTitle: "Priority Tip",
+        tipSub: "100% to driver",
+        tipCustomPh: "Custom Tip",
+        totalEst: "Estimated Total",
+        driverPayout: "Driver Payout",
+        btnRequest: "REQUEST PRIVATE DRIVER",
+        modalDispatching: "Dispatching Chauffeur",
+        modalConnecting: "Connecting to exclusive fleet in real-time...",
+        modalOrderPrefix: "Order ID",
+        btnCancel: "Cancel Request",
+        matchedBadge: "Matched Private Chauffeur",
+        driverHeading: "Driver is heading to your pick-up point.",
+        matchedPay: "Total Payable:",
+        matchedService: "Service:",
+        matchedPlate: "Vehicle / Plate:",
+        btnDone: "Done",
+        alertInfo: "Please provide your name and mobile number.",
+        alertMobility: "Please enter both Pick-up and Destination addresses.",
+        alertConcierge: "Please enter Store/Pickup point and Delivery destination."
+      },
+      zh: {
+        langBtn: "繁中",
+        statusOnline: "VIP 營運中",
+        step1: "01. 選擇專屬服務類別",
+        tabMobility: "專屬出行 (Mobility)",
+        tabConcierge: "禮賓管家 (Concierge)",
+        motoTitle: "尊榮機車",
+        motoSub: "城市極速通勤",
+        carTitle: "商務轎車",
+        carSub: "冷氣豪華座駕",
+        expTitle: "極速快遞",
+        expSub: "專人貴重文件直送",
+        pabTitle: "尊榮代購",
+        pabSub: "代排代買・採購管家",
+        step2: "02. 貴賓與行程資訊",
+        custName: "貴賓稱呼",
+        custNamePh: "例如：黃先生",
+        custPhone: "聯絡電話",
+        pickup: "上車地點",
+        pickupPh: "輸入飯店、大樓或精確地址",
+        dropoff: "下車目的地",
+        dropoffPh: "輸入抵達地點",
+        store: "採買／取件店家",
+        storePh: "輸入店家名稱、專櫃或取件地址",
+        delivery: "送達目的地",
+        deliveryPh: "輸入送達地址或大樓門牌",
+        items: "採買明細 / 備註事項",
+        itemsPh: "例如：星巴克熱拿鐵 2 杯微糖、易碎品直送",
+        itemcost: "代墊商品預估金額 (PHP)",
+        distance: "預估行程里程",
+        tipTitle: "專屬管家加速金 (小費)",
+        tipSub: "100% 全歸司機・秒速搶單",
+        tipCustomPh: "自訂小費金額",
+        totalEst: "即時動態預估總額",
+        driverPayout: "司機淨收益",
+        btnRequest: "呼叫專屬管家車隊",
+        modalDispatching: "車隊派單調度中",
+        modalConnecting: "毫秒級即時網絡正為您調度專屬司機...",
+        modalOrderPrefix: "訂單編號",
+        btnCancel: "取消調度",
+        matchedBadge: "已為您指派尊榮司機",
+        driverHeading: "司機已確認接單，即將前來為您服務。",
+        matchedPay: "應付總額:",
+        matchedService: "服務類別:",
+        matchedPlate: "車牌車輛:",
+        btnDone: "返回主畫面",
+        alertInfo: "請完整填寫貴賓稱呼與聯絡電話。",
+        alertMobility: "請完整輸入上車地點與目的地。",
+        alertConcierge: "請完整輸入店家/取件點與送達地址。"
+      }
+    };
+
+    function setLanguage(lang) {
+      currentLang = lang;
+      localStorage.setItem('r2g_lang', lang);
+      const dict = I18N[lang];
+
+      document.getElementById('langLabel').innerText = dict.langBtn;
+      document.getElementById('txt-status-online').innerText = dict.statusOnline;
+      document.getElementById('lbl-step1').innerText = dict.step1;
+      document.getElementById('txt-tab-mobility').innerText = dict.tabMobility;
+      document.getElementById('txt-tab-concierge').innerText = dict.tabConcierge;
+
+      document.getElementById('txt-card-moto-title').innerText = dict.motoTitle;
+      document.getElementById('txt-card-moto-sub').innerText = dict.motoSub;
+      document.getElementById('txt-card-car-title').innerText = dict.carTitle;
+      document.getElementById('txt-card-car-sub').innerText = dict.carSub;
+      document.getElementById('txt-card-exp-title').innerText = dict.expTitle;
+      document.getElementById('txt-card-exp-sub').innerText = dict.expSub;
+      document.getElementById('txt-card-pab-title').innerText = dict.pabTitle;
+      document.getElementById('txt-card-pab-sub').innerText = dict.pabSub;
+
+      document.getElementById('lbl-step2').innerText = dict.step2;
+      document.getElementById('lbl-cust-name').innerText = dict.custName;
+      document.getElementById('custName').placeholder = dict.custNamePh;
+      document.getElementById('lbl-cust-phone').innerText = dict.custPhone;
+      document.getElementById('lbl-pickup').innerText = dict.pickup;
+      document.getElementById('pickupLoc').placeholder = dict.pickupPh;
+      document.getElementById('lbl-dropoff').innerText = dict.dropoff;
+      document.getElementById('dropoffLoc').placeholder = dict.dropoffPh;
+
+      document.getElementById('lbl-store').innerText = dict.store;
+      document.getElementById('conciergePickup').placeholder = dict.storePh;
+      document.getElementById('lbl-delivery').innerText = dict.delivery;
+      document.getElementById('conciergeDropoff').placeholder = dict.deliveryPh;
+      document.getElementById('lbl-items').innerText = dict.items;
+      document.getElementById('itemList').placeholder = dict.itemsPh;
+      document.getElementById('lbl-itemcost').innerText = dict.itemcost;
+      document.getElementById('lbl-distance').innerText = dict.distance;
+
+      document.getElementById('lbl-tip-title').innerText = dict.tipTitle;
+      document.getElementById('lbl-tip-sub').innerText = dict.tipSub;
+      document.getElementById('priorityTip').placeholder = dict.tipCustomPh;
+      document.getElementById('lbl-total-estimate').innerText = dict.totalEst;
+      document.getElementById('lbl-driver-payout').innerText = dict.driverPayout;
+      document.getElementById('txt-btn-request').innerText = dict.btnRequest;
+
+      document.getElementById('txt-modal-dispatching').innerText = dict.modalDispatching;
+      document.getElementById('txt-modal-connecting').innerText = dict.modalConnecting;
+      document.getElementById('txt-modal-orderid-prefix').innerText = dict.modalOrderPrefix;
+      document.getElementById('btnCancelOrder').innerText = dict.btnCancel;
+      document.getElementById('txt-matched-badge').innerText = dict.matchedBadge;
+      document.getElementById('driverContact').innerText = dict.driverHeading;
+      document.getElementById('lbl-matched-pay').innerText = dict.matchedPay;
+      document.getElementById('lbl-matched-service').innerText = dict.matchedService;
+      document.getElementById('lbl-matched-plate').innerText = dict.matchedPlate;
+      document.getElementById('btnDoneOrder').innerText = dict.btnDone;
+
+      updateCardBadges();
+      calculateEstimate();
+    }
+
+    function toggleLang() {
+      const nextLang = currentLang === 'en' ? 'zh' : 'en';
+      setLanguage(nextLang);
+    }
+
+    // --- 2. FIREBASE CONFIG ---
     const firebaseConfig = {
       apiKey: "AIzaSyB5vPG43r4ULBFe66cYAceyE5nfFoAwSEs",
       authDomain: "gen-lang-client-0194528491.firebaseapp.com",
@@ -352,22 +530,28 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
 
-    // Google Apps Script Webhook (同步備援與 Telegram 通知)
     const GAS_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbxuT2lHTit53Ezz1eAzKwgIkSM7OVwzQMbGkA-TvYGVerxsNKnZgy5kDz-aVJkB2lJZ/exec";
 
-    // --- 2. 費率核心演算法 (依試算表動態同步，絕無寫死) ---
+    // --- 3. DYNAMIC FARE ENGINE ---
     let currentCategory = 'mobility';
     let currentService = 'RIDE_MOTO';
     let unsubscribeOrder = null;
 
     let RATES = {
-      RIDE_MOTO: { base: 40, baseKm: 2, perKm: 10, commType: 'PERCENT', commVal: 0.15, name: '尊榮機車' },
-      RIDE_CAR:  { base: 70, baseKm: 2, perKm: 18, commType: 'PERCENT', commVal: 0.20, name: '商務轎車' },
-      EXPRESS:   { base: 50, baseKm: 2, perKm: 12, commType: 'FIXED',   commVal: 15,   name: '極速快遞' },
-      PABILI:    { base: 60, baseKm: 2, perKm: 11, commType: 'FIXED',   commVal: 10,   name: '尊榮代購' }
+      RIDE_MOTO: { base: 40, baseKm: 2, perKm: 10, commType: 'PERCENT', commVal: 0.15, nameEn: 'Moto Express', nameZh: '尊榮機車' },
+      RIDE_CAR:  { base: 70, baseKm: 2, perKm: 18, commType: 'PERCENT', commVal: 0.20, nameEn: 'Executive Sedan', nameZh: '商務轎車' },
+      EXPRESS:   { base: 50, baseKm: 2, perKm: 12, commType: 'FIXED',   commVal: 15,   nameEn: 'Instant Parcel', nameZh: '極速快遞' },
+      PABILI:    { base: 60, baseKm: 2, perKm: 11, commType: 'FIXED',   commVal: 10,   nameEn: 'Pabili Concierge', nameZh: '尊榮代購' }
     };
 
-    // 分頁切換 (Mobility vs Concierge)
+    function updateCardBadges() {
+      const prefix = currentLang === 'en' ? 'From' : '起步';
+      document.getElementById('badge-RIDE_MOTO').innerText = `${prefix} ₱${RATES.RIDE_MOTO.base}`;
+      document.getElementById('badge-RIDE_CAR').innerText  = `${prefix} ₱${RATES.RIDE_CAR.base}`;
+      document.getElementById('badge-EXPRESS').innerText   = `${prefix} ₱${RATES.EXPRESS.base}`;
+      document.getElementById('badge-PABILI').innerText    = `${prefix} ₱${RATES.PABILI.base}`;
+    }
+
     function switchCategory(cat) {
       currentCategory = cat;
       const tabMobility = document.getElementById('tab-mobility');
@@ -396,16 +580,12 @@
       }
     }
 
-    // 服務卡片切換
     function selectService(type) {
       currentService = type;
-      document.querySelectorAll('.service-card').forEach(c => {
-        c.classList.remove('gold-border-glow');
-      });
+      document.querySelectorAll('.service-card').forEach(c => c.classList.remove('gold-border-glow'));
       const target = document.getElementById(`card-${type}`);
       if (target) target.classList.add('gold-border-glow');
 
-      // 控制代購專屬欄位顯示
       const pabiliFields = document.getElementById('pabiliFieldGroup');
       const costFields = document.getElementById('itemCostGroup');
       if (type === 'PABILI') {
@@ -415,7 +595,6 @@
         pabiliFields.classList.add('hidden');
         costFields.classList.add('hidden');
       }
-
       calculateEstimate();
     }
 
@@ -430,7 +609,6 @@
       calculateEstimate();
     }
 
-    // 動態金額試算引擎
     function calculateEstimate() {
       const dist = parseFloat(document.getElementById('distance').value);
       document.getElementById('distVal').innerText = `${dist.toFixed(1)} km`;
@@ -446,25 +624,22 @@
       const deliveryFee = (rule.base + (extraKm * rule.perKm)) * surgeMultiplier + surgeFlat;
       const totalCustomerPay = deliveryFee + itemCost + tip;
 
-      let commission = 0;
-      if (rule.commType === 'PERCENT') {
-        commission = deliveryFee * rule.commVal;
-      } else {
-        commission = rule.commVal;
-      }
+      let commission = (rule.commType === 'PERCENT') ? (deliveryFee * rule.commVal) : rule.commVal;
       const driverPayout = totalCustomerPay - commission;
 
       document.getElementById('estTotal').innerText = totalCustomerPay.toFixed(2);
-      document.getElementById('estPayout').innerText = `約 ₱${driverPayout.toFixed(2)}`;
+      const prefix = currentLang === 'en' ? 'approx.' : '約';
+      document.getElementById('estPayout').innerText = `${prefix} ₱${driverPayout.toFixed(2)}`;
     }
 
-    // --- 3. 呼叫專案下單與毫秒級監聽 (FIRESTORE) ---
+    // --- 4. 提交下單與 Firestore 監聽 ---
     async function requestOrder() {
+      const dict = I18N[currentLang];
       const custName = document.getElementById('custName').value.trim();
       const custPhone = document.getElementById('custPhone').value.trim();
 
       if (!custName || !custPhone) {
-        alert('請完整填寫貴賓稱呼與聯絡電話');
+        alert(dict.alertInfo);
         return;
       }
 
@@ -473,7 +648,7 @@
         from = document.getElementById('pickupLoc').value.trim();
         to = document.getElementById('dropoffLoc').value.trim();
         if (!from || !to) {
-          alert('請輸入完整上車地點與目的地');
+          alert(dict.alertMobility);
           return;
         }
       } else {
@@ -481,7 +656,7 @@
         to = document.getElementById('conciergeDropoff').value.trim();
         notes = document.getElementById('itemList').value.trim();
         if (!from || !to) {
-          alert('請完整填寫取件/採買地點與送達地址');
+          alert(dict.alertConcierge);
           return;
         }
       }
@@ -491,14 +666,15 @@
       const tip = parseFloat(document.getElementById('priorityTip').value) || 0;
       const finalPrice = parseFloat(document.getElementById('estTotal').innerText);
 
-      // 樂觀更新：0.01 秒立刻彈出派單雷達
       document.getElementById('dispatchModal').classList.remove('hidden');
       document.getElementById('radarSection').classList.remove('hidden');
       document.getElementById('matchedCard').classList.add('hidden');
-      document.getElementById('modalOrderId').innerText = '調度生成中...';
+      document.getElementById('modalOrderId').innerText = 'Generating...';
 
       const orderId = 'OD-' + Math.floor(100000 + Math.random() * 900000);
       document.getElementById('modalOrderId').innerText = orderId;
+
+      const currentServiceName = currentLang === 'en' ? RATES[currentService].nameEn : RATES[currentService].nameZh;
 
       const orderData = {
         orderId: orderId,
@@ -507,7 +683,7 @@
         customerInfo: `${custName} (${custPhone})`,
         category: currentCategory,
         serviceId: currentService,
-        serviceName: RATES[currentService].name,
+        serviceName: currentServiceName,
         origin: from,
         destination: to,
         distance: dist,
@@ -520,13 +696,9 @@
       };
 
       try {
-        // 1. 寫入 Firestore 即時資料庫
         await db.collection("ride_orders").doc(orderId).set(orderData);
-
-        // 2. 毫秒級雙向即時監聽 (取代 2 秒輪詢)
         subscribeToOrder(orderId);
 
-        // 3. 背景非同步通知 GAS (推播 Telegram Bot 並寫入 Google Sheets 備援)
         fetch(GAS_WEBHOOK_URL, {
           method: 'POST',
           mode: 'no-cors',
@@ -535,16 +707,15 @@
             action: 'NEW_ORDER',
             ...orderData
           })
-        }).catch(e => console.warn('GAS 備援寫入中...', e));
+        }).catch(e => console.warn('Sync in background:', e));
 
       } catch (err) {
-        console.error("訂單寫入失敗:", err);
-        alert("網路連線不穩定，請重新呼叫。");
+        console.error("Firestore Write Failed:", err);
+        alert(currentLang === 'en' ? "Connection error. Please try again." : "網路連線異常，請重試。");
         cancelAndReset();
       }
     }
 
-    // Firestore 雙向即時監聽函式 (0.1秒反應)
     function subscribeToOrder(orderId) {
       if (unsubscribeOrder) unsubscribeOrder();
 
@@ -556,7 +727,7 @@
           showMatchedDriver(data);
         }
       }, err => {
-        console.warn("即時監聽中斷:", err);
+        console.warn("Realtime listener error:", err);
       });
     }
 
@@ -564,15 +735,16 @@
       document.getElementById('radarSection').classList.add('hidden');
       document.getElementById('matchedCard').classList.remove('hidden');
       
-      document.getElementById('driverName').innerText = data.driverName || '特約尊榮司機';
+      document.getElementById('driverName').innerText = data.driverName || (currentLang === 'en' ? 'Assigned Driver' : '特約尊榮司機');
       if (data.driverPhone) {
-        document.getElementById('driverContact').innerText = `已確認接單・專屬電話：${data.driverPhone}`;
+        const phoneLabel = currentLang === 'en' ? 'Direct Line:' : '聯絡電話：';
+        document.getElementById('driverContact').innerText = `${phoneLabel} ${data.driverPhone}`;
       }
       if (data.driverPlate) {
         document.getElementById('driverPlate').innerText = data.driverPlate;
       }
       document.getElementById('cardPay').innerText = `₱${parseFloat(data.totalPay || 0).toFixed(2)}`;
-      document.getElementById('cardService').innerText = data.serviceName || RATES[currentService].name;
+      document.getElementById('cardService').innerText = data.serviceName || (currentLang === 'en' ? RATES[currentService].nameEn : RATES[currentService].nameZh);
     }
 
     function cancelAndReset() {
@@ -580,7 +752,6 @@
       document.getElementById('dispatchModal').classList.add('hidden');
     }
 
-    // 自動從後端拉取最新動態費率 (保持與試算表同步)
     async function fetchLatestRates() {
       try {
         const res = await fetch(GAS_WEBHOOK_URL);
@@ -595,22 +766,16 @@
               RATES[k].commVal = data.rates[k].commVal;
             }
           });
-
-          // 更新卡片起步價標籤
-          document.getElementById('badge-RIDE_MOTO').innerText = `起步 ₱${RATES.RIDE_MOTO.base}`;
-          document.getElementById('badge-RIDE_CAR').innerText  = `起步 ₱${RATES.RIDE_CAR.base}`;
-          document.getElementById('badge-EXPRESS').innerText   = `起步 ₱${RATES.EXPRESS.base}`;
-          document.getElementById('badge-PABILI').innerText    = `起步 ₱${RATES.PABILI.base}`;
-
+          updateCardBadges();
           calculateEstimate();
-          console.log("✅ 成功同步後端最新費率！", RATES);
         }
       } catch (err) {
-        console.warn("使用預設費率中:", err);
+        console.warn("Using default rates:", err);
       }
     }
 
-    // 初始化載入
+    // 初始化：預設英文並套用儲存的偏好
+    setLanguage(currentLang);
     fetchLatestRates();
   </script>
 </body>
