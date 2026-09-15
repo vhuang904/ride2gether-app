@@ -295,7 +295,7 @@
           🛣️
         </div>
         <div>
-          <div class="text-[10px] font-bold tracking-wider text-slate-400 uppercase">ESTIMATED ROUTE</div>
+          <div id="lbl-distance" class="text-[10px] font-bold tracking-wider text-slate-400 uppercase">ESTIMATED ROUTE</div>
           <div id="distVal" class="text-sm font-black text-slate-800">-- km</div>
         </div>
       </div>
@@ -531,6 +531,10 @@
       localStorage.setItem('r2g_lang', lang);
       const dict = I18N[lang];
 
+      const setText = (id, val) => {
+    const el = document.getElementById(id);
+    if (el && val !== undefined) el.innerText = val;
+  };
       const pillEn = document.getElementById('pill-en');
       const pillZh = document.getElementById('pill-zh');
       if (lang === 'en') {
@@ -570,7 +574,7 @@
       document.getElementById('lbl-items').innerText = dict.items;
       document.getElementById('itemList').placeholder = dict.itemsPh;
       document.getElementById('lbl-itemcost').innerText = dict.itemcost;
-      document.getElementById('lbl-distance').innerText = dict.distance;
+      setText('lbl-distance', dict.distance || 'ESTIMATED ROUTE');
 
       document.getElementById('lbl-tip-title').innerText = dict.tipTitle;
       document.getElementById('lbl-tip-sub').innerText = dict.tipSub;
