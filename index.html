@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -7,10 +7,10 @@
   
   <!-- PWA Meta -->
   <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#0D0E11">
+  <meta name="theme-color" content="#F8FAFC">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <link rel="apple-touch-icon" href="https://img.icons8.com/fluency-systems-filled/192/D4AF37/crown.png">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="apple-touch-icon" href="https://img.icons8.com/fluency-systems-filled/192/1E40AF/crown.png">
 
   <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
@@ -20,21 +20,26 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 
   <script>
     tailwind.config = {
       theme: {
         extend: {
           colors: {
-            noir: '#0D0E11',
-            obsidian: '#15171C',
-            graphite: '#22252D',
-            gold: {
-              300: '#F3E5AB',
-              400: '#E5C07B',
-              500: '#D4AF37',
-              600: '#AA8825'
+            pearl: '#F8FAFC',
+            surface: '#FFFFFF',
+            navy: {
+              900: '#0F172A',
+              800: '#1E293B',
+              700: '#334155',
+              600: '#475569'
+            },
+            royal: {
+              DEFAULT: '#1E40AF',
+              hover: '#1D4ED8',
+              soft: '#EFF6FF',
+              border: '#BFDBFE'
             }
           },
           fontFamily: {
@@ -48,23 +53,24 @@
 
   <style>
     body {
-      background-color: #0D0E11;
+      background-color: #F8FAFC;
+      color: #0F172A;
       font-family: 'Plus Jakarta Sans', sans-serif;
       -webkit-tap-highlight-color: transparent;
       user-select: none;
     }
-    .gold-gradient-text {
-      background: linear-gradient(135deg, #FFF0C2 0%, #D4AF37 50%, #9B7B1F 100%);
+    .navy-gradient-text {
+      background: linear-gradient(135deg, #0F172A 0%, #1E40AF 100%);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
     }
-    .gold-border-glow {
-      border: 1px solid rgba(212, 175, 55, 0.45) !important;
-      box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.7), 0 0 18px -2px rgba(212, 175, 55, 0.25) !important;
-      background: linear-gradient(180deg, rgba(212, 175, 55, 0.08) 0%, #15171C 100%) !important;
+    .card-active {
+      border: 1.5px solid #1E40AF !important;
+      background: #EFF6FF !important;
+      box-shadow: 0 10px 25px -5px rgba(30, 64, 175, 0.12), 0 0 0 1px rgba(30, 64, 175, 0.15) !important;
     }
-    .glass-panel {
-      background: rgba(21, 23, 28, 0.85);
+    .glass-nav {
+      background: rgba(255, 255, 255, 0.92);
       backdrop-filter: blur(16px);
       -webkit-backdrop-filter: blur(16px);
     }
@@ -78,23 +84,23 @@
     }
   </style>
 </head>
-<body class="text-gray-200 min-h-screen flex flex-col justify-between selection:bg-gold-500 selection:text-black">
+<body class="min-h-screen flex flex-col justify-between selection:bg-royal selection:text-white">
 
-  <!-- Header 頂部品牌列與語言切換 -->
-  <header class="sticky top-0 z-40 glass-panel border-b border-white/5 px-6 py-4 flex items-center justify-between">
+  <!-- Header: 珍珠白底 + 深藍文字與切換鈕 -->
+  <header class="sticky top-0 z-40 glass-nav border-b border-slate-200/80 px-6 py-4 flex items-center justify-between shadow-sm">
     <div>
-      <h1 class="font-serif text-lg tracking-widest gold-gradient-text font-bold uppercase">Ride2gether</h1>
-      <p class="text-[10px] tracking-[0.25em] text-gray-400 uppercase">Private Concierge & Mobility</p>
+      <h1 class="font-serif text-lg tracking-widest navy-gradient-text font-bold uppercase">Ride2gether</h1>
+      <p class="text-[10px] tracking-[0.25em] text-slate-500 uppercase">Private Concierge & Mobility</p>
     </div>
     <div class="flex items-center space-x-3">
       <!-- 語言切換按鈕 -->
       <button onclick="toggleLang()" id="btnLangToggle"
-              class="px-2.5 py-1 rounded-full border border-gold-500/40 bg-gold-500/10 text-gold-300 text-xs font-semibold hover:bg-gold-500/20 active:scale-95 transition flex items-center space-x-1">
+              class="px-3 py-1 rounded-full border border-royal/30 bg-royal-soft text-royal text-xs font-semibold hover:bg-royal/10 active:scale-95 transition">
         <span id="langLabel">EN / 繁中</span>
       </button>
       <div class="flex items-center space-x-1.5">
-        <span class="inline-block w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#34D399]"></span>
-        <span id="txt-status-online" class="text-xs text-gray-300 font-medium">VIP Active</span>
+        <span class="inline-block w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></span>
+        <span id="txt-status-online" class="text-xs text-slate-600 font-medium">VIP Active</span>
       </div>
     </div>
   </header>
@@ -102,21 +108,21 @@
   <!-- 主視窗容器 -->
   <main class="flex-1 max-w-md w-full mx-auto p-5 space-y-6 pb-24">
 
-    <!-- Step 1: 類別選擇 -->
+    <!-- Step 1: 服務場景分類 -->
     <section class="space-y-3">
-      <label id="lbl-step1" class="block text-xs font-semibold uppercase tracking-widest text-gold-400">
+      <label id="lbl-step1" class="block text-xs font-semibold uppercase tracking-widest text-royal">
         01. Select Service Category
       </label>
 
-      <!-- Segmented Control -->
-      <div class="grid grid-cols-2 p-1 bg-obsidian border border-white/5 rounded-xl">
+      <!-- Segmented Control (白底藍字切換) -->
+      <div class="grid grid-cols-2 p-1 bg-slate-200/70 border border-slate-200 rounded-xl">
         <button type="button" id="tab-mobility" onclick="switchCategory('mobility')"
-                class="py-2.5 rounded-lg text-xs font-semibold tracking-wider flex items-center justify-center space-x-2 transition-all duration-300 bg-graphite text-gold-400 shadow">
+                class="py-2.5 rounded-lg text-xs font-semibold tracking-wider flex items-center justify-center space-x-2 transition-all duration-300 bg-white text-royal shadow-sm">
           <svg class="w-4 h-4 stroke-current fill-none stroke-[1.8]" viewBox="0 0 24 24"><circle cx="6" cy="18" r="3"/><circle cx="18" cy="18" r="3"/><path d="M6 18l4-9h4l2 4.5M10 9l2-4h3"/></svg>
           <span id="txt-tab-mobility">Mobility</span>
         </button>
         <button type="button" id="tab-concierge" onclick="switchCategory('concierge')"
-                class="py-2.5 rounded-lg text-xs font-semibold tracking-wider flex items-center justify-center space-x-2 transition-all duration-300 text-gray-400 hover:text-white">
+                class="py-2.5 rounded-lg text-xs font-semibold tracking-wider flex items-center justify-center space-x-2 transition-all duration-300 text-slate-600 hover:text-navy-900">
           <svg class="w-4 h-4 stroke-current fill-none stroke-[1.8]" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
           <span id="txt-tab-concierge">Concierge</span>
         </button>
@@ -125,219 +131,218 @@
       <!-- Mobility 服務卡片 -->
       <div id="grid-mobility" class="grid grid-cols-2 gap-3.5">
         <div onclick="selectService('RIDE_MOTO')" id="card-RIDE_MOTO"
-             class="service-card cursor-pointer p-4 rounded-2xl bg-obsidian border border-white/5 hover:border-gold-500/50 transition-all duration-300 gold-border-glow flex flex-col justify-between">
+             class="service-card cursor-pointer p-4 rounded-2xl bg-white border border-slate-200 hover:border-royal transition-all duration-300 card-active flex flex-col justify-between shadow-sm">
           <div>
-            <div class="w-8 h-8 rounded-lg bg-gold-500/10 flex items-center justify-center mb-3">
-              <svg class="w-5 h-5 text-gold-400 stroke-current fill-none stroke-[1.8]" viewBox="0 0 24 24"><circle cx="6" cy="18" r="3"/><circle cx="18" cy="18" r="3"/><path d="M6 18l4-9h4l2 4.5M10 9l2-4h3"/></svg>
+            <div class="w-8 h-8 rounded-lg bg-royal-soft flex items-center justify-center mb-3">
+              <svg class="w-5 h-5 text-royal stroke-current fill-none stroke-[1.8]" viewBox="0 0 24 24"><circle cx="6" cy="18" r="3"/><circle cx="18" cy="18" r="3"/><path d="M6 18l4-9h4l2 4.5M10 9l2-4h3"/></svg>
             </div>
-            <div id="txt-card-moto-title" class="font-semibold text-sm text-white">Moto Express</div>
-            <div id="txt-card-moto-sub" class="text-[11px] text-gray-400 mt-0.5">Fast Urban Transit</div>
+            <div id="txt-card-moto-title" class="font-semibold text-sm text-navy-900">Moto Express</div>
+            <div id="txt-card-moto-sub" class="text-[11px] text-slate-500 mt-0.5">Fast Urban Transit</div>
           </div>
-          <div id="badge-RIDE_MOTO" class="text-[11px] text-gold-400 mt-3 font-mono">From ₱40</div>
+          <div id="badge-RIDE_MOTO" class="text-[11px] text-royal font-semibold mt-3 font-mono">From ₱40</div>
         </div>
 
         <div onclick="selectService('RIDE_CAR')" id="card-RIDE_CAR"
-             class="service-card cursor-pointer p-4 rounded-2xl bg-obsidian border border-white/5 hover:border-gold-500/50 transition-all duration-300 flex flex-col justify-between">
+             class="service-card cursor-pointer p-4 rounded-2xl bg-white border border-slate-200 hover:border-royal transition-all duration-300 flex flex-col justify-between shadow-sm">
           <div>
-            <div class="w-8 h-8 rounded-lg bg-gold-500/10 flex items-center justify-center mb-3">
-              <svg class="w-5 h-5 text-gold-400 stroke-current fill-none stroke-[1.8]" viewBox="0 0 24 24"><path d="M3 12h18M5 12V7a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v5M4 17h16M7 17a2 2 0 1 1-4 0M21 17a2 2 0 1 1-4 0"/></svg>
+            <div class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center mb-3">
+              <svg class="w-5 h-5 text-slate-700 stroke-current fill-none stroke-[1.8]" viewBox="0 0 24 24"><path d="M3 12h18M5 12V7a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v5M4 17h16M7 17a2 2 0 1 1-4 0M21 17a2 2 0 1 1-4 0"/></svg>
             </div>
-            <div id="txt-card-car-title" class="font-semibold text-sm text-white">Executive Sedan</div>
-            <div id="txt-card-car-sub" class="text-[11px] text-gray-400 mt-0.5">Air-con Luxury Ride</div>
+            <div id="txt-card-car-title" class="font-semibold text-sm text-navy-900">Executive Sedan</div>
+            <div id="txt-card-car-sub" class="text-[11px] text-slate-500 mt-0.5">Air-con Luxury Ride</div>
           </div>
-          <div id="badge-RIDE_CAR" class="text-[11px] text-gold-400/80 mt-3 font-mono">From ₱70</div>
+          <div id="badge-RIDE_CAR" class="text-[11px] text-slate-600 font-semibold mt-3 font-mono">From ₱70</div>
         </div>
       </div>
 
       <!-- Concierge 服務卡片 -->
       <div id="grid-concierge" class="grid grid-cols-2 gap-3.5 hidden">
         <div onclick="selectService('EXPRESS')" id="card-EXPRESS"
-             class="service-card cursor-pointer p-4 rounded-2xl bg-obsidian border border-white/5 hover:border-gold-500/50 transition-all duration-300 flex flex-col justify-between">
+             class="service-card cursor-pointer p-4 rounded-2xl bg-white border border-slate-200 hover:border-royal transition-all duration-300 flex flex-col justify-between shadow-sm">
           <div>
-            <div class="w-8 h-8 rounded-lg bg-gold-500/10 flex items-center justify-center mb-3">
-              <svg class="w-5 h-5 text-gold-400 stroke-current fill-none stroke-[1.8]" viewBox="0 0 24 24"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            <div class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center mb-3">
+              <svg class="w-5 h-5 text-slate-700 stroke-current fill-none stroke-[1.8]" viewBox="0 0 24 24"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
             </div>
-            <div id="txt-card-exp-title" class="font-semibold text-sm text-white">Instant Parcel</div>
-            <div id="txt-card-exp-sub" class="text-[11px] text-gray-400 mt-0.5">Direct Document Delivery</div>
+            <div id="txt-card-exp-title" class="font-semibold text-sm text-navy-900">Instant Parcel</div>
+            <div id="txt-card-exp-sub" class="text-[11px] text-slate-500 mt-0.5">Direct Document Delivery</div>
           </div>
-          <div id="badge-EXPRESS" class="text-[11px] text-gold-400/80 mt-3 font-mono">From ₱50</div>
+          <div id="badge-EXPRESS" class="text-[11px] text-slate-600 font-semibold mt-3 font-mono">From ₱50</div>
         </div>
 
         <div onclick="selectService('PABILI')" id="card-PABILI"
-             class="service-card cursor-pointer p-4 rounded-2xl bg-obsidian border border-white/5 hover:border-gold-500/50 transition-all duration-300 flex flex-col justify-between">
+             class="service-card cursor-pointer p-4 rounded-2xl bg-white border border-slate-200 hover:border-royal transition-all duration-300 flex flex-col justify-between shadow-sm">
           <div>
-            <div class="w-8 h-8 rounded-lg bg-gold-500/10 flex items-center justify-center mb-3">
-              <svg class="w-5 h-5 text-gold-400 stroke-current fill-none stroke-[1.8]" viewBox="0 0 24 24"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4zM3 6h18M16 10a4 4 0 0 1-8 0"/></svg>
+            <div class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center mb-3">
+              <svg class="w-5 h-5 text-slate-700 stroke-current fill-none stroke-[1.8]" viewBox="0 0 24 24"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4zM3 6h18M16 10a4 4 0 0 1-8 0"/></svg>
             </div>
-            <div id="txt-card-pab-title" class="font-semibold text-sm text-white">Pabili Concierge</div>
-            <div id="txt-card-pab-sub" class="text-[11px] text-gray-400 mt-0.5">Queuing & Purchasing</div>
+            <div id="txt-card-pab-title" class="font-semibold text-sm text-navy-900">Pabili Concierge</div>
+            <div id="txt-card-pab-sub" class="text-[11px] text-slate-500 mt-0.5">Queuing & Purchasing</div>
           </div>
-          <div id="badge-PABILI" class="text-[11px] text-gold-400 mt-3 font-mono">From ₱60</div>
+          <div id="badge-PABILI" class="text-[11px] text-slate-600 font-semibold mt-3 font-mono">From ₱60</div>
         </div>
       </div>
     </section>
 
-    <!-- Step 2: 貴賓與行程細節 -->
-    <section class="space-y-4 bg-obsidian/70 border border-white/5 rounded-2xl p-5 backdrop-blur-md">
-      <label id="lbl-step2" class="block text-xs font-semibold uppercase tracking-widest text-gold-400">
+    <!-- Step 2: 貴賓與行程細節輸入 -->
+    <section class="space-y-4 bg-white border border-slate-200/90 rounded-2xl p-5 shadow-sm">
+      <label id="lbl-step2" class="block text-xs font-semibold uppercase tracking-widest text-royal">
         02. Guest & Route Details
       </label>
 
       <!-- 稱呼 與 電話 -->
       <div class="grid grid-cols-2 gap-3">
         <div>
-          <label id="lbl-cust-name" class="text-[11px] text-gray-300 uppercase tracking-wider block mb-1">Guest Name</label>
+          <label id="lbl-cust-name" class="text-[11px] text-navy-800 font-medium uppercase tracking-wider block mb-1">Guest Name</label>
           <input type="text" id="custName" placeholder="e.g. Mr. Vincent"
-                 class="w-full bg-noir border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-gold-500 transition-colors">
+                 class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-navy-900 placeholder-slate-400 focus:outline-none focus:border-royal focus:bg-white transition-colors">
         </div>
         <div>
-          <label id="lbl-cust-phone" class="text-[11px] text-gray-300 uppercase tracking-wider block mb-1">Mobile Number</label>
+          <label id="lbl-cust-phone" class="text-[11px] text-navy-800 font-medium uppercase tracking-wider block mb-1">Mobile Number</label>
           <input type="tel" id="custPhone" placeholder="09XX-XXX-XXX"
-                 class="w-full bg-noir border border-white/10 rounded-xl px-3.5 py-2.5 text-sm font-mono text-white placeholder-gray-600 focus:outline-none focus:border-gold-500 transition-colors">
+                 class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm font-mono text-navy-900 placeholder-slate-400 focus:outline-none focus:border-royal focus:bg-white transition-colors">
         </div>
       </div>
 
-      <!-- 出行路線欄位 (Mobility) -->
+      <!-- 出行路線 (Mobility) -->
       <div id="fields-mobility" class="space-y-3">
         <div>
-          <label id="lbl-pickup" class="text-[11px] text-gray-300 uppercase tracking-wider block mb-1">Pick-up Location</label>
+          <label id="lbl-pickup" class="text-[11px] text-navy-800 font-medium uppercase tracking-wider block mb-1">Pick-up Location</label>
           <input type="text" id="pickupLoc" placeholder="Hotel, Building or Address"
-                 class="w-full bg-noir border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-gold-500 transition-colors">
+                 class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-navy-900 placeholder-slate-400 focus:outline-none focus:border-royal focus:bg-white transition-colors">
         </div>
         <div>
-          <label id="lbl-dropoff" class="text-[11px] text-gray-300 uppercase tracking-wider block mb-1">Drop-off Destination</label>
+          <label id="lbl-dropoff" class="text-[11px] text-navy-800 font-medium uppercase tracking-wider block mb-1">Drop-off Destination</label>
           <input type="text" id="dropoffLoc" placeholder="Destination Name or Address"
-                 class="w-full bg-noir border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-gold-500 transition-colors">
+                 class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-navy-900 placeholder-slate-400 focus:outline-none focus:border-royal focus:bg-white transition-colors">
         </div>
       </div>
 
-      <!-- 跑腿管家欄位 (Concierge) -->
+      <!-- 管家跑腿路線 (Concierge) -->
       <div id="fields-concierge" class="space-y-3 hidden">
         <div>
-          <label id="lbl-store" class="text-[11px] text-gray-300 uppercase tracking-wider block mb-1">Store / Pickup Point</label>
+          <label id="lbl-store" class="text-[11px] text-navy-800 font-medium uppercase tracking-wider block mb-1">Store / Pickup Point</label>
           <input type="text" id="conciergePickup" placeholder="Store name, Mall branch or Pickup address"
-                 class="w-full bg-noir border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-gold-500 transition-colors">
+                 class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-navy-900 placeholder-slate-400 focus:outline-none focus:border-royal focus:bg-white transition-colors">
         </div>
         <div>
-          <label id="lbl-delivery" class="text-[11px] text-gray-300 uppercase tracking-wider block mb-1">Delivery Destination</label>
+          <label id="lbl-delivery" class="text-[11px] text-navy-800 font-medium uppercase tracking-wider block mb-1">Delivery Destination</label>
           <input type="text" id="conciergeDropoff" placeholder="Unit, Building name or Street"
-                 class="w-full bg-noir border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-gold-500 transition-colors">
+                 class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-navy-900 placeholder-slate-400 focus:outline-none focus:border-royal focus:bg-white transition-colors">
         </div>
         <div id="pabiliFieldGroup">
-          <label id="lbl-items" class="text-[11px] text-gray-300 uppercase tracking-wider block mb-1">Purchase Items & Instructions</label>
+          <label id="lbl-items" class="text-[11px] text-navy-800 font-medium uppercase tracking-wider block mb-1">Purchase Items & Instructions</label>
           <input type="text" id="itemList" placeholder="e.g. 2x Hot Latte, Sugar-free / Fragile item"
-                 class="w-full bg-noir border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-gold-500 transition-colors">
+                 class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-navy-900 placeholder-slate-400 focus:outline-none focus:border-royal focus:bg-white transition-colors">
         </div>
         <div id="itemCostGroup">
-          <label id="lbl-itemcost" class="text-[11px] text-gray-300 uppercase tracking-wider block mb-1">Estimated Goods Cost (PHP)</label>
+          <label id="lbl-itemcost" class="text-[11px] text-navy-800 font-medium uppercase tracking-wider block mb-1">Estimated Goods Cost (PHP)</label>
           <input type="number" id="itemCost" value="0" oninput="calculateEstimate()"
-                 class="w-full bg-noir border border-white/10 rounded-xl px-3.5 py-2.5 text-sm font-mono text-white placeholder-gray-600 focus:outline-none focus:border-gold-500 transition-colors">
+                 class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm font-mono text-navy-900 placeholder-slate-400 focus:outline-none focus:border-royal focus:bg-white transition-colors">
         </div>
       </div>
 
-      <!-- 預估里程拉桿 -->
+      <!-- 里程拉桿 -->
       <div>
         <div class="flex justify-between items-center mb-1">
-          <label id="lbl-distance" class="text-[11px] text-gray-300 uppercase tracking-wider">Estimated Distance</label>
-          <span id="distVal" class="text-xs font-mono text-gold-400">5.0 km</span>
+          <label id="lbl-distance" class="text-[11px] text-navy-800 font-medium uppercase tracking-wider">Estimated Distance</label>
+          <span id="distVal" class="text-xs font-mono text-royal font-bold">5.0 km</span>
         </div>
         <input type="range" id="distance" min="1" max="30" step="0.5" value="5" oninput="calculateEstimate()"
-               class="w-full accent-gold-500 cursor-pointer">
+               class="w-full accent-royal cursor-pointer">
       </div>
 
       <!-- 加速小費 -->
       <div>
         <div class="flex justify-between items-center mb-1.5">
-          <label id="lbl-tip-title" class="text-[11px] text-gray-300 uppercase tracking-wider">Priority Tip</label>
-          <span id="lbl-tip-sub" class="text-[10px] text-gold-400">100% to driver</span>
+          <label id="lbl-tip-title" class="text-[11px] text-navy-800 font-medium uppercase tracking-wider">Priority Tip</label>
+          <span id="lbl-tip-sub" class="text-[10px] text-royal font-medium">100% to driver</span>
         </div>
         <div class="grid grid-cols-4 gap-2 mb-2">
-          <button type="button" onclick="setTip(0)" class="tip-btn py-1.5 rounded-lg border border-gold-500/50 text-xs text-gold-300 bg-obsidian active:scale-95 transition">₱0</button>
-          <button type="button" onclick="setTip(20)" class="tip-btn py-1.5 rounded-lg border border-white/10 text-xs text-gray-300 bg-obsidian active:scale-95 transition">+₱20</button>
-          <button type="button" onclick="setTip(50)" class="tip-btn py-1.5 rounded-lg border border-white/10 text-xs text-gray-300 bg-obsidian active:scale-95 transition">+₱50</button>
-          <button type="button" onclick="setTip(100)" class="tip-btn py-1.5 rounded-lg border border-white/10 text-xs text-gray-300 bg-obsidian active:scale-95 transition">+₱100</button>
+          <button type="button" onclick="setTip(0)" class="tip-btn py-1.5 rounded-lg border border-royal text-xs font-semibold text-royal bg-royal-soft active:scale-95 transition">₱0</button>
+          <button type="button" onclick="setTip(20)" class="tip-btn py-1.5 rounded-lg border border-slate-200 text-xs font-medium text-slate-600 bg-slate-50 active:scale-95 transition">+₱20</button>
+          <button type="button" onclick="setTip(50)" class="tip-btn py-1.5 rounded-lg border border-slate-200 text-xs font-medium text-slate-600 bg-slate-50 active:scale-95 transition">+₱50</button>
+          <button type="button" onclick="setTip(100)" class="tip-btn py-1.5 rounded-lg border border-slate-200 text-xs font-medium text-slate-600 bg-slate-50 active:scale-95 transition">+₱100</button>
         </div>
         <input type="number" id="priorityTip" value="0" placeholder="Custom Tip" oninput="calculateEstimate()"
-               class="w-full bg-noir border border-white/10 rounded-xl px-3.5 py-2 text-sm font-mono text-white placeholder-gray-600 focus:outline-none focus:border-gold-500 transition-colors">
+               class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-sm font-mono text-navy-900 placeholder-slate-400 focus:outline-none focus:border-royal focus:bg-white transition-colors">
       </div>
     </section>
 
     <!-- 價格儀表板 -->
-    <section class="glass-panel border border-gold-500/20 rounded-2xl p-5 relative overflow-hidden">
-      <div class="absolute -right-6 -bottom-6 w-24 h-24 bg-gold-500/10 rounded-full blur-2xl pointer-events-none"></div>
-      <div class="flex justify-between items-end">
+    <section class="bg-gradient-to-br from-navy-900 to-royal rounded-2xl p-5 text-white relative overflow-hidden shadow-lg">
+      <div class="flex justify-between items-end relative z-10">
         <div>
-          <span id="lbl-total-estimate" class="text-[10px] uppercase tracking-widest text-gray-400 block mb-1">Estimated Total</span>
+          <span id="lbl-total-estimate" class="text-[10px] uppercase tracking-widest text-blue-200 block mb-1">Estimated Total</span>
           <div class="text-3xl font-serif font-bold text-white tracking-tight flex items-baseline">
-            <span class="text-gold-400 text-lg mr-1">₱</span>
-            <span id="estTotal" class="gold-gradient-text font-mono">0.00</span>
+            <span class="text-blue-200 text-lg mr-1">₱</span>
+            <span id="estTotal" class="font-mono">0.00</span>
           </div>
         </div>
         <div class="text-right">
-          <span id="lbl-driver-payout" class="text-[10px] text-gray-400 block uppercase">Driver Payout</span>
-          <span id="estPayout" class="text-xs font-mono text-emerald-400">approx. ₱0.00</span>
+          <span id="lbl-driver-payout" class="text-[10px] text-blue-200 block uppercase">Driver Payout</span>
+          <span id="estPayout" class="text-xs font-mono text-emerald-300 font-semibold">approx. ₱0.00</span>
         </div>
       </div>
     </section>
 
-    <!-- 提交按鈕 -->
+    <!-- 呼叫按鈕 -->
     <button onclick="requestOrder()" id="btnSubmit"
-            class="w-full py-4 rounded-xl bg-gradient-to-r from-gold-500 via-gold-400 to-gold-600 text-black font-semibold tracking-wider text-sm shadow-[0_4px_25px_rgba(212,175,55,0.25)] hover:opacity-95 active:scale-[0.98] transition-all flex items-center justify-center space-x-2">
+            class="w-full py-4 rounded-xl bg-navy-900 hover:bg-royal text-white font-semibold tracking-wider text-sm shadow-md hover:shadow-lg active:scale-[0.98] transition-all flex items-center justify-center space-x-2">
       <span id="txt-btn-request">REQUEST PRIVATE DRIVER</span>
     </button>
   </main>
 
-  <!-- 派單狀態 Modal -->
-  <div id="dispatchModal" class="fixed inset-0 z-50 bg-noir/95 backdrop-blur-xl flex flex-col items-center justify-center p-6 hidden">
+  <!-- 派單狀態 Modal (白底俐落質感) -->
+  <div id="dispatchModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-md flex flex-col items-center justify-center p-6 hidden">
     
     <!-- 雷達掃描區 -->
-    <div id="radarSection" class="text-center space-y-6">
-      <div class="relative w-36 h-36 mx-auto flex items-center justify-center">
-        <div class="absolute inset-0 rounded-full border border-gold-500/30 animate-ping-slow"></div>
-        <div class="absolute inset-4 rounded-full border border-gold-500/50"></div>
-        <div class="w-16 h-16 rounded-full bg-gold-500/20 flex items-center justify-center border border-gold-400 shadow-[0_0_20px_rgba(212,175,55,0.4)]">
-          <span class="text-2xl animate-pulse">👑</span>
+    <div id="radarSection" class="w-full max-w-sm bg-white rounded-3xl p-7 text-center space-y-5 shadow-2xl border border-slate-100">
+      <div class="relative w-32 h-32 mx-auto flex items-center justify-center">
+        <div class="absolute inset-0 rounded-full border border-royal/30 animate-ping-slow"></div>
+        <div class="absolute inset-3 rounded-full border border-royal/40"></div>
+        <div class="w-14 h-14 rounded-full bg-royal-soft flex items-center justify-center border border-royal shadow-md">
+          <span class="text-xl">🚗</span>
         </div>
       </div>
       <div>
-        <h3 id="txt-modal-dispatching" class="font-serif text-lg text-white tracking-widest uppercase">Dispatching Chauffeur</h3>
-        <p id="txt-modal-connecting" class="text-xs text-gray-400 mt-1">Connecting to exclusive fleet in real-time...</p>
-        <div class="inline-block mt-3 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-xs font-mono text-gold-300">
+        <h3 id="txt-modal-dispatching" class="font-serif text-lg text-navy-900 font-bold uppercase">Dispatching Chauffeur</h3>
+        <p id="txt-modal-connecting" class="text-xs text-slate-500 mt-1">Connecting to exclusive fleet in real-time...</p>
+        <div class="inline-block mt-3 px-3 py-1 rounded-full bg-slate-100 border border-slate-200 text-xs font-mono text-navy-800">
           <span id="txt-modal-orderid-prefix">Order ID</span>: <span id="modalOrderId">Generating...</span>
         </div>
       </div>
-      <button onclick="cancelAndReset()" id="btnCancelOrder" class="px-5 py-2 rounded-full border border-white/10 text-xs text-gray-400 hover:text-white transition">
+      <button onclick="cancelAndReset()" id="btnCancelOrder" class="w-full py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition">
         Cancel Request
       </button>
     </div>
 
     <!-- 媒合成功卡片 -->
-    <div id="matchedCard" class="w-full max-w-sm bg-obsidian border border-gold-500/40 rounded-3xl p-6 text-center space-y-5 shadow-2xl hidden">
-      <div class="w-16 h-16 mx-auto rounded-full bg-emerald-500/20 border border-emerald-400 flex items-center justify-center">
-        <span class="text-2xl text-emerald-400">✓</span>
+    <div id="matchedCard" class="w-full max-w-sm bg-white border border-royal/30 rounded-3xl p-6 text-center space-y-5 shadow-2xl hidden">
+      <div class="w-16 h-16 mx-auto rounded-full bg-emerald-50 border border-emerald-400 flex items-center justify-center">
+        <span class="text-2xl text-emerald-600 font-bold">✓</span>
       </div>
       <div>
-        <span id="txt-matched-badge" class="text-[10px] tracking-widest text-gold-400 uppercase font-semibold">Matched Private Chauffeur</span>
-        <h4 id="driverName" class="text-xl font-bold text-white mt-0.5">Assigned Driver</h4>
-        <p id="driverContact" class="text-xs text-gray-400 mt-1">Driver is heading to your pick-up point.</p>
+        <span id="txt-matched-badge" class="text-[10px] tracking-widest text-royal uppercase font-semibold">Matched Private Chauffeur</span>
+        <h4 id="driverName" class="text-xl font-bold text-navy-900 mt-0.5">Assigned Driver</h4>
+        <p id="driverContact" class="text-xs text-slate-500 mt-1">Driver is heading to your pick-up point.</p>
       </div>
 
-      <div class="bg-noir/60 rounded-xl p-3 text-left border border-white/5 space-y-2 text-xs">
+      <div class="bg-slate-50 rounded-xl p-3.5 text-left border border-slate-200 space-y-2 text-xs">
         <div class="flex justify-between">
-          <span id="lbl-matched-pay" class="text-gray-400">Total Payable:</span>
-          <span id="cardPay" class="font-mono text-gold-400 font-semibold">₱0.00</span>
+          <span id="lbl-matched-pay" class="text-slate-500">Total Payable:</span>
+          <span id="cardPay" class="font-mono text-royal font-bold">₱0.00</span>
         </div>
         <div class="flex justify-between">
-          <span id="lbl-matched-service" class="text-gray-400">Service:</span>
-          <span id="cardService" class="text-gray-200">Mobility</span>
+          <span id="lbl-matched-service" class="text-slate-500">Service:</span>
+          <span id="cardService" class="text-navy-900 font-medium">Mobility</span>
         </div>
-        <div class="flex justify-between">
-          <span id="lbl-matched-plate" class="text-gray-400">Vehicle / Plate:</span>
-          <span id="driverPlate" class="text-gray-200 font-mono">Private Fleet</span>
+        <div class="flex justify-between" id="driverPlateRow">
+          <span id="lbl-matched-plate" class="text-slate-500">Vehicle / Plate:</span>
+          <span id="driverPlate" class="text-navy-900 font-mono font-medium">Private Fleet</span>
         </div>
       </div>
 
-      <button onclick="cancelAndReset()" id="btnDoneOrder" class="w-full py-3 rounded-xl bg-white/10 hover:bg-white/15 text-white text-xs font-semibold tracking-wider">
+      <button onclick="cancelAndReset()" id="btnDoneOrder" class="w-full py-3 rounded-xl bg-navy-900 hover:bg-royal text-white text-xs font-semibold tracking-wider transition">
         Done
       </button>
     </div>
@@ -345,7 +350,21 @@
   </div>
 
   <script>
-    // --- 1. 雙語字典系統 (預設英文 EN) ---
+    // --- 1. SERVICE WORKER 版本控管 (明確放置於最頂端，杜絕快取遺失) ---
+    const APP_VERSION = 'v1.0.1';
+
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register(`./sw.js?v=${APP_VERSION}`)
+          .then(reg => {
+            reg.update();
+            console.log(`[PWA] Service Worker Active (${APP_VERSION})`);
+          })
+          .catch(err => console.log('SW Error:', err));
+      });
+    }
+
+    // --- 2. 雙語字典系統 (預設英文 EN) ---
     let currentLang = localStorage.getItem('r2g_lang') || 'en';
 
     const I18N = {
@@ -408,9 +427,9 @@
         motoTitle: "尊榮機車",
         motoSub: "城市極速通勤",
         carTitle: "商務轎車",
-        carSub: "冷氣豪華座駕",
+        carSub: "冷氣商務座駕",
         expTitle: "極速快遞",
-        expSub: "專人貴重文件直送",
+        expSub: "專人文件貴重品直送",
         pabTitle: "尊榮代購",
         pabSub: "代排代買・採購管家",
         step2: "02. 貴賓與行程資訊",
@@ -516,7 +535,7 @@
       setLanguage(nextLang);
     }
 
-    // --- 2. FIREBASE CONFIG ---
+    // --- 3. FIREBASE CONFIG ---
     const firebaseConfig = {
       apiKey: "AIzaSyB5vPG43r4ULBFe66cYAceyE5nfFoAwSEs",
       authDomain: "gen-lang-client-0194528491.firebaseapp.com",
@@ -532,7 +551,7 @@
 
     const GAS_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbxuT2lHTit53Ezz1eAzKwgIkSM7OVwzQMbGkA-TvYGVerxsNKnZgy5kDz-aVJkB2lJZ/exec";
 
-    // --- 3. DYNAMIC FARE ENGINE ---
+    // --- 4. 動態費率核心 (試算表同步，不寫死) ---
     let currentCategory = 'mobility';
     let currentService = 'RIDE_MOTO';
     let unsubscribeOrder = null;
@@ -562,16 +581,16 @@
       const fieldsConcierge = document.getElementById('fields-concierge');
 
       if (cat === 'mobility') {
-        tabMobility.className = "py-2.5 rounded-lg text-xs font-semibold tracking-wider flex items-center justify-center space-x-2 transition-all duration-300 bg-graphite text-gold-400 shadow";
-        tabConcierge.className = "py-2.5 rounded-lg text-xs font-semibold tracking-wider flex items-center justify-center space-x-2 transition-all duration-300 text-gray-400 hover:text-white";
+        tabMobility.className = "py-2.5 rounded-lg text-xs font-semibold tracking-wider flex items-center justify-center space-x-2 transition-all duration-300 bg-white text-royal shadow-sm";
+        tabConcierge.className = "py-2.5 rounded-lg text-xs font-semibold tracking-wider flex items-center justify-center space-x-2 transition-all duration-300 text-slate-600 hover:text-navy-900";
         gridMobility.classList.remove('hidden');
         gridConcierge.classList.add('hidden');
         fieldsMobility.classList.remove('hidden');
         fieldsConcierge.classList.add('hidden');
         selectService('RIDE_MOTO');
       } else {
-        tabConcierge.className = "py-2.5 rounded-lg text-xs font-semibold tracking-wider flex items-center justify-center space-x-2 transition-all duration-300 bg-graphite text-gold-400 shadow";
-        tabMobility.className = "py-2.5 rounded-lg text-xs font-semibold tracking-wider flex items-center justify-center space-x-2 transition-all duration-300 text-gray-400 hover:text-white";
+        tabConcierge.className = "py-2.5 rounded-lg text-xs font-semibold tracking-wider flex items-center justify-center space-x-2 transition-all duration-300 bg-white text-royal shadow-sm";
+        tabMobility.className = "py-2.5 rounded-lg text-xs font-semibold tracking-wider flex items-center justify-center space-x-2 transition-all duration-300 text-slate-600 hover:text-navy-900";
         gridConcierge.classList.remove('hidden');
         gridMobility.classList.add('hidden');
         fieldsConcierge.classList.remove('hidden');
@@ -582,9 +601,22 @@
 
     function selectService(type) {
       currentService = type;
-      document.querySelectorAll('.service-card').forEach(c => c.classList.remove('gold-border-glow'));
+      document.querySelectorAll('.service-card').forEach(c => {
+        c.classList.remove('card-active');
+        const iconContainer = c.querySelector('div > div:first-child');
+        const iconSvg = c.querySelector('svg');
+        if (iconContainer) iconContainer.className = "w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center mb-3";
+        if (iconSvg) iconSvg.className = "w-5 h-5 text-slate-700 stroke-current fill-none stroke-[1.8]";
+      });
+      
       const target = document.getElementById(`card-${type}`);
-      if (target) target.classList.add('gold-border-glow');
+      if (target) {
+        target.classList.add('card-active');
+        const iconContainer = target.querySelector('div > div:first-child');
+        const iconSvg = target.querySelector('svg');
+        if (iconContainer) iconContainer.className = "w-8 h-8 rounded-lg bg-royal-soft flex items-center justify-center mb-3";
+        if (iconSvg) iconSvg.className = "w-5 h-5 text-royal stroke-current fill-none stroke-[1.8]";
+      }
 
       const pabiliFields = document.getElementById('pabiliFieldGroup');
       const costFields = document.getElementById('itemCostGroup');
@@ -601,11 +633,9 @@
     function setTip(val) {
       document.getElementById('priorityTip').value = val;
       document.querySelectorAll('.tip-btn').forEach(btn => {
-        btn.classList.remove('border-gold-500/50', 'text-gold-300');
-        btn.classList.add('border-white/10', 'text-gray-300');
+        btn.className = "tip-btn py-1.5 rounded-lg border border-slate-200 text-xs font-medium text-slate-600 bg-slate-50 active:scale-95 transition";
       });
-      event.target.classList.remove('border-white/10', 'text-gray-300');
-      event.target.classList.add('border-gold-500/50', 'text-gold-300');
+      event.target.className = "tip-btn py-1.5 rounded-lg border border-royal text-xs font-semibold text-royal bg-royal-soft active:scale-95 transition";
       calculateEstimate();
     }
 
@@ -632,7 +662,7 @@
       document.getElementById('estPayout').innerText = `${prefix} ₱${driverPayout.toFixed(2)}`;
     }
 
-    // --- 4. 提交下單與 Firestore 監聽 ---
+    // --- 5. 提交下單與 Firestore 毫秒級即時監聽 ---
     async function requestOrder() {
       const dict = I18N[currentLang];
       const custName = document.getElementById('custName').value.trim();
@@ -666,6 +696,7 @@
       const tip = parseFloat(document.getElementById('priorityTip').value) || 0;
       const finalPrice = parseFloat(document.getElementById('estTotal').innerText);
 
+      // 樂觀更新：立刻展開派單雷達
       document.getElementById('dispatchModal').classList.remove('hidden');
       document.getElementById('radarSection').classList.remove('hidden');
       document.getElementById('matchedCard').classList.add('hidden');
@@ -696,9 +727,12 @@
       };
 
       try {
+        // 寫入 Firestore
         await db.collection("ride_orders").doc(orderId).set(orderData);
+        // 毫秒級監聽翻牌
         subscribeToOrder(orderId);
 
+        // 背景通知 GAS (寫入 Google Sheets + Telegram Bot 推播)
         fetch(GAS_WEBHOOK_URL, {
           method: 'POST',
           mode: 'no-cors',
@@ -774,7 +808,7 @@
       }
     }
 
-    // 初始化：預設英文並套用儲存的偏好
+    // 初始化載入
     setLanguage(currentLang);
     fetchLatestRates();
   </script>
