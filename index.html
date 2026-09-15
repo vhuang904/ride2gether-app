@@ -10,8 +10,8 @@
   <meta name="theme-color" content="#F8FAFC">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <link rel="apple-touch-icon" href="https://img.icons8.com/fluency-systems-filled/192/1E40AF/crown.png">
-  <link rel="icon" type="image/png" href="https://img.icons8.com/fluency-systems-filled/192/1E40AF/crown.png">
+  <link rel="apple-touch-icon" href="https://img.icons8.com/fluency-systems-filled/192/1E40AF/car.png">
+  <link rel="icon" type="image/png" href="https://img.icons8.com/fluency-systems-filled/192/1E40AF/car.png">
 
   <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
@@ -94,11 +94,11 @@
       <p class="text-[10px] tracking-[0.25em] text-slate-500 uppercase">Private Concierge & Mobility</p>
     </div>
     <div class="flex items-center space-x-3">
-      <!-- 語言切換按鈕 -->
-      <button onclick="toggleLang()" id="btnLangToggle"
-              class="px-3 py-1 rounded-full border border-royal/30 bg-royal-soft text-royal text-xs font-semibold hover:bg-royal/10 active:scale-95 transition">
-        <span id="langLabel">EN / 繁中</span>
-      </button>
+      <!-- 雙語切換膠囊開關 -->
+      <div onclick="toggleLang()" class="cursor-pointer bg-slate-100 p-0.5 rounded-full border border-slate-300 flex items-center shadow-inner select-none">
+        <span id="pill-en" class="px-2.5 py-1 text-[11px] font-bold rounded-full transition-all bg-royal text-white shadow-sm">EN</span>
+        <span id="pill-zh" class="px-2.5 py-1 text-[11px] font-medium rounded-full transition-all text-slate-500">繁中</span>
+      </div>
       <div class="flex items-center space-x-1.5">
         <span class="inline-block w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></span>
         <span id="txt-status-online" class="text-xs text-slate-600 font-medium">VIP Active</span>
@@ -129,57 +129,57 @@
         </button>
       </div>
 
-      <!-- Mobility 服務卡片 -->
-      <div id="grid-mobility" class="grid grid-cols-2 gap-3.5">
+      <!-- Mobility 服務卡片 (固定高度防破版) -->
+      <div id="grid-mobility" class="grid grid-cols-2 gap-3">
         <div onclick="selectService('RIDE_MOTO')" id="card-RIDE_MOTO"
-             class="service-card cursor-pointer p-4 rounded-2xl bg-white border border-slate-200 hover:border-royal transition-all duration-300 card-active flex flex-col justify-between shadow-sm">
+             class="service-card cursor-pointer p-4 rounded-2xl bg-white border border-slate-200 hover:border-royal transition-all duration-300 card-active flex flex-col justify-between h-36 shadow-sm">
           <div>
-            <div class="w-8 h-8 rounded-lg bg-royal-soft flex items-center justify-center mb-3">
+            <div class="w-8 h-8 rounded-lg bg-royal-soft flex items-center justify-center mb-2">
               <svg class="w-5 h-5 text-royal stroke-current fill-none stroke-[1.8]" viewBox="0 0 24 24"><circle cx="6" cy="18" r="3"/><circle cx="18" cy="18" r="3"/><path d="M6 18l4-9h4l2 4.5M10 9l2-4h3"/></svg>
             </div>
-            <div id="txt-card-moto-title" class="font-semibold text-sm text-navy-900">Moto Express</div>
-            <div id="txt-card-moto-sub" class="text-[11px] text-slate-500 mt-0.5">Fast Urban Transit</div>
+            <div id="txt-card-moto-title" class="font-bold text-sm text-navy-900 leading-tight">Moto Express</div>
+            <div id="txt-card-moto-sub" class="text-[11px] text-slate-500 mt-1 leading-snug">Fast Urban Transit</div>
           </div>
-          <div id="badge-RIDE_MOTO" class="text-[11px] text-royal font-semibold mt-3 font-mono">From ₱40</div>
+          <div id="badge-RIDE_MOTO" class="text-xs text-royal font-semibold font-mono pt-2 border-t border-slate-100">From ₱40</div>
         </div>
 
         <div onclick="selectService('RIDE_CAR')" id="card-RIDE_CAR"
-             class="service-card cursor-pointer p-4 rounded-2xl bg-white border border-slate-200 hover:border-royal transition-all duration-300 flex flex-col justify-between shadow-sm">
+             class="service-card cursor-pointer p-4 rounded-2xl bg-white border border-slate-200 hover:border-royal transition-all duration-300 flex flex-col justify-between h-36 shadow-sm">
           <div>
-            <div class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center mb-3">
+            <div class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center mb-2">
               <svg class="w-5 h-5 text-slate-700 stroke-current fill-none stroke-[1.8]" viewBox="0 0 24 24"><path d="M3 12h18M5 12V7a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v5M4 17h16M7 17a2 2 0 1 1-4 0M21 17a2 2 0 1 1-4 0"/></svg>
             </div>
-            <div id="txt-card-car-title" class="font-semibold text-sm text-navy-900">Executive Sedan</div>
-            <div id="txt-card-car-sub" class="text-[11px] text-slate-500 mt-0.5">Air-con Luxury Ride</div>
+            <div id="txt-card-car-title" class="font-bold text-sm text-navy-900 leading-tight">Executive Sedan</div>
+            <div id="txt-card-car-sub" class="text-[11px] text-slate-500 mt-1 leading-snug">Air-con Luxury Ride</div>
           </div>
-          <div id="badge-RIDE_CAR" class="text-[11px] text-slate-600 font-semibold mt-3 font-mono">From ₱70</div>
+          <div id="badge-RIDE_CAR" class="text-xs text-slate-600 font-semibold font-mono pt-2 border-t border-slate-100">From ₱70</div>
         </div>
       </div>
 
-      <!-- Concierge 服務卡片 -->
-      <div id="grid-concierge" class="grid grid-cols-2 gap-3.5 hidden">
+      <!-- Concierge 服務卡片 (修復固定高度排版) -->
+      <div id="grid-concierge" class="grid grid-cols-2 gap-3 hidden">
         <div onclick="selectService('EXPRESS')" id="card-EXPRESS"
-             class="service-card cursor-pointer p-4 rounded-2xl bg-white border border-slate-200 hover:border-royal transition-all duration-300 flex flex-col justify-between shadow-sm">
+             class="service-card cursor-pointer p-4 rounded-2xl bg-white border border-slate-200 hover:border-royal transition-all duration-300 flex flex-col justify-between h-36 shadow-sm">
           <div>
-            <div class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center mb-3">
+            <div class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center mb-2">
               <svg class="w-5 h-5 text-slate-700 stroke-current fill-none stroke-[1.8]" viewBox="0 0 24 24"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
             </div>
-            <div id="txt-card-exp-title" class="font-semibold text-sm text-navy-900">Instant Parcel</div>
-            <div id="txt-card-exp-sub" class="text-[11px] text-slate-500 mt-0.5">Direct Document Delivery</div>
+            <div id="txt-card-exp-title" class="font-bold text-sm text-navy-900 leading-tight">Instant Parcel</div>
+            <div id="txt-card-exp-sub" class="text-[11px] text-slate-500 mt-1 leading-snug">Direct Delivery</div>
           </div>
-          <div id="badge-EXPRESS" class="text-[11px] text-slate-600 font-semibold mt-3 font-mono">From ₱50</div>
+          <div id="badge-EXPRESS" class="text-xs text-slate-600 font-semibold font-mono pt-2 border-t border-slate-100">From ₱50</div>
         </div>
 
         <div onclick="selectService('PABILI')" id="card-PABILI"
-             class="service-card cursor-pointer p-4 rounded-2xl bg-white border border-slate-200 hover:border-royal transition-all duration-300 flex flex-col justify-between shadow-sm">
+             class="service-card cursor-pointer p-4 rounded-2xl bg-white border border-slate-200 hover:border-royal transition-all duration-300 flex flex-col justify-between h-36 shadow-sm">
           <div>
-            <div class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center mb-3">
+            <div class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center mb-2">
               <svg class="w-5 h-5 text-slate-700 stroke-current fill-none stroke-[1.8]" viewBox="0 0 24 24"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4zM3 6h18M16 10a4 4 0 0 1-8 0"/></svg>
             </div>
-            <div id="txt-card-pab-title" class="font-semibold text-sm text-navy-900">Pabili Concierge</div>
-            <div id="txt-card-pab-sub" class="text-[11px] text-slate-500 mt-0.5">Queuing & Purchasing</div>
+            <div id="txt-card-pab-title" class="font-bold text-sm text-navy-900 leading-tight">Pabili Concierge</div>
+            <div id="txt-card-pab-sub" class="text-[11px] text-slate-500 mt-1 leading-snug">Buy & Deliver</div>
           </div>
-          <div id="badge-PABILI" class="text-[11px] text-slate-600 font-semibold mt-3 font-mono">From ₱60</div>
+          <div id="badge-PABILI" class="text-xs text-slate-600 font-semibold font-mono pt-2 border-t border-slate-100">From ₱45</div>
         </div>
       </div>
     </section>
@@ -476,7 +476,15 @@
       localStorage.setItem('r2g_lang', lang);
       const dict = I18N[lang];
 
-      document.getElementById('langLabel').innerText = dict.langBtn;
+      const pillEn = document.getElementById('pill-en');
+      const pillZh = document.getElementById('pill-zh');
+      if (lang === 'en') {
+        pillEn.className = "px-2.5 py-1 text-[11px] font-bold rounded-full transition-all bg-royal text-white shadow-sm";
+        pillZh.className = "px-2.5 py-1 text-[11px] font-medium rounded-full transition-all text-slate-500";
+      } else {
+        pillZh.className = "px-2.5 py-1 text-[11px] font-bold rounded-full transition-all bg-royal text-white shadow-sm";
+        pillEn.className = "px-2.5 py-1 text-[11px] font-medium rounded-full transition-all text-slate-500";
+      }
       document.getElementById('txt-status-online').innerText = dict.statusOnline;
       document.getElementById('lbl-step1').innerText = dict.step1;
       document.getElementById('txt-tab-mobility').innerText = dict.tabMobility;
