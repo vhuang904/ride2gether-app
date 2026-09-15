@@ -239,25 +239,28 @@
     });
 
     // 5. 接單處理
-    async function claimOrder(orderId) {
-      if (currentActiveOrder) {
-        alert("您已有進行中的行程，請先完成現有訂單！");
-        return;
-      }
-      try {
-        await db.collection("ride_orders").doc(orderId).update({
-          status: "ASSIGNED",
-          driverName: CURRENT_DRIVER_NAME,
-          driverPhone: CURRENT_DRIVER_PHONE,
-          driverPlate: CURRENT_DRIVER_PLATE,
-          driverVehicle: CURRENT_DRIVER_VEHICLE,
-          assignedAt: new Date().toISOString()
-        });
-      } catch (err) {
-        console.error("Error claiming order:", err);
-        alert("接單失敗，請稍後再試。");
-      }
-    }
+async function claimOrder(orderId) {
+  if (currentActiveOrder) {
+    alert("您已有進行中的行程，請先完成現有訂單！");
+    return;
+  }
+  try {
+    await db.collection("ride_orders").doc(orderId).update({
+      status: "ASSIGNED",
+      // 同時寫入幾種常見名稱，確保乘客端能抓到司機
+      driverName: CURRENT_DRIVER_NAME,
+      assignedDriver: CURRENT_DRIVER_NAME,
+      driver: CURRENT_DRIVER_NAME,
+      driverPhone: CURRENT_DRIVER_PHONE,
+      driverPlate: CURRENT_DRIVER_PLATE,
+      driverVehicle: CURRENT_DRIVER_VEHICLE,
+      assignedAt: new Date().toISOString()
+    });
+  } catch (err) {
+    console.error("Error claiming order:", err);
+    alert("接單失敗，請稍後再試。");
+  }
+}
 
     // 6. 渲染進行中行程面板
     function renderActiveTrip() {
@@ -270,9 +273,9 @@
       activeSection.classList.remove("hidden");
       document.getElementById("activeOrderId").innerText = currentActiveOrder.id;
       document.getElementById("activePassengerName").innerText = currentActiveOrder.guestName || "Passenger";
-      document.getElementById("activePickup").innerText = currentActiveOrder.pickup || "--";
-      document.getElementById("activeDropoff").innerText = currentActiveOrder.dropoff || "--";
-      document.getElementById("activeFare").innerText = `₱${currentActiveOrder.fare || 0}`;
+      document.getElementById("activePickup").innerText = currentActiveOrder.pickup || currentActiveOrder.origin || "--";
+      document.getElementById("activeDropoff").innerText = currentActiveOrder.dropoff || currentActiveOrder.destination || "--";
+      document.getElementById("activeFare").innerText = `₱${currentActiveOrder.totalPay || currentActiveOrder.fare || 0}`;
       document.getElementById("activeDistance").innerText = currentActiveOrder.distance || "--";
       
       const notesRow = document.getElementById("activeNotesRow");
