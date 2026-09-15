@@ -6,7 +6,7 @@
   <title>Ride2gether | Private Concierge & Mobility</title>
   
   <!-- PWA Meta -->
-  <link rel="manifest" href="manifest.json">
+  <link rel="manifest" href="manifest.json?v=v5">
   <meta name="theme-color" content="#F8FAFC">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -94,10 +94,10 @@
       <p class="text-[10px] tracking-[0.25em] text-slate-500 uppercase">Private Concierge & Mobility</p>
     </div>
     <div class="flex items-center space-x-3">
-      <!-- 雙語切換膠囊開關 -->
-      <div onclick="toggleLang()" class="cursor-pointer bg-slate-100 p-0.5 rounded-full border border-slate-300 flex items-center shadow-inner select-none">
-        <span id="pill-en" class="px-2.5 py-1 text-[11px] font-bold rounded-full transition-all bg-royal text-white shadow-sm">EN</span>
-        <span id="pill-zh" class="px-2.5 py-1 text-[11px] font-medium rounded-full transition-all text-slate-500">繁中</span>
+      <!-- 雙語切換膠囊開關 (加大寬度、強制水平不折行) -->
+      <div onclick="toggleLang()" class="cursor-pointer bg-slate-100 p-1 rounded-full border border-slate-300 flex items-center space-x-1 shadow-inner select-none">
+        <span id="pill-en" class="px-3 py-1 text-xs font-bold rounded-full transition-all whitespace-nowrap bg-royal text-white shadow-sm">EN</span>
+        <span id="pill-zh" class="px-3 py-1 text-xs font-medium rounded-full transition-all whitespace-nowrap text-slate-600">繁中</span>
       </div>
       <div class="flex items-center space-x-1.5">
         <span class="inline-block w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></span>
@@ -352,7 +352,7 @@
 
   <script>
     // --- 1. SERVICE WORKER 版本控管 (明確放置於最頂端，杜絕快取遺失) ---
-    const APP_VERSION = 'v4.1';
+    const APP_VERSION = 'v5';
 
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
@@ -479,11 +479,11 @@
       const pillEn = document.getElementById('pill-en');
       const pillZh = document.getElementById('pill-zh');
       if (lang === 'en') {
-        pillEn.className = "px-2.5 py-1 text-[11px] font-bold rounded-full transition-all bg-royal text-white shadow-sm";
-        pillZh.className = "px-2.5 py-1 text-[11px] font-medium rounded-full transition-all text-slate-500";
+        pillEn.className = "px-3 py-1 text-xs font-bold rounded-full transition-all whitespace-nowrap bg-royal text-white shadow-sm";
+        pillZh.className = "px-3 py-1 text-xs font-medium rounded-full transition-all whitespace-nowrap text-slate-600";
       } else {
-        pillZh.className = "px-2.5 py-1 text-[11px] font-bold rounded-full transition-all bg-royal text-white shadow-sm";
-        pillEn.className = "px-2.5 py-1 text-[11px] font-medium rounded-full transition-all text-slate-500";
+        pillZh.className = "px-3 py-1 text-xs font-bold rounded-full transition-all whitespace-nowrap bg-royal text-white shadow-sm";
+        pillEn.className = "px-3 py-1 text-xs font-medium rounded-full transition-all whitespace-nowrap text-slate-600";
       }
       document.getElementById('txt-status-online').innerText = dict.statusOnline;
       document.getElementById('lbl-step1').innerText = dict.step1;
