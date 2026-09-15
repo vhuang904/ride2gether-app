@@ -7,7 +7,6 @@ const ASSETS_TO_CACHE = [
   './',
   './index.html',
   './manifest.json',
-  'https://cdn.tailwindcss.com',
   'https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap',
   'https://img.icons8.com/fluency-systems-filled/192/1E40AF/crown.png', // 換成皇家藍圖標
   'https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js',
