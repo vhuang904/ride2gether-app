@@ -3,7 +3,7 @@
   "short_name": "Ride2gether",
   "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#F8FAFC",
+  "background_color": "#0B1329",
   "theme_color": "#F8FAFC",
   "orientation": "portrait",
   "icons": [
