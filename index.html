@@ -130,12 +130,12 @@
         </button>
       </div>
 
-      <!-- Mobility 服務卡片 (單向垂直排列) -->
+      <!-- Mobility 服務卡片 -->
       <div id="grid-mobility" class="grid grid-cols-2 gap-3">
         <div onclick="selectService('RIDE_MOTO')" id="card-RIDE_MOTO"
              class="service-card cursor-pointer p-3.5 rounded-2xl bg-white border border-slate-200 hover:border-royal transition-all duration-300 card-active flex flex-col justify-between h-40 shadow-sm">
           <div>
-            <div class="w-8 h-8 rounded-lg bg-royal-soft flex items-center justify-center mb-2">
+            <div class="card-icon w-8 h-8 rounded-lg bg-royal-soft flex items-center justify-center mb-2">
               <svg class="w-5 h-5 text-royal stroke-current fill-none stroke-[1.8]" viewBox="0 0 24 24"><circle cx="6" cy="18" r="3"/><circle cx="18" cy="18" r="3"/><path d="M6 18l4-9h4l2 4.5M10 9l2-4h3"/></svg>
             </div>
             <div id="txt-card-moto-title" class="font-bold text-sm text-navy-900 block leading-snug">Moto Express</div>
@@ -147,7 +147,7 @@
         <div onclick="selectService('RIDE_CAR')" id="card-RIDE_CAR"
              class="service-card cursor-pointer p-3.5 rounded-2xl bg-white border border-slate-200 hover:border-royal transition-all duration-300 flex flex-col justify-between h-40 shadow-sm">
           <div>
-            <div class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center mb-2">
+            <div class="card-icon w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center mb-2">
               <svg class="w-5 h-5 text-slate-700 stroke-current fill-none stroke-[1.8]" viewBox="0 0 24 24"><path d="M3 12h18M5 12V7a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v5M4 17h16M7 17a2 2 0 1 1-4 0M21 17a2 2 0 1 1-4 0"/></svg>
             </div>
             <div id="txt-card-car-title" class="font-bold text-sm text-navy-900 block leading-snug">Executive Sedan</div>
@@ -157,12 +157,12 @@
         </div>
       </div>
 
-      <!-- Concierge 服務卡片 (單向垂直排列) -->
+      <!-- Concierge 服務卡片 -->
       <div id="grid-concierge" class="grid grid-cols-2 gap-3 hidden">
         <div onclick="selectService('EXPRESS')" id="card-EXPRESS"
              class="service-card cursor-pointer p-3.5 rounded-2xl bg-white border border-slate-200 hover:border-royal transition-all duration-300 flex flex-col justify-between h-40 shadow-sm">
           <div>
-            <div class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center mb-2">
+            <div class="card-icon w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center mb-2">
               <svg class="w-5 h-5 text-slate-700 stroke-current fill-none stroke-[1.8]" viewBox="0 0 24 24"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
             </div>
             <div id="txt-card-exp-title" class="font-bold text-sm text-navy-900 block leading-snug">Instant Parcel</div>
@@ -174,7 +174,7 @@
         <div onclick="selectService('PABILI')" id="card-PABILI"
              class="service-card cursor-pointer p-3.5 rounded-2xl bg-white border border-slate-200 hover:border-royal transition-all duration-300 flex flex-col justify-between h-40 shadow-sm">
           <div>
-            <div class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center mb-2">
+            <div class="card-icon w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center mb-2">
               <svg class="w-5 h-5 text-slate-700 stroke-current fill-none stroke-[1.8]" viewBox="0 0 24 24"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4zM3 6h18M16 10a4 4 0 0 1-8 0"/></svg>
             </div>
             <div id="txt-card-pab-title" class="font-bold text-sm text-navy-900 block leading-snug">Pabili Concierge</div>
@@ -613,19 +613,31 @@
       currentService = type;
       document.querySelectorAll('.service-card').forEach(c => {
         c.classList.remove('card-active');
-        const iconContainer = c.querySelector('div > div:first-child');
+        const iconBox = c.querySelector('.card-icon');
         const iconSvg = c.querySelector('svg');
-        if (iconContainer) iconContainer.className = "w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center mb-3";
-        if (iconSvg) iconSvg.className = "w-5 h-5 text-slate-700 stroke-current fill-none stroke-[1.8]";
+        if (iconBox) {
+          iconBox.classList.remove('bg-royal-soft');
+          iconBox.classList.add('bg-slate-100');
+        }
+        if (iconSvg) {
+          iconSvg.classList.remove('text-royal');
+          iconSvg.classList.add('text-slate-700');
+        }
       });
       
       const target = document.getElementById(`card-${type}`);
       if (target) {
         target.classList.add('card-active');
-        const iconContainer = target.querySelector('div > div:first-child');
+        const iconBox = target.querySelector('.card-icon');
         const iconSvg = target.querySelector('svg');
-        if (iconContainer) iconContainer.className = "w-8 h-8 rounded-lg bg-royal-soft flex items-center justify-center mb-3";
-        if (iconSvg) iconSvg.className = "w-5 h-5 text-royal stroke-current fill-none stroke-[1.8]";
+        if (iconBox) {
+          iconBox.classList.remove('bg-slate-100');
+          iconBox.classList.add('bg-royal-soft');
+        }
+        if (iconSvg) {
+          iconSvg.classList.remove('text-slate-700');
+          iconSvg.classList.add('text-royal');
+        }
       }
 
       const pabiliFields = document.getElementById('pabiliFieldGroup');
