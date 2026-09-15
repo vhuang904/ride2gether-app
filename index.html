@@ -84,6 +84,41 @@
       animation: ping-slow 2.4s cubic-bezier(0, 0, 0.2, 1) infinite;
     }
   </style>
+
+  <!-- Google Maps Places API -->
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB2ePR5LnmHDJrzHx2ib0oRQfrM_c8IcOk&libraries=places&language=en"></script>
+  <style>
+    /* Google Places 下拉選單深色質感美化與層級保證 */
+    .pac-container {
+      background-color: #1e293b !important;
+      border: 1px solid #334155 !important;
+      border-radius: 12px !important;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5) !important;
+      font-family: inherit !important;
+      margin-top: 6px !important;
+      z-index: 99999 !important;
+    }
+    .pac-item {
+      padding: 10px 14px !important;
+      border-top: 1px solid #334155 !important;
+      color: #94a3b8 !important;
+      cursor: pointer !important;
+    }
+    .pac-item:hover, .pac-item-selected {
+      background-color: #334155 !important;
+    }
+    .pac-item-query {
+      color: #f8fafc !important;
+      font-size: 14px !important;
+    }
+    .pac-matched {
+      color: #38bdf8 !important;
+    }
+    .pac-icon {
+      filter: invert(1) hue-rotate(180deg) !important;
+    }
+  </style>
+  
 </head>
 <body class="min-h-screen flex flex-col justify-between selection:bg-royal selection:text-white">
 
@@ -978,6 +1013,41 @@
     // 初始化載入
     setLanguage(currentLang);
     fetchLatestRates();
+    // 初始化 Google 地點自動補全
+function initAutocomplete() {
+  // 自動偵測乘客端的上車與下車輸入框 ID
+  const pickupInput = document.getElementById("pickupInput") || document.getElementById("origin") || document.getElementById("pickup");
+  const dropoffInput = document.getElementById("dropoffInput") || document.getElementById("destination") || document.getElementById("dropoff");
+
+  const options = {
+    componentRestrictions: { country: "ph" }, // 鎖定菲律賓地區優先
+    fields: ["formatted_address", "geometry", "name"]
+  };
+
+  if (pickupInput && window.google && window.google.maps && window.google.maps.places) {
+    const autoPickup = new google.maps.places.Autocomplete(pickupInput, options);
+    autoPickup.addListener("place_changed", () => {
+      const place = autoPickup.getPlace();
+      if (place.formatted_address) {
+        pickupInput.value = place.name ? `${place.name}, ${place.formatted_address}` : place.formatted_address;
+      }
+    });
+  }
+
+  if (dropoffInput && window.google && window.google.maps && window.google.maps.places) {
+    const autoDropoff = new google.maps.places.Autocomplete(dropoffInput, options);
+    autoDropoff.addListener("place_changed", () => {
+      const place = autoDropoff.getPlace();
+      if (place.formatted_address) {
+        dropoffInput.value = place.name ? `${place.name}, ${place.formatted_address}` : place.formatted_address;
+      }
+    });
+  }
+}
+
+// 監聽載入完成後啟動
+window.addEventListener("DOMContentLoaded", initAutocomplete);
+window.addEventListener("load", initAutocomplete);
   </script>
 </body>
 </html>
