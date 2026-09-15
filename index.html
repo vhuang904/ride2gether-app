@@ -1015,39 +1015,40 @@
     fetchLatestRates();
     // 初始化 Google 地點自動補全
 function initAutocomplete() {
-  // 自動偵測乘客端的上車與下車輸入框 ID
-  const pickupInput = document.getElementById("pickupInput") || document.getElementById("origin") || document.getElementById("pickup");
-  const dropoffInput = document.getElementById("dropoffInput") || document.getElementById("destination") || document.getElementById("dropoff");
-
   const options = {
     componentRestrictions: { country: "ph" }, // 鎖定菲律賓地區優先
     fields: ["formatted_address", "geometry", "name"]
   };
 
-  if (pickupInput && window.google && window.google.maps && window.google.maps.places) {
-    const autoPickup = new google.maps.places.Autocomplete(pickupInput, options);
-    autoPickup.addListener("place_changed", () => {
-      const place = autoPickup.getPlace();
-      if (place.formatted_address) {
-        pickupInput.value = place.name ? `${place.name}, ${place.formatted_address}` : place.formatted_address;
-      }
-    });
-  }
+  // 乘客端：一般叫車的上車與下車點
+  const pickupInput = document.getElementById("pickupLoc");
+  const dropoffInput = document.getElementById("dropoffLoc");
 
-  if (dropoffInput && window.google && window.google.maps && window.google.maps.places) {
-    const autoDropoff = new google.maps.places.Autocomplete(dropoffInput, options);
-    autoDropoff.addListener("place_changed", () => {
-      const place = autoDropoff.getPlace();
+  // 乘客端：專人代購/跑腿的上車與下車點（一併支援）
+  const cPickupInput = document.getElementById("conciergePickup");
+  const cDropoffInput = document.getElementById("conciergeDropoff");
+
+  const bindAutocomplete = (input) => {
+    if (!input || !window.google || !window.google.maps || !window.google.maps.places) return;
+    const auto = new google.maps.places.Autocomplete(input, options);
+    auto.addListener("place_changed", () => {
+      const place = auto.getPlace();
       if (place.formatted_address) {
-        dropoffInput.value = place.name ? `${place.name}, ${place.formatted_address}` : place.formatted_address;
+        input.value = place.name ? `${place.name}, ${place.formatted_address}` : place.formatted_address;
       }
     });
-  }
+  };
+
+  bindAutocomplete(pickupInput);
+  bindAutocomplete(dropoffInput);
+  bindAutocomplete(cPickupInput);
+  bindAutocomplete(cDropoffInput);
 }
 
 // 監聽載入完成後啟動
 window.addEventListener("DOMContentLoaded", initAutocomplete);
 window.addEventListener("load", initAutocomplete);
+  
   </script>
 </body>
 </html>
