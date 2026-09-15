@@ -1031,15 +1031,22 @@ let geocoderInstance = null;
 let directionsService = null;
 let directionsRenderer = null;
 
-// 儲存已確認的經緯度座標，防止切換輸入框時跑位
+// 儲存已確認的經緯度座標，防止跑位
 let pickupCoord = null;
 let dropoffCoord = null;
 
-// 純藍填滿 + 0.6px 極細白邊乘客小人 (26x30)
+// 1. 上車點：純藍填滿 + 0.6px 極細白邊乘客小人 (26x30)
 const PERSON_PIN_ICON = {
   url: "data:image/svg+xml;charset=UTF-8," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="30" height="34" viewBox="0 0 30 34"><filter id="soft-shadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="1.2" stdDeviation="1.2" flood-color="#000" flood-opacity="0.22"/></filter><g filter="url(#soft-shadow)"><path d="M5 21 C5 15.5 9.5 13.5 15 13.5 C20.5 13.5 25 15.5 25 21 C25 24 18.5 26 18.5 26 L15 31.5 L11.5 26 C11.5 26 5 24 5 21 Z" fill="#2563eb" stroke="#ffffff" stroke-width="0.6" stroke-linejoin="round"/><circle cx="15" cy="7.5" r="4.8" fill="#2563eb" stroke="#ffffff" stroke-width="0.6"/></g></svg>'),
   scaledSize: new google.maps.Size(26, 30),
   anchor: new google.maps.Point(13, 30)
+};
+
+// 2. 目的地：極簡黑曜石 終點抵達旗幟圖標 (26x32)
+const DESTINATION_FLAG_ICON = {
+  url: "data:image/svg+xml;charset=UTF-8," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="30" height="34" viewBox="0 0 30 34"><filter id="flag-shadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="1.2" stdDeviation="1.2" flood-color="#000" flood-opacity="0.25"/></filter><g filter="url(#flag-shadow)"><line x1="8" y1="4" x2="8" y2="31" stroke="#0f172a" stroke-width="2.5" stroke-linecap="round"/><circle cx="8" cy="31" r="1.5" fill="#0f172a"/><path d="M8 5 L24 10 L8 16 Z" fill="#0f172a" stroke="#ffffff" stroke-width="0.8" stroke-linejoin="round"/><circle cx="8" cy="4" r="2" fill="#38bdf8"/></g></svg>'),
+  scaledSize: new google.maps.Size(26, 32),
+  anchor: new google.maps.Point(8, 32)
 };
 
 function initAutocomplete() {
@@ -1054,7 +1061,7 @@ function initAutocomplete() {
   const cDropoffInput = document.getElementById("conciergeDropoff");
   const mapContainer = document.getElementById("mapPreviewContainer");
 
-  // 手機端防鍵盤遮擋：點擊輸入框自動平滑上推
+  // 手機端防鍵盤遮擋：聚焦時平滑滾動，但不搶走點擊事件
   [pickupInput, dropoffInput, cPickupInput, cDropoffInput].forEach(input => {
     if (input) {
       input.addEventListener("focus", () => {
@@ -1083,7 +1090,6 @@ function initAutocomplete() {
         zoomControl: true
       });
 
-      // 初始化路線渲染器（預設隱藏預設 A/B 點標記，改用我們專屬的小人與目的地標記）
       directionsRenderer = new google.maps.DirectionsRenderer({
         map: mapInstance,
         suppressMarkers: true,
@@ -1111,23 +1117,16 @@ function initAutocomplete() {
         if (status === "OK") {
           directionsRenderer.setDirections(response);
 
-          // 取得 Google 導航的實際道路距離 (米)
           const route = response.routes[0];
           if (route && route.legs && route.legs[0]) {
             const distanceInKm = (route.legs[0].distance.value / 1000).toFixed(1);
             
-            // 自動聯動底部的距離拉桿與文字
             const distanceSlider = document.getElementById("distanceRange");
             const distanceText = document.getElementById("distanceVal");
             
-            if (distanceSlider) {
-              distanceSlider.value = distanceInKm;
-            }
-            if (distanceText) {
-              distanceText.innerText = `${distanceInKm} km`;
-            }
+            if (distanceSlider) distanceSlider.value = distanceInKm;
+            if (distanceText) distanceText.innerText = `${distanceInKm} km`;
 
-            // 觸發重新計價函式 (若專案內有 calculatePrice 邏輯)
             if (typeof calculatePrice === "function") {
               calculatePrice();
             } else if (typeof updateEstimates === "function") {
@@ -1139,18 +1138,22 @@ function initAutocomplete() {
     );
   }
 
-  // 拖曳小人微調結束後反查地址並重新算路徑
-  function handleMarkerDrag(marker, input) {
+  // 拖曳標記微調結束後反查地址並更新路線
+  function handleMarkerDrag(marker, input, type) {
     if (!geocoderInstance) return;
     const pos = marker.getPosition();
-    pickupCoord = pos; // 立即鎖定微調後的新起點
+    
+    if (type === "pickup") {
+      pickupCoord = pos;
+    } else {
+      dropoffCoord = pos;
+    }
 
     geocoderInstance.geocode({ location: pos }, (results, status) => {
       if (status === "OK" && results[0]) {
         input.value = results[0].formatted_address;
       }
-      // 如果目的地已經選好，拖動小人後立刻自動重繪路線與更新里程
-      if (dropoffCoord) {
+      if (pickupCoord && dropoffCoord) {
         calculateAndDisplayRoute();
       }
     });
@@ -1158,50 +1161,57 @@ function initAutocomplete() {
 
   const bindAutocomplete = (input, type) => {
     if (!input || !window.google || !window.google.maps || !window.google.maps.places) return;
+    
     const auto = new google.maps.places.Autocomplete(input, options);
+
+    // 避免手機版點選下拉選單時觸發失焦丟失選取
+    google.maps.event.addDomListener(input, "keydown", (e) => {
+      if (e.keyCode === 13) e.preventDefault();
+    });
 
     auto.addListener("place_changed", () => {
       const place = auto.getPlace();
-      if (!place.geometry || !place.geometry.location) return;
+      if (!place || !place.geometry || !place.geometry.location) return;
 
       input.value = place.name ? `${place.name}, ${place.formatted_address}` : place.formatted_address;
       const pos = place.geometry.location;
       const map = getOrCreateMap(pos);
 
       if (type === "pickup") {
-        pickupCoord = pos; // 鎖定起點
+        pickupCoord = pos;
         if (pickupMarker) pickupMarker.setMap(null);
         pickupMarker = new google.maps.Marker({
           position: pos,
           map: map,
           draggable: true,
           icon: PERSON_PIN_ICON,
-          title: "可長按拖曳微調上車點"
+          title: "可拖曳微調上車點"
         });
 
         pickupMarker.addListener("dragend", () => {
-          handleMarkerDrag(pickupMarker, input);
+          handleMarkerDrag(pickupMarker, input, "pickup");
         });
 
-        if (!dropoffCoord) {
-          map.panTo(pos);
-        }
+        if (!dropoffCoord) map.panTo(pos);
       } else if (type === "dropoff") {
-        dropoffCoord = pos; // 鎖定目的地
+        dropoffCoord = pos;
         if (dropoffMarker) dropoffMarker.setMap(null);
         dropoffMarker = new google.maps.Marker({
           position: pos,
           map: map,
-          title: "目的地",
-          icon: "https://maps.google.com/mapfiles/ms/icons/red-dot.png"
+          draggable: true, // 目的地同樣支援拖曳微調
+          icon: DESTINATION_FLAG_ICON,
+          title: "可拖曳微調目的地"
         });
 
-        if (!pickupCoord) {
-          map.panTo(pos);
-        }
+        dropoffMarker.addListener("dragend", () => {
+          handleMarkerDrag(dropoffMarker, input, "dropoff");
+        });
+
+        if (!pickupCoord) map.panTo(pos);
       }
 
-      // 只要兩點都齊全，立刻繪製導航藍線並自動計算真實距離
+      // 起點終點都有時，自動計算行車路線
       if (pickupCoord && dropoffCoord) {
         calculateAndDisplayRoute();
       }
