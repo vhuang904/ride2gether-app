@@ -184,7 +184,7 @@
     }
 
     // 4. 監聽訂單池與進行中任務
-    db.collection("orders").onSnapshot(snapshot => {
+    db.collection("ride_orders").onSnapshot(snapshot => {
       const ordersContainer = document.getElementById("ordersContainer");
       const orderCountEl = document.getElementById("orderCount");
       let waitingOrdersHtml = "";
@@ -202,7 +202,7 @@
         }
 
         // 待接單池列表
-        if (data.status === "WAITING") {
+        if (data.status === "SEARCHING" || data.status === "WAITING") {
           waitingCount++;
           waitingOrdersHtml += `
             <div class="bg-slate-800 border border-slate-700 rounded-xl p-4 shadow space-y-3">
@@ -245,7 +245,7 @@
         return;
       }
       try {
-        await db.collection("orders").doc(orderId).update({
+        await db.collection("ride_orders").doc(orderId).update({
           status: "ASSIGNED",
           driverName: CURRENT_DRIVER_NAME,
           driverPhone: CURRENT_DRIVER_PHONE,
@@ -310,7 +310,7 @@
     async function updateStatus(newStatus) {
       if (!currentActiveOrder) return;
       try {
-        await db.collection("orders").doc(currentActiveOrder.id).update({
+        await db.collection("ride_orders").doc(currentActiveOrder.id).update({
           status: newStatus,
           updatedAt: new Date().toISOString()
         });
@@ -325,7 +325,7 @@
       const orderId = currentActiveOrder.id;
       try {
         // 更新訂單狀態為 COMPLETED
-        await db.collection("orders").doc(orderId).update({
+        await db.collection("ride_orders").doc(orderId).update({
           status: "COMPLETED",
           completedAt: new Date().toISOString()
         });
