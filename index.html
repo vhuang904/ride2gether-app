@@ -156,30 +156,100 @@
         </div>
       </div>
 
-      <!-- Concierge 服務卡片 (修復固定高度排版) -->
+      <!-- Header: 珍珠白底 + 深藍文字與切換鈕 -->
+  <header class="sticky top-0 z-40 glass-nav border-b border-slate-200/80 px-4 py-3 flex items-center justify-between shadow-sm">
+    <div>
+      <h1 class="font-serif text-base tracking-wider navy-gradient-text font-bold uppercase leading-none">Ride2gether</h1>
+      <p class="text-[9px] tracking-[0.2em] text-slate-500 uppercase mt-1">Private Concierge & Mobility</p>
+    </div>
+    
+    <!-- 右側上下雙層配置 (徹底解決擠壓折字) -->
+    <div class="flex flex-col items-end justify-center space-y-1">
+      <div onclick="toggleLang()" class="cursor-pointer bg-slate-100 p-0.5 rounded-full border border-slate-300 flex items-center shadow-inner select-none">
+        <span id="pill-en" class="px-2.5 py-0.5 text-[11px] font-bold rounded-full transition-all whitespace-nowrap bg-royal text-white shadow-sm">EN</span>
+        <span id="pill-zh" class="px-2.5 py-0.5 text-[11px] font-medium rounded-full transition-all whitespace-nowrap text-slate-600">繁中</span>
+      </div>
+      <div class="flex items-center space-x-1 pr-0.5">
+        <span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.6)]"></span>
+        <span id="txt-status-online" class="text-[10px] text-slate-500 font-semibold tracking-wider whitespace-nowrap uppercase">VIP Active</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- 主視窗容器 -->
+  <main class="flex-1 max-w-md w-full mx-auto p-5 space-y-6 pb-24">
+
+    <!-- Step 1: 服務場景分類 -->
+    <section class="space-y-3">
+      <label id="lbl-step1" class="block text-xs font-semibold uppercase tracking-widest text-royal">
+        01. Select Service Category
+      </label>
+
+      <!-- Segmented Control -->
+      <div class="grid grid-cols-2 p-1 bg-slate-200/70 border border-slate-200 rounded-xl">
+        <button type="button" id="tab-mobility" onclick="switchCategory('mobility')"
+                class="py-2.5 rounded-lg text-xs font-semibold tracking-wider flex items-center justify-center space-x-2 transition-all duration-300 bg-white text-royal shadow-sm">
+          <svg class="w-4 h-4 stroke-current fill-none stroke-[1.8]" viewBox="0 0 24 24"><circle cx="6" cy="18" r="3"/><circle cx="18" cy="18" r="3"/><path d="M6 18l4-9h4l2 4.5M10 9l2-4h3"/></svg>
+          <span id="txt-tab-mobility">Mobility</span>
+        </button>
+        <button type="button" id="tab-concierge" onclick="switchCategory('concierge')"
+                class="py-2.5 rounded-lg text-xs font-semibold tracking-wider flex items-center justify-center space-x-2 transition-all duration-300 text-slate-600 hover:text-navy-900">
+          <svg class="w-4 h-4 stroke-current fill-none stroke-[1.8]" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+          <span id="txt-tab-concierge">Concierge</span>
+        </button>
+      </div>
+
+      <!-- Mobility 服務卡片 (乾淨單向垂直排列，杜絕文字疊加) -->
+      <div id="grid-mobility" class="grid grid-cols-2 gap-3">
+        <div onclick="selectService('RIDE_MOTO')" id="card-RIDE_MOTO"
+             class="service-card cursor-pointer p-3.5 rounded-2xl bg-white border border-slate-200 hover:border-royal transition-all duration-300 card-active flex flex-col justify-between h-40 shadow-sm">
+          <div>
+            <div class="w-8 h-8 rounded-lg bg-royal-soft flex items-center justify-center mb-2">
+              <svg class="w-5 h-5 text-royal stroke-current fill-none stroke-[1.8]" viewBox="0 0 24 24"><circle cx="6" cy="18" r="3"/><circle cx="18" cy="18" r="3"/><path d="M6 18l4-9h4l2 4.5M10 9l2-4h3"/></svg>
+            </div>
+            <div id="txt-card-moto-title" class="font-bold text-sm text-navy-900 block leading-snug">Moto Express</div>
+            <div id="txt-card-moto-sub" class="text-[11px] text-slate-500 block mt-0.5 leading-normal">Fast Urban Transit</div>
+          </div>
+          <div id="badge-RIDE_MOTO" class="text-xs text-royal font-semibold font-mono pt-2 border-t border-slate-100 block">From ₱40</div>
+        </div>
+
+        <div onclick="selectService('RIDE_CAR')" id="card-RIDE_CAR"
+             class="service-card cursor-pointer p-3.5 rounded-2xl bg-white border border-slate-200 hover:border-royal transition-all duration-300 flex flex-col justify-between h-40 shadow-sm">
+          <div>
+            <div class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center mb-2">
+              <svg class="w-5 h-5 text-slate-700 stroke-current fill-none stroke-[1.8]" viewBox="0 0 24 24"><path d="M3 12h18M5 12V7a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v5M4 17h16M7 17a2 2 0 1 1-4 0M21 17a2 2 0 1 1-4 0"/></svg>
+            </div>
+            <div id="txt-card-car-title" class="font-bold text-sm text-navy-900 block leading-snug">Executive Sedan</div>
+            <div id="txt-card-car-sub" class="text-[11px] text-slate-500 block mt-0.5 leading-normal">Air-con Luxury Ride</div>
+          </div>
+          <div id="badge-RIDE_CAR" class="text-xs text-slate-600 font-semibold font-mono pt-2 border-t border-slate-100 block">From ₱70</div>
+        </div>
+      </div>
+
+      <!-- Concierge 服務卡片 (乾淨單向垂直排列，杜絕文字疊加) -->
       <div id="grid-concierge" class="grid grid-cols-2 gap-3 hidden">
         <div onclick="selectService('EXPRESS')" id="card-EXPRESS"
-             class="service-card cursor-pointer p-4 rounded-2xl bg-white border border-slate-200 hover:border-royal transition-all duration-300 flex flex-col justify-between h-36 shadow-sm">
+             class="service-card cursor-pointer p-3.5 rounded-2xl bg-white border border-slate-200 hover:border-royal transition-all duration-300 flex flex-col justify-between h-40 shadow-sm">
           <div>
             <div class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center mb-2">
               <svg class="w-5 h-5 text-slate-700 stroke-current fill-none stroke-[1.8]" viewBox="0 0 24 24"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
             </div>
-            <div id="txt-card-exp-title" class="font-bold text-sm text-navy-900 leading-tight">Instant Parcel</div>
-            <div id="txt-card-exp-sub" class="text-[11px] text-slate-500 mt-1 leading-snug">Direct Delivery</div>
+            <div id="txt-card-exp-title" class="font-bold text-sm text-navy-900 block leading-snug">Instant Parcel</div>
+            <div id="txt-card-exp-sub" class="text-[11px] text-slate-500 block mt-0.5 leading-normal">Direct Delivery</div>
           </div>
-          <div id="badge-EXPRESS" class="text-xs text-slate-600 font-semibold font-mono pt-2 border-t border-slate-100">From ₱50</div>
+          <div id="badge-EXPRESS" class="text-xs text-slate-600 font-semibold font-mono pt-2 border-t border-slate-100 block">From ₱50</div>
         </div>
 
         <div onclick="selectService('PABILI')" id="card-PABILI"
-             class="service-card cursor-pointer p-4 rounded-2xl bg-white border border-slate-200 hover:border-royal transition-all duration-300 flex flex-col justify-between h-36 shadow-sm">
+             class="service-card cursor-pointer p-3.5 rounded-2xl bg-white border border-slate-200 hover:border-royal transition-all duration-300 flex flex-col justify-between h-40 shadow-sm">
           <div>
             <div class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center mb-2">
               <svg class="w-5 h-5 text-slate-700 stroke-current fill-none stroke-[1.8]" viewBox="0 0 24 24"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4zM3 6h18M16 10a4 4 0 0 1-8 0"/></svg>
             </div>
-            <div id="txt-card-pab-title" class="font-bold text-sm text-navy-900 leading-tight">Pabili Concierge</div>
-            <div id="txt-card-pab-sub" class="text-[11px] text-slate-500 mt-1 leading-snug">Buy & Deliver</div>
+            <div id="txt-card-pab-title" class="font-bold text-sm text-navy-900 block leading-snug">Pabili Concierge</div>
+            <div id="txt-card-pab-sub" class="text-[11px] text-slate-500 block mt-0.5 leading-normal">Buy & Deliver</div>
           </div>
-          <div id="badge-PABILI" class="text-xs text-slate-600 font-semibold font-mono pt-2 border-t border-slate-100">From ₱45</div>
+          <div id="badge-PABILI" class="text-xs text-slate-600 font-semibold font-mono pt-2 border-t border-slate-100 block">From ₱45</div>
         </div>
       </div>
     </section>
