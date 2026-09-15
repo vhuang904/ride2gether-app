@@ -788,22 +788,48 @@
         console.warn("Realtime listener error:", err);
       });
     }
+    
+function showMatchedDriver(data) {
+  document.getElementById('radarSection').classList.add('hidden');
+  document.getElementById('matchedCard').classList.remove('hidden');
 
-    function showMatchedDriver(data) {
-      document.getElementById('radarSection').classList.add('hidden');
-      document.getElementById('matchedCard').classList.remove('hidden');
-      
-      document.getElementById('driverName').innerText = data.driverName || (currentLang === 'en' ? 'Assigned Driver' : '特約尊榮司機');
-      if (data.driverPhone) {
-        const phoneLabel = currentLang === 'en' ? 'Direct Line:' : '聯絡電話：';
-        document.getElementById('driverContact').innerText = `${phoneLabel} ${data.driverPhone}`;
-      }
-      if (data.driverPlate) {
-        document.getElementById('driverPlate').innerText = data.driverPlate;
-      }
-      document.getElementById('cardPay').innerText = `₱${parseFloat(data.totalPay || 0).toFixed(2)}`;
-      document.getElementById('cardService').innerText = data.serviceName || (currentLang === 'en' ? RATES[currentService].nameEn : RATES[currentService].nameZh);
-    }
+  // 1. 司機姓名 (全英文優先，預設 Executive Chauffeur)
+  const driverNameEl = document.getElementById('driverName');
+  if (driverNameEl) {
+    driverNameEl.innerText = data.driverName || 'Executive Chauffeur';
+  }
+
+  // 2. 撥打電話按鈕 (有號碼即生成可點擊按鈕，預設聯絡專線)
+  const driverContactEl = document.getElementById('driverContact');
+  if (driverContactEl) {
+    const phone = data.driverPhone || '+639171234567';
+    driverContactEl.innerHTML = `
+      <a href="tel:${phone}" class="inline-flex items-center justify-center w-full px-4 py-2.5 mt-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl shadow-sm transition-all active:scale-95">
+        <svg class="w-3.5 h-3.5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/>
+        </svg>
+        Call Chauffeur (${phone})
+      </a>
+    `;
+  }
+
+  // 3. 車牌與抵達時間
+  const driverPlateEl = document.getElementById('driverPlate');
+  if (driverPlateEl) {
+    driverPlateEl.innerText = data.driverPlate || 'VIP Fleet';
+  }
+
+  // 4. 費用與服務名稱 (純英文)
+  const cardPayEl = document.getElementById('cardPay');
+  if (cardPayEl) {
+    cardPayEl.innerText = `₱${parseFloat(data.totalPay || 0).toFixed(2)}`;
+  }
+  const cardServiceEl = document.getElementById('cardService');
+  if (cardServiceEl) {
+    const defaultName = RATES[currentService] ? RATES[currentService].nameEn : 'Executive Mobility';
+    cardServiceEl.innerText = data.serviceName || defaultName;
+  }
+}
 
     function cancelAndReset() {
       if (unsubscribeOrder) unsubscribeOrder();
