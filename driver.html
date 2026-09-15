@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ride2gether - Driver Console</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col font-sans">
+
+  <!-- 頂部導覽列 -->
+  <header class="bg-slate-800 border-b border-slate-700 px-4 py-3 flex justify-between items-center sticky top-0 z-50">
+    <div>
+      <div class="flex items-center gap-2">
+        <h1 class="font-bold text-lg text-emerald-400 tracking-wide">DRIVER CONSOLE</h1>
+        <span id="badgeDiscountPerk" class="hidden text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded-full font-bold">
+          ★ 9折搭乘禮遇有效
+        </span>
+      </div>
+      <p class="text-xs text-slate-400">
+        Driver: <span id="displayDriverName" class="text-white font-mono font-semibold">BigV904</span> | 
+        本月完單: <span id="displayMonthlyTrips" class="text-emerald-400 font-bold">0</span> 趟
+      </p>
+    </div>
+    <a href="index.html" class="text-xs bg-slate-700 hover:bg-slate-600 text-slate-200 px-3 py-1.5 rounded-lg border border-slate-600 transition">
+      Passenger Mode &rarr;
+    </a>
+  </header>
+
+  <!-- 裝置踢出警示覆蓋層 (Single Device Security) -->
+  <div id="deviceConflictOverlay" class="hidden fixed inset-0 bg-slate-950/90 z-[999] flex items-center justify-center p-6 text-center">
+    <div class="bg-slate-800 border border-rose-500/50 rounded-2xl p-6 max-w-sm w-full space-y-4 shadow-2xl">
+      <div class="text-4xl">⚠️</div>
+      <h3 class="text-lg font-bold text-white">此司機帳號已在其他裝置登入</h3>
+      <p class="text-xs text-slate-400 leading-relaxed">
+        為維護帳號接單安全與單一作業規範，本機連線已強制中止。若需在此裝置接單，請重新整理頁面奪取作業權限。
+      </p>
+      <button onclick="location.reload()" class="w-full py-2.5 bg-rose-500 hover:bg-rose-400 text-white text-xs font-bold rounded-xl transition">
+        重新連線（切換至本機）
+      </button>
+    </div>
+  </div>
+
+  <!-- 主控制面板 -->
+  <main class="flex-1 max-w-xl w-full mx-auto p-4 space-y-4">
+    
+    <!-- 進行中行程卡片 (Active Trip) -->
+    <div id="activeTripSection" class="hidden">
+      <div class="text-xs font-semibold text-emerald-400 tracking-wider uppercase mb-2">● Current Active Trip</div>
+      <div class="bg-slate-800 border-2 border-emerald-500/50 rounded-2xl p-4 shadow-xl space-y-3">
+        <div class="flex justify-between items-start">
+          <div>
+            <span id="activeOrderId" class="text-sm font-mono text-emerald-400 font-bold">--</span>
+            <div id="activePassengerName" class="text-lg font-bold text-white mt-0.5">--</div>
+          </div>
+          <span id="activeStatusBadge" class="text-[10px] uppercase font-bold tracking-widest px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+            ASSIGNED
+          </span>
+        </div>
+
+        <div class="bg-slate-900/80 rounded-xl p-3 text-xs space-y-2 border border-slate-700">
+          <div><span class="text-slate-400">Pickup:</span> <span id="activePickup" class="text-slate-200 font-medium">--</span></div>
+          <div><span class="text-slate-400">Dropoff:</span> <span id="activeDropoff" class="text-slate-200 font-medium">--</span></div>
+          <div id="activeNotesRow" class="text-amber-300 hidden"><span class="text-slate-400">Notes:</span> <span id="activeNotes">--</span></div>
+          <div class="pt-1 border-t border-slate-800 flex justify-between font-mono">
+            <span class="text-slate-400">Fare: <b id="activeFare" class="text-white">₱0</b></span>
+            <span class="text-slate-400">Dist: <b id="activeDistance" class="text-white">0 km</b></span>
+          </div>
+        </div>
+
+        <!-- 乘客聯絡按鈕 -->
+        <a id="btnCallPassenger" href="tel:" class="w-full py-2.5 bg-slate-700 hover:bg-slate-600 text-white font-semibold rounded-xl flex items-center justify-center gap-2 transition text-sm">
+          <span>📞</span> Call Passenger
+        </a>
+
+        <!-- 狀態推進按鈕 -->
+        <button id="btnAdvanceStatus" class="w-full py-3 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-xl shadow-lg transition text-sm uppercase tracking-wide">
+          📍 I Have Arrived
+        </button>
+      </div>
+    </div>
+
+    <!-- 待接單池 (Pool) -->
+    <div>
+      <div class="flex justify-between items-center mb-2">
+        <h2 class="text-xs font-semibold text-slate-400 tracking-wider uppercase">Live Available Orders</h2>
+        <span id="orderCount" class="text-xs bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full border border-slate-700">0 Waiting</span>
+      </div>
+      
+      <div id="ordersContainer" class="space-y-3">
+        <div class="text-center py-12 text-slate-500 text-sm">
+          Searching for incoming ride requests...
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <script>
+    // 1. Firebase 初始化設定 (請貼入您的 Firebase Config)
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_AUTH_DOMAIN",
+      projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_STORAGE_BUCKET",
+      messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+      appId: "YOUR_APP_ID"
+    };
+
+    if (!firebase.apps.length) {
+      firebase.initializeApp(firebaseConfig);
+    }
+    const db = firebase.firestore();
+
+    // 司機身分識別 (初期以 DRV-001 / BigV904 示範)
+    const CURRENT_DRIVER_ID = "DRV-001";
+    const CURRENT_DRIVER_NAME = "BigV904";
+    const CURRENT_DRIVER_PHONE = "+639170000000";
+    const CURRENT_DRIVER_PLATE = "VIP-8888";
+    const CURRENT_DRIVER_VEHICLE = "Executive Sedan";
+
+    // 2. 單一裝置簽名 (Session Token) 生成與檢驗
+    let localDeviceId = localStorage.getItem("driver_device_id");
+    if (!localDeviceId) {
+      localDeviceId = "dev_" + Math.random().toString(36).substring(2, 11);
+      localStorage.setItem("driver_device_id", localDeviceId);
+    }
+
+    let currentActiveOrder = null;
+
+    // 3. 初始化司機資料庫與裝置互踢監聽
+    async function initDriverSession() {
+      const driverRef = db.collection("drivers").doc(CURRENT_DRIVER_ID);
+      const doc = await driverRef.get();
+
+      if (!doc.exists) {
+        // 初次建立司機檔案
+        await driverRef.set({
+          driverId: CURRENT_DRIVER_ID,
+          name: CURRENT_DRIVER_NAME,
+          phone: CURRENT_DRIVER_PHONE,
+          plate: CURRENT_DRIVER_PLATE,
+          vehicle: CURRENT_DRIVER_VEHICLE,
+          activeDeviceId: localDeviceId,
+          status: "ACTIVE",
+          totalTripsCompleted: 0,
+          currentMonthTrips: 0,
+          passengerDiscountEligible: true,
+          linkedPassengerId: "PAS-DRV-001",
+          updatedAt: new Date().toISOString()
+        });
+      } else {
+        // 更新當前裝置為本機
+        await driverRef.update({
+          activeDeviceId: localDeviceId,
+          updatedAt: new Date().toISOString()
+        });
+      }
+
+      // 實時監聽裝置識別碼 (被踢出檢驗)
+      driverRef.onSnapshot(docSnapshot => {
+        if (!docSnapshot.exists) return;
+        const data = docSnapshot.data();
+        
+        // 渲染月趟數與乘車折扣資格
+        document.getElementById("displayMonthlyTrips").innerText = data.currentMonthTrips || 0;
+        const discountBadge = document.getElementById("badgeDiscountPerk");
+        if (data.passengerDiscountEligible) {
+          discountBadge.classList.remove("hidden");
+        } else {
+          discountBadge.classList.add("hidden");
+        }
+
+        // 判定裝置衝突
+        if (data.activeDeviceId && data.activeDeviceId !== localDeviceId) {
+          document.getElementById("deviceConflictOverlay").classList.remove("hidden");
+        }
+      });
+    }
+
+    // 4. 監聽訂單池與進行中任務
+    db.collection("orders").onSnapshot(snapshot => {
+      const ordersContainer = document.getElementById("ordersContainer");
+      const orderCountEl = document.getElementById("orderCount");
+      let waitingOrdersHtml = "";
+      let waitingCount = 0;
+      let foundActive = false;
+
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        const id = doc.id;
+
+        // 檢查當前司機是否已接單
+        if (data.driverName === CURRENT_DRIVER_NAME && ['ASSIGNED', 'ARRIVED', 'IN_TRANSIT'].includes(data.status)) {
+          currentActiveOrder = { id, ...data };
+          foundActive = true;
+        }
+
+        // 待接單池列表
+        if (data.status === "WAITING") {
+          waitingCount++;
+          waitingOrdersHtml += `
+            <div class="bg-slate-800 border border-slate-700 rounded-xl p-4 shadow space-y-3">
+              <div class="flex justify-between items-center text-xs">
+                <span class="font-mono text-amber-400 font-semibold">${id}</span>
+                <span class="text-slate-400">${data.serviceName || 'Standard'}</span>
+              </div>
+              <div class="text-sm">
+                <div class="font-bold text-white">${data.guestName || 'Guest'}</div>
+                <div class="text-xs text-slate-300 mt-1">📍 ${data.pickup || 'Pickup'} &rarr; 🏁 ${data.dropoff || 'Dropoff'}</div>
+                ${data.notes ? `<div class="text-xs text-amber-300 mt-1">📝 ${data.notes}</div>` : ''}
+              </div>
+              <div class="pt-2 border-t border-slate-700/60 flex justify-between items-center">
+                <div class="text-sm font-bold text-emerald-400">₱${data.fare || '--'} <span class="text-xs text-slate-400 font-normal">(${data.distance || '--'})</span></div>
+                <button onclick="claimOrder('${id}')" class="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold rounded-lg transition shadow">
+                  ⚡ CLAIM ORDER
+                </button>
+              </div>
+            </div>
+          `;
+        }
+      });
+
+      if (!foundActive) {
+        currentActiveOrder = null;
+      }
+
+      orderCountEl.innerText = `${waitingCount} Waiting`;
+      ordersContainer.innerHTML = waitingCount === 0
+        ? `<div class="text-center py-12 text-slate-500 text-sm">No waiting orders right now.</div>`
+        : waitingOrdersHtml;
+
+      renderActiveTrip();
+    });
+
+    // 5. 接單處理
+    async function claimOrder(orderId) {
+      if (currentActiveOrder) {
+        alert("您已有進行中的行程，請先完成現有訂單！");
+        return;
+      }
+      try {
+        await db.collection("orders").doc(orderId).update({
+          status: "ASSIGNED",
+          driverName: CURRENT_DRIVER_NAME,
+          driverPhone: CURRENT_DRIVER_PHONE,
+          driverPlate: CURRENT_DRIVER_PLATE,
+          driverVehicle: CURRENT_DRIVER_VEHICLE,
+          assignedAt: new Date().toISOString()
+        });
+      } catch (err) {
+        console.error("Error claiming order:", err);
+        alert("接單失敗，請稍後再試。");
+      }
+    }
+
+    // 6. 渲染進行中行程面板
+    function renderActiveTrip() {
+      const activeSection = document.getElementById("activeTripSection");
+      if (!currentActiveOrder) {
+        activeSection.classList.add("hidden");
+        return;
+      }
+
+      activeSection.classList.remove("hidden");
+      document.getElementById("activeOrderId").innerText = currentActiveOrder.id;
+      document.getElementById("activePassengerName").innerText = currentActiveOrder.guestName || "Passenger";
+      document.getElementById("activePickup").innerText = currentActiveOrder.pickup || "--";
+      document.getElementById("activeDropoff").innerText = currentActiveOrder.dropoff || "--";
+      document.getElementById("activeFare").innerText = `₱${currentActiveOrder.fare || 0}`;
+      document.getElementById("activeDistance").innerText = currentActiveOrder.distance || "--";
+      
+      const notesRow = document.getElementById("activeNotesRow");
+      if (currentActiveOrder.notes) {
+        document.getElementById("activeNotes").innerText = currentActiveOrder.notes;
+        notesRow.classList.remove("hidden");
+      } else {
+        notesRow.classList.add("hidden");
+      }
+
+      const btnCall = document.getElementById("btnCallPassenger");
+      if (currentActiveOrder.phone) {
+        btnCall.href = `tel:${currentActiveOrder.phone}`;
+        btnCall.classList.remove("hidden");
+      } else {
+        btnCall.classList.add("hidden");
+      }
+
+      const statusBadge = document.getElementById("activeStatusBadge");
+      const btnAdvance = document.getElementById("btnAdvanceStatus");
+      statusBadge.innerText = currentActiveOrder.status;
+
+      if (currentActiveOrder.status === 'ASSIGNED') {
+        btnAdvance.innerText = "📍 I Have Arrived";
+        btnAdvance.onclick = () => updateStatus('ARRIVED');
+      } else if (currentActiveOrder.status === 'ARRIVED') {
+        btnAdvance.innerText = "🚗 Start Trip";
+        btnAdvance.onclick = () => updateStatus('IN_TRANSIT');
+      } else if (currentActiveOrder.status === 'IN_TRANSIT') {
+        btnAdvance.innerText = "🏁 Complete Trip";
+        btnAdvance.onclick = () => completeTrip();
+      }
+    }
+
+    async function updateStatus(newStatus) {
+      if (!currentActiveOrder) return;
+      try {
+        await db.collection("orders").doc(currentActiveOrder.id).update({
+          status: newStatus,
+          updatedAt: new Date().toISOString()
+        });
+      } catch (err) {
+        console.error("Status update error:", err);
+      }
+    }
+
+    // 7. 完單並累計活躍度指標
+    async function completeTrip() {
+      if (!currentActiveOrder) return;
+      const orderId = currentActiveOrder.id;
+      try {
+        // 更新訂單狀態為 COMPLETED
+        await db.collection("orders").doc(orderId).update({
+          status: "COMPLETED",
+          completedAt: new Date().toISOString()
+        });
+
+        // 累計司機績效數據
+        const driverRef = db.collection("drivers").doc(CURRENT_DRIVER_ID);
+        await driverRef.update({
+          totalTripsCompleted: firebase.firestore.FieldValue.increment(1),
+          currentMonthTrips: firebase.firestore.FieldValue.increment(1),
+          lastTripAt: new Date().toISOString(),
+          passengerDiscountEligible: true // 剛跑完單，確保優惠資格生效
+        });
+
+        currentActiveOrder = null;
+      } catch (err) {
+        console.error("Complete trip error:", err);
+      }
+    }
+
+    // 啟動司機連線
+    initDriverSession();
+  </script>
+</body>
+</html>
