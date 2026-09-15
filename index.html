@@ -254,6 +254,14 @@
           <input type="text" id="dropoffLoc" placeholder="Destination Name or Address"
                  class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-navy-900 placeholder-slate-400 focus:outline-none focus:border-royal focus:bg-white transition-colors">
         </div>
+        <!-- 即時地圖預覽容器 -->
+        <div id="mapPreviewContainer" class="mt-4 mb-2 hidden transition-all duration-300">
+          <div class="flex items-center justify-between mb-1.5 px-1">
+            <span class="text-xs font-semibold tracking-wider text-slate-400 uppercase">Route Preview</span>
+            <span id="routeDistanceBadge" class="text-xs font-mono bg-sky-950 text-sky-400 border border-sky-800 px-2 py-0.5 rounded-full hidden">0 km</span>
+          </div>
+          <div id="map" class="w-full h-48 rounded-xl border border-slate-700 overflow-hidden shadow-inner bg-slate-900"></div>
+        </div>
       </div>
 
       <!-- 管家跑腿路線 (Concierge) -->
@@ -1014,41 +1022,106 @@
     setLanguage(currentLang);
     fetchLatestRates();
     // 初始化 Google 地點自動補全
+// 全域地圖與標記變數
+let mapInstance = null;
+let pickupMarker = null;
+let dropoffMarker = null;
+
+// 初始化 Google 地點自動補全與即時地圖
 function initAutocomplete() {
   const options = {
-    componentRestrictions: { country: "ph" }, // 鎖定菲律賓地區優先
+    componentRestrictions: { country: "ph" },
     fields: ["formatted_address", "geometry", "name"]
   };
 
-  // 乘客端：一般叫車的上車與下車點
   const pickupInput = document.getElementById("pickupLoc");
   const dropoffInput = document.getElementById("dropoffLoc");
-
-  // 乘客端：專人代購/跑腿的上車與下車點（一併支援）
   const cPickupInput = document.getElementById("conciergePickup");
   const cDropoffInput = document.getElementById("conciergeDropoff");
+  const mapContainer = document.getElementById("mapPreviewContainer");
 
-  const bindAutocomplete = (input) => {
+  // 初始化地圖（深色風格 + 預設聚焦）
+  function getOrCreateMap(latLng) {
+    if (!mapContainer) return null;
+    mapContainer.classList.remove("hidden");
+
+    if (!mapInstance && window.google && window.google.maps) {
+      mapInstance = new google.maps.Map(document.getElementById("map"), {
+        center: latLng,
+        zoom: 15,
+        disableDefaultUI: true,
+        zoomControl: true,
+        styles: [
+          { elementType: "geometry", stylers: [{ color: "#242f3e" }] },
+          { elementType: "labels.text.stroke", stylers: [{ color: "#242f3e" }] },
+          { elementType: "labels.text.fill", stylers: [{ color: "#746855" }] },
+          { featureType: "road", elementType: "geometry", stylers: [{ color: "#38414e" }] },
+          { featureType: "road", elementType: "geometry.stroke", stylers: [{ color: "#212a37" }] },
+          { featureType: "road", elementType: "labels.text.fill", stylers: [{ color: "#9ca5b3" }] },
+          { featureType: "water", elementType: "geometry", stylers: [{ color: "#17263c" }] }
+        ]
+      });
+    }
+    return mapInstance;
+  }
+
+  // 調整視野以同時容納兩個大頭針
+  function fitBoundsIfBothExist() {
+    if (pickupMarker && dropoffMarker && mapInstance) {
+      const bounds = new google.maps.LatLngBounds();
+      bounds.extend(pickupMarker.getPosition());
+      bounds.extend(dropoffMarker.getPosition());
+      mapInstance.fitBounds(bounds, { top: 40, bottom: 40, left: 40, right: 40 });
+    }
+  }
+
+  // 綁定地點選擇事件
+  const bindAutocomplete = (input, type) => {
     if (!input || !window.google || !window.google.maps || !window.google.maps.places) return;
     const auto = new google.maps.places.Autocomplete(input, options);
+
     auto.addListener("place_changed", () => {
       const place = auto.getPlace();
-      if (place.formatted_address) {
-        input.value = place.name ? `${place.name}, ${place.formatted_address}` : place.formatted_address;
+      if (!place.geometry || !place.geometry.location) return;
+
+      input.value = place.name ? `${place.name}, ${place.formatted_address}` : place.formatted_address;
+      const pos = place.geometry.location;
+      const map = getOrCreateMap(pos);
+
+      if (type === "pickup") {
+        if (pickupMarker) pickupMarker.setMap(null);
+        pickupMarker = new google.maps.Marker({
+          position: pos,
+          map: map,
+          title: "上車點",
+          icon: "https://maps.google.com/mapfiles/ms/icons/green-dot.png"
+        });
+        map.panTo(pos);
+      } else if (type === "dropoff") {
+        if (dropoffMarker) dropoffMarker.setMap(null);
+        dropoffMarker = new google.maps.Marker({
+          position: pos,
+          map: map,
+          title: "下車點",
+          icon: "https://maps.google.com/mapfiles/ms/icons/red-dot.png"
+        });
+        map.panTo(pos);
       }
+
+      fitBoundsIfBothExist();
     });
   };
 
-  bindAutocomplete(pickupInput);
-  bindAutocomplete(dropoffInput);
-  bindAutocomplete(cPickupInput);
-  bindAutocomplete(cDropoffInput);
+  bindAutocomplete(pickupInput, "pickup");
+  bindAutocomplete(dropoffInput, "dropoff");
+  bindAutocomplete(cPickupInput, "pickup");
+  bindAutocomplete(cDropoffInput, "dropoff");
 }
 
-// 監聽載入完成後啟動
+    // 監聽載入完成後啟動
 window.addEventListener("DOMContentLoaded", initAutocomplete);
 window.addEventListener("load", initAutocomplete);
-  
+    
   </script>
 </body>
 </html>
