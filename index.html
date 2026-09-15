@@ -1027,7 +1027,31 @@ let mapInstance = null;
 let pickupMarker = null;
 let dropoffMarker = null;
 
-// 初始化 Google 地點自動補全與即時地圖
+// 全域地圖、標記與地址解析器
+let mapInstance = null;
+let pickupMarker = null;
+let dropoffMarker = null;
+let geocoderInstance = null;
+
+// 自訂小人與圖示 (SVG Data URI)
+const PERSON_PIN_ICON = {
+  url: "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(`
+    <svg xmlns="http://www.w3.org/2000/svg" width="38" height="46" viewBox="0 0 38 46">
+      <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+        <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#000" flood-opacity="0.35"/>
+      </filter>
+      <!-- 外圍藍色圓形定位針 -->
+      <path d="M19 0 C8.5 0 0 8.5 0 19 C0 29 19 46 19 46 C19 46 38 29 38 19 C38 8.5 29.5 0 19 0 Z" fill="#0284c7" stroke="#ffffff" stroke-width="2" filter="url(#shadow)"/>
+      <!-- 白色乘客小人頭部 -->
+      <circle cx="19" cy="11.5" r="3.2" fill="#ffffff"/>
+      <!-- 白色乘客小人身體 -->
+      <path d="M14 26 L14 20 C14 17.8 15.8 16 18 16 L20 16 C22.2 16 24 17.8 24 20 L24 26 L21.5 26 L21.5 21 L20.5 21 L20.5 28 L17.5 28 L17.5 21 L16.5 21 L16.5 26 Z" fill="#ffffff"/>
+    </svg>
+  `),
+  scaledSize: new google.maps.Size(38, 46),
+  anchor: new google.maps.Point(19, 46)
+};
+
 function initAutocomplete() {
   const options = {
     componentRestrictions: { country: "ph" },
@@ -1040,7 +1064,10 @@ function initAutocomplete() {
   const cDropoffInput = document.getElementById("conciergeDropoff");
   const mapContainer = document.getElementById("mapPreviewContainer");
 
-  // 初始化地圖（深色風格 + 預設聚焦）
+  if (window.google && window.google.maps && !geocoderInstance) {
+    geocoderInstance = new google.maps.Geocoder();
+  }
+
   function getOrCreateMap(latLng) {
     if (!mapContainer) return null;
     mapContainer.classList.remove("hidden");
@@ -1048,7 +1075,7 @@ function initAutocomplete() {
     if (!mapInstance && window.google && window.google.maps) {
       mapInstance = new google.maps.Map(document.getElementById("map"), {
         center: latLng,
-        zoom: 15,
+        zoom: 16,
         disableDefaultUI: true,
         zoomControl: true,
         styles: [
@@ -1065,7 +1092,6 @@ function initAutocomplete() {
     return mapInstance;
   }
 
-  // 調整視野以同時容納兩個大頭針
   function fitBoundsIfBothExist() {
     if (pickupMarker && dropoffMarker && mapInstance) {
       const bounds = new google.maps.LatLngBounds();
@@ -1075,7 +1101,17 @@ function initAutocomplete() {
     }
   }
 
-  // 綁定地點選擇事件
+  // 拖曳小人後反查地址回填輸入框
+  function handleMarkerDrag(marker, input) {
+    if (!geocoderInstance) return;
+    const pos = marker.getPosition();
+    geocoderInstance.geocode({ location: pos }, (results, status) => {
+      if (status === "OK" && results[0]) {
+        input.value = results[0].formatted_address;
+      }
+    });
+  }
+
   const bindAutocomplete = (input, type) => {
     if (!input || !window.google || !window.google.maps || !window.google.maps.places) return;
     const auto = new google.maps.places.Autocomplete(input, options);
@@ -1093,16 +1129,23 @@ function initAutocomplete() {
         pickupMarker = new google.maps.Marker({
           position: pos,
           map: map,
-          title: "上車點",
-          icon: "https://maps.google.com/mapfiles/ms/icons/green-dot.png"
+          draggable: true, // 支援拖曳微調
+          icon: PERSON_PIN_ICON,
+          title: "拖曳微調上車地點"
         });
+
+        // 拖曳結束事件
+        pickupMarker.addListener("dragend", () => {
+          handleMarkerDrag(pickupMarker, input);
+        });
+
         map.panTo(pos);
       } else if (type === "dropoff") {
         if (dropoffMarker) dropoffMarker.setMap(null);
         dropoffMarker = new google.maps.Marker({
           position: pos,
           map: map,
-          title: "下車點",
+          title: "目的地",
           icon: "https://maps.google.com/mapfiles/ms/icons/red-dot.png"
         });
         map.panTo(pos);
