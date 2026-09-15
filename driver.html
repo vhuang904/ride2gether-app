@@ -196,7 +196,7 @@
         const id = doc.id;
 
         // 檢查當前司機是否已接單
-        if (data.driverName === CURRENT_DRIVER_NAME && ['ASSIGNED', 'ARRIVED', 'IN_TRANSIT'].includes(data.status)) {
+        if (data.driverName === CURRENT_DRIVER_NAME && ['MATCHED', 'ASSIGNED', 'ARRIVED', 'IN_TRANSIT'].includes(data.status)) {
           currentActiveOrder = { id, ...data };
           foundActive = true;
         }
@@ -246,7 +246,7 @@ async function claimOrder(orderId) {
   }
   try {
     await db.collection("ride_orders").doc(orderId).update({
-      status: "ASSIGNED",
+      status: "MATCHED",
       // 同時寫入幾種常見名稱，確保乘客端能抓到司機
       driverName: CURRENT_DRIVER_NAME,
       assignedDriver: CURRENT_DRIVER_NAME,
@@ -298,7 +298,7 @@ async function claimOrder(orderId) {
       const btnAdvance = document.getElementById("btnAdvanceStatus");
       statusBadge.innerText = currentActiveOrder.status;
 
-      if (currentActiveOrder.status === 'ASSIGNED') {
+      if (currentActiveOrder.status === 'MATCHED' || currentActiveOrder.status === 'ASSIGNED') {
         btnAdvance.innerText = "📍 I Have Arrived";
         btnAdvance.onclick = () => updateStatus('ARRIVED');
       } else if (currentActiveOrder.status === 'ARRIVED') {
