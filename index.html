@@ -96,12 +96,12 @@
     
     <!-- 右側上下對調 + 中線垂直居中對齊 -->
     <div class="flex flex-col items-center justify-center space-y-1.5">
-      <!-- 上排：綠燈 + VIP ACTIVE (置中對齊) -->
+      <!-- 上排：綠燈 + VIP ACTIVE -->
       <div class="flex items-center space-x-1.5">
         <span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.6)]"></span>
         <span id="txt-status-online" class="text-[10px] text-slate-500 font-semibold tracking-wider whitespace-nowrap uppercase">VIP Active</span>
       </div>
-      <!-- 下排：雙語切換膠囊 (置中對齊) -->
+      <!-- 下排：雙語切換膠囊 -->
       <div onclick="toggleLang()" class="cursor-pointer bg-slate-100 p-0.5 rounded-full border border-slate-300 flex items-center shadow-inner select-none">
         <span id="pill-en" class="px-2.5 py-0.5 text-[11px] font-bold rounded-full transition-all whitespace-nowrap bg-royal text-white shadow-sm">EN</span>
         <span id="pill-zh" class="px-2.5 py-0.5 text-[11px] font-medium rounded-full transition-all whitespace-nowrap text-slate-600">繁中</span>
@@ -346,7 +346,7 @@
         </div>
       </div>
 
-      <button onclick="cancelAndReset()" id="btnDoneOrder" class="w-full py-3 rounded-xl bg-navy-900 hover:bg-royal text-white text-xs font-semibold tracking-wider transition">
+      <button onclick="finishTripAndReset()" id="btnDoneOrder" class="w-full py-3 rounded-xl bg-navy-900 hover:bg-royal text-white text-xs font-semibold tracking-wider transition">
         Done
       </button>
     </div>
@@ -354,7 +354,7 @@
   </div>
 
   <script>
-    // --- 1. SERVICE WORKER 版本控管 (明確放置於最頂端，杜絕快取遺失) ---
+    // --- 1. SERVICE WORKER 版本控管 ---
     const APP_VERSION = 'v5';
 
     if ('serviceWorker' in navigator) {
@@ -563,10 +563,11 @@
 
     const GAS_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbxuT2lHTit53Ezz1eAzKwgIkSM7OVwzQMbGkA-TvYGVerxsNKnZgy5kDz-aVJkB2lJZ/exec";
 
-    // --- 4. 動態費率核心 (試算表同步，不寫死) ---
+    // --- 4. 全域變數與動態費率核心 ---
     let currentCategory = 'mobility';
     let currentService = 'RIDE_MOTO';
     let unsubscribeOrder = null;
+    let currentOrderId = null;
 
     let RATES = {
       RIDE_MOTO: { base: 40, baseKm: 2, perKm: 10, commType: 'PERCENT', commVal: 0.15, nameEn: 'Moto Express', nameZh: '尊榮機車' },
@@ -720,13 +721,14 @@
       const tip = parseFloat(document.getElementById('priorityTip').value) || 0;
       const finalPrice = parseFloat(document.getElementById('estTotal').innerText);
 
-      // 樂觀更新：立刻展開派單雷達
+      // 展開派單雷達
       document.getElementById('dispatchModal').classList.remove('hidden');
       document.getElementById('radarSection').classList.remove('hidden');
       document.getElementById('matchedCard').classList.add('hidden');
       document.getElementById('modalOrderId').innerText = 'Generating...';
 
       const orderId = 'OD-' + Math.floor(100000 + Math.random() * 900000);
+      currentOrderId = orderId;
       document.getElementById('modalOrderId').innerText = orderId;
 
       const currentServiceName = currentLang === 'en' ? RATES[currentService].nameEn : RATES[currentService].nameZh;
@@ -751,12 +753,9 @@
       };
 
       try {
-        // 寫入 Firestore
         await db.collection("ride_orders").doc(orderId).set(orderData);
-        // 毫秒級監聽翻牌
         subscribeToOrder(orderId);
 
-        // 背景通知 GAS (寫入 Google Sheets + Telegram Bot 推播)
         fetch(GAS_WEBHOOK_URL, {
           method: 'POST',
           mode: 'no-cors',
@@ -781,107 +780,173 @@
         if (!doc.exists) return;
         const data = doc.data();
 
-        if (data.status === 'MATCHED' || data.status === 'ACCEPTED') {
+        if (data.status === 'MATCHED' || data.status === 'ACCEPTED' || data.status === 'ARRIVED' || data.status === 'IN_TRANSIT' || data.status === 'COMPLETED') {
           showMatchedDriver(data);
+          updateTripStatusUI(data.status);
         }
       }, err => {
         console.warn("Realtime listener error:", err);
       });
     }
     
-function showMatchedDriver(data) {
-  document.getElementById('radarSection').classList.add('hidden');
-  document.getElementById('matchedCard').classList.remove('hidden');
+    function showMatchedDriver(data) {
+      document.getElementById('radarSection').classList.add('hidden');
+      document.getElementById('matchedCard').classList.remove('hidden');
 
-  // 1. 司機姓名 (English-First)
-  const driverNameEl = document.getElementById('driverName');
-  if (driverNameEl) {
-    driverNameEl.innerText = data.driverName || 'Executive Chauffeur';
-  }
+      // 1. 司機姓名
+      const driverNameEl = document.getElementById('driverName');
+      if (driverNameEl) {
+        driverNameEl.innerText = data.driverName || 'Executive Chauffeur';
+      }
 
-  // 2. 官方標準 Logo 多通道通訊按鈕群
-  const driverContactEl = document.getElementById('driverContact');
-  if (driverContactEl) {
-    const phone = data.driverPhone || '+639171234567';
-    const wa = (data.driverWhatsApp || phone).replace(/[^0-9]/g, '');
-    const viberNum = encodeURIComponent(data.driverViber || phone);
-    const tgUsername = data.driverTelegram ? data.driverTelegram.replace('@', '') : '';
+      // 2. 官方標準 Logo 多通道通訊按鈕群
+      const driverContactEl = document.getElementById('driverContact');
+      if (driverContactEl) {
+        const phone = data.driverPhone || '+639171234567';
+        const wa = (data.driverWhatsApp || phone).replace(/[^0-9]/g, '');
+        const viberNum = encodeURIComponent(data.driverViber || phone);
+        const tgUsername = data.driverTelegram ? data.driverTelegram.replace('@', '') : '';
 
-    let buttonsHtml = `
-      <div class="mt-3 pt-3 border-t border-slate-100">
-        <div class="text-[11px] font-semibold tracking-wider uppercase text-slate-400 mb-2">Direct Chauffeur Contact</div>
-        <div class="grid grid-cols-2 gap-2">
-          
-          <!-- Direct Phone Call -->
-          <a href="tel:${phone}" class="flex items-center justify-center py-2.5 px-3 bg-slate-900 hover:bg-black text-white text-xs font-semibold rounded-xl shadow-sm transition-all active:scale-95">
-            <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M20 15.5c-1.2 0-2.4-.2-3.6-.6-.3-.1-.7 0-1 .2l-2.2 2.2c-2.8-1.4-5.1-3.8-6.6-6.6l2.2-2.2c.3-.3.4-.7.2-1-.4-1.1-.6-2.3-.6-3.5 0-.6-.4-1-1-1H4c-.6 0-1 .4-1 1 0 9.4 7.6 17 17 17 .6 0 1-.4 1-1v-3.5c0-.6-.4-1-1-1z"/>
-            </svg>
-            Call
-          </a>
+        let buttonsHtml = `
+          <div class="mt-3 pt-3 border-t border-slate-100">
+            <div class="text-[11px] font-semibold tracking-wider uppercase text-slate-400 mb-2">Direct Chauffeur Contact</div>
+            <div class="grid grid-cols-2 gap-2">
+              
+              <!-- Direct Phone Call -->
+              <a href="tel:${phone}" class="flex items-center justify-center py-2.5 px-3 bg-slate-900 hover:bg-black text-white text-xs font-semibold rounded-xl shadow-sm transition-all active:scale-95">
+                <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M20 15.5c-1.2 0-2.4-.2-3.6-.6-.3-.1-.7 0-1 .2l-2.2 2.2c-2.8-1.4-5.1-3.8-6.6-6.6l2.2-2.2c.3-.3.4-.7.2-1-.4-1.1-.6-2.3-.6-3.5 0-.6-.4-1-1-1H4c-.6 0-1 .4-1 1 0 9.4 7.6 17 17 17 .6 0 1-.4 1-1v-3.5c0-.6-.4-1-1-1z"/>
+                </svg>
+                Call
+              </a>
 
-          <!-- WhatsApp (Official Logo & Color) -->
-          <a href="https://wa.me/${wa}" target="_blank" class="flex items-center justify-center py-2.5 px-3 bg-[#25D366] hover:bg-[#20ba5a] text-white text-xs font-semibold rounded-xl shadow-sm transition-all active:scale-95">
-            <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/>
-            </svg>
-            WhatsApp
-          </a>
+              <!-- WhatsApp -->
+              <a href="https://wa.me/${wa}" target="_blank" class="flex items-center justify-center py-2.5 px-3 bg-[#25D366] hover:bg-[#20ba5a] text-white text-xs font-semibold rounded-xl shadow-sm transition-all active:scale-95">
+                <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/>
+                </svg>
+                WhatsApp
+              </a>
 
-          <!-- Viber (Official Logo & Color) -->
-          <a href="viber://chat?number=${viberNum}" class="flex items-center justify-center py-2.5 px-3 bg-[#7360F2] hover:bg-[#624ee8] text-white text-xs font-semibold rounded-xl shadow-sm transition-all active:scale-95">
-            <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M11.398 0C4.877 0 .195 4.316.008 10.372c-.12 3.864 1.776 7.428 4.968 9.24v2.964c0 .648.648 1.068 1.2.78l3.192-1.656c.672.108 1.368.168 2.076.168 6.516 0 12.36-4.308 12.552-10.368C24.191 5.436 18.96 0 11.398 0zm6.192 14.196c-.252.696-1.224 1.344-1.992 1.488-.528.096-1.224.168-3.552-.804-2.964-1.236-4.884-4.224-5.028-4.416-.144-.192-1.188-1.584-1.188-3.024 0-1.44.756-2.148 1.02-2.436.264-.288.588-.36.78-.36.204 0 .396.012.564.024.18.012.42-.072.66.504.252.612.852 2.088.924 2.244.072.156.12.336.024.528-.096.204-.144.324-.288.504-.144.18-.312.396-.444.528-.156.144-.312.312-.132.624.18.312.804 1.32 1.728 2.136 1.188 1.056 2.184 1.38 2.496 1.536.312.144.492.12.672-.084.18-.204.78-.912.984-1.224.204-.312.42-.264.696-.156.288.096 1.8.852 2.112 1.008.312.156.516.228.588.36.072.144.072.828-.18 1.524z"/>
-            </svg>
-            Viber
-          </a>
+              <!-- Viber -->
+              <a href="viber://chat?number=${viberNum}" class="flex items-center justify-center py-2.5 px-3 bg-[#7360F2] hover:bg-[#624ee8] text-white text-xs font-semibold rounded-xl shadow-sm transition-all active:scale-95">
+                <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M11.398 0C4.877 0 .195 4.316.008 10.372c-.12 3.864 1.776 7.428 4.968 9.24v2.964c0 .648.648 1.068 1.2.78l3.192-1.656c.672.108 1.368.168 2.076.168 6.516 0 12.36-4.308 12.552-10.368C24.191 5.436 18.96 0 11.398 0zm6.192 14.196c-.252.696-1.224 1.344-1.992 1.488-.528.096-1.224.168-3.552-.804-2.964-1.236-4.884-4.224-5.028-4.416-.144-.192-1.188-1.584-1.188-3.024 0-1.44.756-2.148 1.02-2.436.264-.288.588-.36.78-.36.204 0 .396.012.564.024.18.012.42-.072.66.504.252.612.852 2.088.924 2.244.072.156.12.336.024.528-.096.204-.144.324-.288.504-.144.18-.312.396-.444.528-.156.144-.312.312-.132.624.18.312.804 1.32 1.728 2.136 1.188 1.056 2.184 1.38 2.496 1.536.312.144.492.12.672-.084.18-.204.78-.912.984-1.224.204-.312.42-.264.696-.156.288.096 1.8.852 2.112 1.008.312.156.516.228.588.36.072.144.072.828-.18 1.524z"/>
+                </svg>
+                Viber
+              </a>
 
-          <!-- Telegram (Official Logo & Color) -->
-          ${tgUsername ? `
-            <a href="https://t.me/${tgUsername}" target="_blank" class="flex items-center justify-center py-2.5 px-3 bg-[#229ED9] hover:bg-[#1f8fc4] text-white text-xs font-semibold rounded-xl shadow-sm transition-all active:scale-95">
-              <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.121l-6.871 4.326-2.962-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.832.922z"/>
-              </svg>
-              Telegram
-            </a>
-          ` : `
-            <div class="flex items-center justify-center py-2.5 px-3 bg-slate-100 text-slate-500 text-xs font-medium rounded-xl">
-              <span class="mr-1.5 text-sm">⏱️</span> ~8-12 mins
+              <!-- Telegram -->
+              ${tgUsername ? `
+                <a href="https://t.me/${tgUsername}" target="_blank" class="flex items-center justify-center py-2.5 px-3 bg-[#229ED9] hover:bg-[#1f8fc4] text-white text-xs font-semibold rounded-xl shadow-sm transition-all active:scale-95">
+                  <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.121l-6.871 4.326-2.962-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.832.922z"/>
+                  </svg>
+                  Telegram
+                </a>
+              ` : `
+                <div class="flex items-center justify-center py-2.5 px-3 bg-slate-100 text-slate-500 text-xs font-medium rounded-xl">
+                  <span class="mr-1.5 text-sm">⏱️</span> ~8-12 mins
+                </div>
+              `}
+
             </div>
-          `}
+          </div>
+        `;
 
-        </div>
-      </div>
-    `;
+        driverContactEl.innerHTML = buttonsHtml;
+      }
 
-    driverContactEl.innerHTML = buttonsHtml;
-  }
+      // 3. 車牌與車型等級
+      const driverPlateEl = document.getElementById('driverPlate');
+      if (driverPlateEl) {
+        const vehicleInfo = [data.driverPlate, data.driverModel].filter(Boolean).join(' • ') || 'VIP Fleet';
+        driverPlateEl.innerText = vehicleInfo;
+      }
 
-  // 3. 車牌與車型等級
-  const driverPlateEl = document.getElementById('driverPlate');
-  if (driverPlateEl) {
-    const vehicleInfo = [data.driverPlate, data.driverModel].filter(Boolean).join(' • ') || 'VIP Fleet';
-    driverPlateEl.innerText = vehicleInfo;
-  }
+      // 4. 費用與服務項目
+      const cardPayEl = document.getElementById('cardPay');
+      if (cardPayEl) {
+        cardPayEl.innerText = `₱${parseFloat(data.totalPay || 0).toFixed(2)}`;
+      }
 
-  // 4. 費用與服務項目 (English-First)
-  const cardPayEl = document.getElementById('cardPay');
-  if (cardPayEl) {
-    cardPayEl.innerText = `₱${parseFloat(data.totalPay || 0).toFixed(2)}`;
-  }
-
-  const cardServiceEl = document.getElementById('cardService');
-  if (cardServiceEl) {
-    const defaultName = RATES[currentService] ? RATES[currentService].nameEn : 'Executive Mobility';
-    cardServiceEl.innerText = data.serviceName || defaultName;
-  }
-}
-
-    function cancelAndReset() {
-      if (unsubscribeOrder) unsubscribeOrder();
-      document.getElementById('dispatchModal').classList.add('hidden');
+      const cardServiceEl = document.getElementById('cardService');
+      if (cardServiceEl) {
+        const defaultName = RATES[currentService] ? RATES[currentService].nameEn : 'Executive Mobility';
+        cardServiceEl.innerText = data.serviceName || defaultName;
+      }
     }
 
+    // 動態更新乘客端卡片上的行程狀態標籤
+    function updateTripStatusUI(status) {
+      const badge = document.getElementById('txt-matched-badge');
+      if (!badge) return;
+
+      if (status === 'ARRIVED') {
+        badge.innerText = 'CHAUFFEUR HAS ARRIVED';
+        badge.className = 'text-[10px] tracking-widest font-semibold uppercase text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200 inline-block';
+      } else if (status === 'IN_TRANSIT') {
+        badge.innerText = 'TRIP IN PROGRESS';
+        badge.className = 'text-[10px] tracking-widest font-semibold uppercase text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full border border-blue-200 inline-block';
+      } else if (status === 'COMPLETED') {
+        badge.innerText = 'TRIP COMPLETED';
+        badge.className = 'text-[10px] tracking-widest font-semibold uppercase text-slate-600 bg-slate-100 px-2.5 py-1 rounded-full border border-slate-300 inline-block';
+      } else {
+        badge.innerText = 'MATCHED PRIVATE CHAUFFEUR';
+        badge.className = 'text-[10px] tracking-widest text-royal uppercase font-semibold inline-block';
+      }
+    }
+
+    // --- 6. 取消訂單與重設處理 ---
+    async function cancelAndReset() {
+      if (typeof unsubscribeOrder === 'function') {
+        unsubscribeOrder();
+        unsubscribeOrder = null;
+      }
+
+      const orderIdSpan = document.getElementById('modalOrderId');
+      const targetOrderId = currentOrderId || (orderIdSpan ? orderIdSpan.innerText.trim() : '');
+
+      document.getElementById('dispatchModal').classList.add('hidden');
+      document.getElementById('radarSection').classList.remove('hidden');
+      document.getElementById('matchedCard').classList.add('hidden');
+
+      if (targetOrderId && targetOrderId !== 'Generating...') {
+        try {
+          console.log('Cancelling order on backend:', targetOrderId);
+          await fetch(GAS_WEBHOOK_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'CANCEL_ORDER',
+              orderId: targetOrderId
+            })
+          });
+          console.log(`Order ${targetOrderId} cancellation notified.`);
+        } catch (err) {
+          console.error('Failed to notify cancellation:', err);
+        }
+      }
+
+      currentOrderId = null;
+    }
+
+    // --- 7. 完成行程 / Done 關閉卡片 ---
+    function finishTripAndReset() {
+      if (typeof unsubscribeOrder === 'function') {
+        unsubscribeOrder();
+        unsubscribeOrder = null;
+      }
+
+      document.getElementById('dispatchModal').classList.add('hidden');
+      document.getElementById('radarSection').classList.remove('hidden');
+      document.getElementById('matchedCard').classList.add('hidden');
+
+      currentOrderId = null;
+    }
+
+    // --- 8. 拉取後端即時動態費率 ---
     async function fetchLatestRates() {
       try {
         const res = await fetch(GAS_WEBHOOK_URL);
