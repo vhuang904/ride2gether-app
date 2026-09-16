@@ -612,7 +612,7 @@
 
   <script>
     // --- 1. SERVICE WORKER 版本控管 ---
-    const APP_VERSION = 'ride2gether-cache-v7.2';
+    const APP_VERSION = 'ride2gether-cache-v7.3';
 
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
@@ -1260,6 +1260,7 @@
     }
 
     function showPinBubble(marker, fieldType, catType, optAddressText) {
+      if (window.isViewerMode) return;
       const bubble = document.getElementById('pinActionBubble');
       const title = document.getElementById('bubblePinTitle');
       const badge = document.getElementById('pinLockStatusBadge');
@@ -1671,6 +1672,10 @@
       const urlParams = new URLSearchParams(window.location.search);
       const trackOrderId = urlParams.get('track');
       if (!trackOrderId || !db) return;
+      
+      window.isViewerMode = true; // 標記為親友唯讀模式
+      const bubble = document.getElementById('pinActionBubble');
+      if (bubble) bubble.classList.add('hidden');
 
       const mainEl = document.querySelector('main');
       if (mainEl) {
