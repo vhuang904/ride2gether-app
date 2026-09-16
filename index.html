@@ -54,7 +54,7 @@
 
   <style>
     body {
-      background-color: #F8FAFC;
+      background-color: #0F172A;
       color: #0F172A;
       font-family: 'Plus Jakarta Sans', sans-serif;
       -webkit-tap-highlight-color: transparent;
@@ -71,7 +71,7 @@
       box-shadow: 0 10px 25px -5px rgba(30, 64, 175, 0.12), 0 0 0 1px rgba(30, 64, 175, 0.15) !important;
     }
     .glass-nav {
-      background: rgba(255, 255, 255, 0.92);
+      background: rgba(255, 255, 255, 0.95);
       backdrop-filter: blur(16px);
       -webkit-backdrop-filter: blur(16px);
     }
@@ -83,11 +83,8 @@
     .animate-ping-slow {
       animation: ping-slow 2.4s cubic-bezier(0, 0, 0.2, 1) infinite;
     }
-  </style>
 
-  <!-- Google Maps Places API -->
-  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB2ePR5LnmHDJrzHx2ib0oRQfrM_c8IcOk&libraries=places&language=en"></script>
-  <style>
+    /* Google Places Dropdown 暗色質感 */
     .pac-container {
       background-color: #1e293b !important;
       border: 1px solid #334155 !important;
@@ -117,11 +114,13 @@
       filter: invert(1) hue-rotate(180deg) !important;
     }
   </style>
-  
+
+  <!-- Google Maps Places API -->
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB2ePR5LnmHDJrzHx2ib0oRQfrM_c8IcOk&libraries=places&language=en"></script>
 </head>
 <body class="bg-[#0F172A] min-h-screen flex flex-col justify-between selection:bg-royal selection:text-white">
 
-  <!-- Header -->
+  <!-- Header: 頂部導航欄 (純英文、VIP 會員頭像中心) -->
   <header class="sticky top-0 z-40 glass-nav border-b border-slate-200/80 px-5 py-3 flex items-center justify-between shadow-sm">
     <div class="flex flex-col items-start">
       <div class="flex items-center space-x-1.5">
@@ -132,200 +131,216 @@
           <path d="M50 28 L50 49" stroke="#F59E0B" stroke-width="3" stroke-linecap="round" />
           <circle cx="50" cy="38" r="2.2" fill="#FDE68A" />
           <rect x="20" y="49" width="60" height="8" rx="2.5" fill="#F59E0B" />
-          <circle cx="30" cy="53" r="1.5" fill="#FEF3C7" />
-          <circle cx="40" cy="53" r="1.5" fill="#FEF3C7" />
-          <circle cx="50" cy="53" r="1.8" fill="#FFFFFF" />
-          <circle cx="60" cy="53" r="1.5" fill="#FEF3C7" />
-          <circle cx="70" cy="53" r="1.5" fill="#FEF3C7" />
           <ellipse cx="50" cy="58" rx="26" ry="2.2" fill="#D97706" />
           <path d="M50 7 C47 13, 46 18, 50 22 C54 18, 53 13, 50 7 Z" fill="#F59E0B" />
           <path d="M49 19 C44 15, 40 16, 41 19 C42 22, 47 22, 49 22 Z" fill="#F59E0B" />
           <path d="M51 19 C56 15, 60 16, 59 19 C58 22, 53 22, 51 22 Z" fill="#F59E0B" />
           <rect x="46.5" y="21.5" width="7" height="2" rx="0.5" fill="#B45309" />
-          <path d="M30 49 L32 44 L34 49 Z" fill="#F59E0B" />
-          <path d="M66 49 L68 44 L70 49 Z" fill="#F59E0B" />
         </svg>
         <h1 class="font-serif text-lg tracking-wider navy-gradient-text font-bold uppercase leading-none">Ride2gether</h1>
       </div>
       <p class="text-[9px] tracking-[0.2em] text-slate-500 uppercase mt-1">Private Concierge & Mobility</p>
     </div>
     
-    <div class="flex flex-col items-center justify-center space-y-1.5">
-      <div class="flex items-center space-x-1.5">
-        <span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.6)]"></span>
-        <span id="txt-status-online" class="text-[10px] text-slate-500 font-semibold tracking-wider whitespace-nowrap uppercase">VIP Active</span>
+    <!-- VIP Profile Button -->
+    <div class="flex items-center space-x-2.5">
+      <div class="flex flex-col items-end">
+        <div class="flex items-center space-x-1.5">
+          <span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.6)]"></span>
+          <span class="text-[10px] text-slate-500 font-semibold tracking-wider uppercase">VIP Verified</span>
+        </div>
+        <span id="headerMemberName" class="text-xs font-bold text-navy-900 leading-tight">Vincent</span>
       </div>
-      <div onclick="toggleLang()" class="cursor-pointer bg-slate-100 p-0.5 rounded-full border border-slate-300 flex items-center shadow-inner select-none">
-        <span id="pill-en" class="px-2.5 py-0.5 text-[11px] font-bold rounded-full transition-all whitespace-nowrap bg-royal text-white shadow-sm">EN</span>
-        <span id="pill-zh" class="px-2.5 py-0.5 text-[11px] font-medium rounded-full transition-all whitespace-nowrap text-slate-600">繁中</span>
-      </div>
+      <button type="button" onclick="openProfileModal()" class="w-9 h-9 rounded-full bg-royal-soft border border-royal/30 text-royal font-bold text-xs flex items-center justify-center shadow-sm active:scale-95 transition">
+        <span id="memberAvatarText">V</span>
+      </button>
     </div>
   </header>
 
   <!-- 主視窗容器 -->
-  <main class="flex-1 max-w-md w-full mx-auto p-5 space-y-6 pb-24">
+  <main class="flex-1 max-w-md w-full mx-auto p-4 space-y-4 pb-24">
 
-    <!-- Step 1: 服務場景分類 -->
+    <!-- Step 1: 服務分類 -->
     <section class="space-y-3">
-      <label id="lbl-step1" class="block text-xs font-semibold uppercase tracking-widest text-white">
-        01. Select Service Category
-      </label>
+      <div class="flex justify-between items-center px-1">
+        <label class="block text-xs font-semibold uppercase tracking-widest text-white">
+          01. Select Service Category
+        </label>
+      </div>
 
       <!-- Segmented Control -->
-      <div class="grid grid-cols-2 p-1 bg-slate-200/70 border border-slate-200 rounded-xl">
+      <div class="grid grid-cols-2 p-1 bg-slate-800/80 border border-slate-700 rounded-xl">
         <button type="button" id="tab-mobility" onclick="switchCategory('mobility')"
                 class="py-2.5 rounded-lg text-xs font-semibold tracking-wider flex items-center justify-center space-x-2 transition-all duration-300 bg-white text-royal shadow-sm">
           <svg class="w-4 h-4 stroke-current fill-none stroke-[1.8]" viewBox="0 0 24 24"><circle cx="6" cy="18" r="3"/><circle cx="18" cy="18" r="3"/><path d="M6 18l4-9h4l2 4.5M10 9l2-4h3"/></svg>
-          <span id="txt-tab-mobility">Mobility</span>
+          <span>Mobility</span>
         </button>
         <button type="button" id="tab-concierge" onclick="switchCategory('concierge')"
-                class="py-2.5 rounded-lg text-xs font-semibold tracking-wider flex items-center justify-center space-x-2 transition-all duration-300 text-slate-600 hover:text-navy-900">
+                class="py-2.5 rounded-lg text-xs font-semibold tracking-wider flex items-center justify-center space-x-2 transition-all duration-300 text-slate-400 hover:text-white">
           <svg class="w-4 h-4 stroke-current fill-none stroke-[1.8]" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
-          <span id="txt-tab-concierge">Concierge</span>
+          <span>Concierge</span>
         </button>
       </div>
 
-      <!-- Mobility 服務卡片 (3 欄等寬、大圖標、文字全置中) -->
+      <!-- Mobility 服務卡片 (3 欄等寬、置中) -->
       <div id="grid-mobility" class="grid grid-cols-3 gap-2.5">
-        
-        <!-- Moto -->
         <div onclick="selectService('RIDE_MOTO')" id="card-RIDE_MOTO"
-             class="service-card cursor-pointer p-3 rounded-2xl bg-white border border-slate-200 hover:border-royal transition-all duration-300 card-active flex flex-col items-center text-center justify-between h-44 shadow-sm">
+             class="service-card cursor-pointer p-3 rounded-2xl bg-white border border-slate-200 hover:border-royal transition-all duration-300 card-active flex flex-col items-center text-center justify-between h-40 shadow-sm">
           <div class="flex flex-col items-center w-full">
-            <div class="card-icon w-11 h-11 rounded-xl bg-royal-soft flex items-center justify-center mb-2.5 shadow-sm">
-              <svg class="w-6 h-6 text-royal stroke-current fill-none stroke-[1.8]" viewBox="0 0 24 24"><circle cx="6" cy="18" r="3"/><circle cx="18" cy="18" r="3"/><path d="M6 18l4-9h4l2 4.5M10 9l2-4h3"/></svg>
+            <div class="card-icon w-10 h-10 rounded-xl bg-royal-soft flex items-center justify-center mb-2 shadow-sm">
+              <svg class="w-5 h-5 text-royal stroke-current fill-none stroke-[1.8]" viewBox="0 0 24 24"><circle cx="6" cy="18" r="3"/><circle cx="18" cy="18" r="3"/><path d="M6 18l4-9h4l2 4.5M10 9l2-4h3"/></svg>
             </div>
-            <div id="txt-card-moto-title" class="font-bold text-xs text-navy-900 block leading-tight">Moto Express</div>
-            <div id="txt-card-moto-sub" class="text-[10px] text-slate-500 block mt-1 leading-snug">Fast Transit</div>
+            <div class="font-bold text-xs text-navy-900 block leading-tight">Moto Express</div>
+            <div class="text-[10px] text-slate-500 block mt-1 leading-snug">Fast Transit</div>
           </div>
-          <div id="badge-RIDE_MOTO" class="text-xs text-royal font-semibold font-mono pt-2 border-t border-slate-100 w-full block">From ₱40</div>
+          <div id="badge-RIDE_MOTO" class="text-xs text-royal font-semibold font-mono pt-1.5 border-t border-slate-100 w-full block">From ₱40</div>
         </div>
 
-        <!-- Sedan -->
         <div onclick="selectService('RIDE_CAR')" id="card-RIDE_CAR"
-             class="service-card cursor-pointer p-3 rounded-2xl bg-white border border-slate-200 hover:border-royal transition-all duration-300 flex flex-col items-center text-center justify-between h-44 shadow-sm">
+             class="service-card cursor-pointer p-3 rounded-2xl bg-white border border-slate-200 hover:border-royal transition-all duration-300 flex flex-col items-center text-center justify-between h-40 shadow-sm">
           <div class="flex flex-col items-center w-full">
-            <div class="card-icon w-11 h-11 rounded-xl bg-slate-100 flex items-center justify-center mb-2.5 shadow-sm">
-              <svg class="w-6 h-6 text-slate-700 stroke-current fill-none stroke-[1.8]" viewBox="0 0 24 24"><path d="M3 12h18M5 12V7a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v5M4 17h16M7 17a2 2 0 1 1-4 0M21 17a2 2 0 1 1-4 0"/></svg>
+            <div class="card-icon w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center mb-2 shadow-sm">
+              <svg class="w-5 h-5 text-slate-700 stroke-current fill-none stroke-[1.8]" viewBox="0 0 24 24"><path d="M3 12h18M5 12V7a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v5M4 17h16M7 17a2 2 0 1 1-4 0M21 17a2 2 0 1 1-4 0"/></svg>
             </div>
-            <div id="txt-card-car-title" class="font-bold text-xs text-navy-900 block leading-tight">Executive Sedan</div>
-            <div id="txt-card-car-sub" class="text-[10px] text-slate-500 block mt-1 leading-snug">4-Seater Luxury</div>
+            <div class="font-bold text-xs text-navy-900 block leading-tight">Executive Sedan</div>
+            <div class="text-[10px] text-slate-500 block mt-1 leading-snug">4-Seater Luxury</div>
           </div>
-          <div id="badge-RIDE_CAR" class="text-xs text-slate-600 font-semibold font-mono pt-2 border-t border-slate-100 w-full block">From ₱70</div>
+          <div id="badge-RIDE_CAR" class="text-xs text-slate-600 font-semibold font-mono pt-1.5 border-t border-slate-100 w-full block">From ₱70</div>
         </div>
 
-        <!-- SUV -->
         <div onclick="selectService('RIDE_SUV')" id="card-RIDE_SUV"
-             class="service-card cursor-pointer p-3 rounded-2xl bg-white border border-slate-200 hover:border-royal transition-all duration-300 flex flex-col items-center text-center justify-between h-44 shadow-sm">
+             class="service-card cursor-pointer p-3 rounded-2xl bg-white border border-slate-200 hover:border-royal transition-all duration-300 flex flex-col items-center text-center justify-between h-40 shadow-sm">
           <div class="flex flex-col items-center w-full">
-            <div class="card-icon w-11 h-11 rounded-xl bg-slate-100 flex items-center justify-center mb-2.5 shadow-sm">
-              <svg class="w-6 h-6 text-slate-700 stroke-current fill-none stroke-[1.8]" viewBox="0 0 24 24"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.5 2.8C2.1 10.9 2 11.2 2 11.5V16c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/></svg>
+            <div class="card-icon w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center mb-2 shadow-sm">
+              <svg class="w-5 h-5 text-slate-700 stroke-current fill-none stroke-[1.8]" viewBox="0 0 24 24"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.5 2.8C2.1 10.9 2 11.2 2 11.5V16c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/></svg>
             </div>
-            <div id="txt-card-suv-title" class="font-bold text-xs text-navy-900 block leading-tight">Premium SUV</div>
-            <div id="txt-card-suv-sub" class="text-[10px] text-slate-500 block mt-1 leading-snug">6-7 Seater / MPV</div>
+            <div class="font-bold text-xs text-navy-900 block leading-tight">Premium SUV</div>
+            <div class="text-[10px] text-slate-500 block mt-1 leading-snug">6-7 Seater / MPV</div>
           </div>
-          <div id="badge-RIDE_SUV" class="text-xs text-slate-600 font-semibold font-mono pt-2 border-t border-slate-100 w-full block">From ₱120</div>
+          <div id="badge-RIDE_SUV" class="text-xs text-slate-600 font-semibold font-mono pt-1.5 border-t border-slate-100 w-full block">From ₱120</div>
         </div>
-
       </div>
 
-      <!-- Concierge 服務卡片 (2 欄等寬、大圖標、文字全置中) -->
+      <!-- Concierge 服務卡片 (2 欄等寬、置中) -->
       <div id="grid-concierge" class="grid grid-cols-2 gap-3 hidden">
-        
-        <!-- Express -->
         <div onclick="selectService('EXPRESS')" id="card-EXPRESS"
-             class="service-card cursor-pointer p-4 rounded-2xl bg-white border border-slate-200 hover:border-royal transition-all duration-300 flex flex-col items-center text-center justify-between h-44 shadow-sm">
+             class="service-card cursor-pointer p-4 rounded-2xl bg-white border border-slate-200 hover:border-royal transition-all duration-300 flex flex-col items-center text-center justify-between h-40 shadow-sm">
           <div class="flex flex-col items-center w-full">
-            <div class="card-icon w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center mb-2.5 shadow-sm">
+            <div class="card-icon w-11 h-11 rounded-xl bg-slate-100 flex items-center justify-center mb-2 shadow-sm">
               <svg class="w-6 h-6 text-slate-700 stroke-current fill-none stroke-[1.8]" viewBox="0 0 24 24"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
             </div>
-            <div id="txt-card-exp-title" class="font-bold text-sm text-navy-900 block leading-snug">Instant Parcel</div>
-            <div id="txt-card-exp-sub" class="text-[11px] text-slate-500 block mt-1 leading-normal">Direct Document Delivery</div>
+            <div class="font-bold text-sm text-navy-900 block leading-snug">Instant Parcel</div>
+            <div class="text-[11px] text-slate-500 block mt-1 leading-normal">Direct Document Delivery</div>
           </div>
-          <div id="badge-EXPRESS" class="text-xs text-slate-600 font-semibold font-mono pt-2 border-t border-slate-100 w-full block">From ₱50</div>
+          <div id="badge-EXPRESS" class="text-xs text-slate-600 font-semibold font-mono pt-1.5 border-t border-slate-100 w-full block">From ₱50</div>
         </div>
 
-        <!-- Pabili -->
         <div onclick="selectService('PABILI')" id="card-PABILI"
-             class="service-card cursor-pointer p-4 rounded-2xl bg-white border border-slate-200 hover:border-royal transition-all duration-300 flex flex-col items-center text-center justify-between h-44 shadow-sm">
+             class="service-card cursor-pointer p-4 rounded-2xl bg-white border border-slate-200 hover:border-royal transition-all duration-300 flex flex-col items-center text-center justify-between h-40 shadow-sm">
           <div class="flex flex-col items-center w-full">
-            <div class="card-icon w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center mb-2.5 shadow-sm">
+            <div class="card-icon w-11 h-11 rounded-xl bg-slate-100 flex items-center justify-center mb-2 shadow-sm">
               <svg class="w-6 h-6 text-slate-700 stroke-current fill-none stroke-[1.8]" viewBox="0 0 24 24"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4zM3 6h18M16 10a4 4 0 0 1-8 0"/></svg>
             </div>
-            <div id="txt-card-pab-title" class="font-bold text-sm text-navy-900 block leading-snug">Pabili Concierge</div>
-            <div id="txt-card-pab-sub" class="text-[11px] text-slate-500 block mt-1 leading-normal">Queuing & Purchasing</div>
+            <div class="font-bold text-sm text-navy-900 block leading-snug">Pabili Concierge</div>
+            <div class="text-[11px] text-slate-500 block mt-1 leading-normal">Queuing & Purchasing</div>
           </div>
-          <div id="badge-PABILI" class="text-xs text-slate-600 font-semibold font-mono pt-2 border-t border-slate-100 w-full block">From ₱60</div>
+          <div id="badge-PABILI" class="text-xs text-slate-600 font-semibold font-mono pt-1.5 border-t border-slate-100 w-full block">From ₱60</div>
         </div>
-
       </div>
     </section>
 
-    <!-- Step 2: 貴賓與行程細節輸入 -->
-    <section class="space-y-4 bg-white border border-slate-200/90 rounded-2xl p-5 shadow-sm">
-      <label id="lbl-step2" class="block text-xs font-semibold uppercase tracking-widest text-royal">
-        02. Guest & Route Details
-      </label>
-
-      <!-- 稱呼 與 電話 -->
-      <div class="grid grid-cols-2 gap-3">
-        <div>
-          <label id="lbl-cust-name" class="text-[11px] text-navy-800 font-medium uppercase tracking-wider block mb-1">Guest Name</label>
-          <input type="text" id="custName" placeholder="e.g. Mr. Vincent"
-                 class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-navy-900 placeholder-slate-400 focus:outline-none focus:border-royal focus:bg-white transition-colors">
-        </div>
-        <div>
-          <label id="lbl-cust-phone" class="text-[11px] text-navy-800 font-medium uppercase tracking-wider block mb-1">Mobile Number</label>
-          <input type="tel" id="custPhone" placeholder="09XX-XXX-XXX"
-                 class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm font-mono text-navy-900 placeholder-slate-400 focus:outline-none focus:border-royal focus:bg-white transition-colors">
+    <!-- Step 2: 路線規劃 (欄位上移、常用地址快速帶入、✖ 一鍵清除) -->
+    <section class="space-y-3 bg-white border border-slate-200/90 rounded-2xl p-4 shadow-sm">
+      <div class="flex justify-between items-center">
+        <label class="block text-xs font-semibold uppercase tracking-widest text-royal">
+          02. Route & Location
+        </label>
+        
+        <!-- 常用地址快速藥丸按鈕 -->
+        <div class="flex space-x-1.5">
+          <button type="button" onclick="applySavedPlace('home')" class="px-2.5 py-1 rounded-full bg-slate-100 hover:bg-royal-soft text-slate-700 hover:text-royal text-[11px] font-semibold transition border border-slate-200 flex items-center">
+            🏠 Home
+          </button>
+          <button type="button" onclick="applySavedPlace('office')" class="px-2.5 py-1 rounded-full bg-slate-100 hover:bg-royal-soft text-slate-700 hover:text-royal text-[11px] font-semibold transition border border-slate-200 flex items-center">
+            🏢 Office
+          </button>
         </div>
       </div>
 
       <!-- 出行路線 (Mobility) -->
-      <div id="fields-mobility" class="space-y-3">
-        <div>
-          <label id="lbl-pickup" class="text-[11px] text-navy-800 font-medium uppercase tracking-wider block mb-1">Pick-up Location</label>
-          <input type="text" id="pickupLoc" placeholder="Hotel, Building or Address"
-                 class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-navy-900 placeholder-slate-400 focus:outline-none focus:border-royal focus:bg-white transition-colors">
+      <div id="fields-mobility" class="space-y-2.5">
+        <div class="relative">
+          <label class="text-[11px] text-navy-800 font-medium uppercase tracking-wider block mb-1">Pick-up Location</label>
+          <div class="relative flex items-center">
+            <input type="text" id="pickupLoc" placeholder="Hotel, Airport terminal, or Address"
+                   class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-3.5 pr-8 py-2.5 text-sm text-navy-900 placeholder-slate-400 focus:outline-none focus:border-royal focus:bg-white transition-colors">
+            <button type="button" onclick="clearLocationInput('pickupLoc', 'pickup', 'mobility')" class="absolute right-2.5 text-slate-400 hover:text-slate-600 text-sm p-1">✕</button>
+          </div>
         </div>
-        <div>
-          <label id="lbl-dropoff" class="text-[11px] text-navy-800 font-medium uppercase tracking-wider block mb-1">Drop-off Destination</label>
-          <input type="text" id="dropoffLoc" placeholder="Destination Name or Address"
-                 class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-navy-900 placeholder-slate-400 focus:outline-none focus:border-royal focus:bg-white transition-colors">
-        </div>
-      </div>
-
-      <!-- 管家跑腿路線 (Concierge) -->
-      <div id="fields-concierge" class="space-y-3 hidden">
-        <div>
-          <label id="lbl-store" class="text-[11px] text-navy-800 font-medium uppercase tracking-wider block mb-1">Store / Pickup Point</label>
-          <input type="text" id="conciergePickup" placeholder="Store name, Mall branch or Pickup address"
-                 class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-navy-900 placeholder-slate-400 focus:outline-none focus:border-royal focus:bg-white transition-colors">
-        </div>
-        <div>
-          <label id="lbl-delivery" class="text-[11px] text-navy-800 font-medium uppercase tracking-wider block mb-1">Delivery Destination</label>
-          <input type="text" id="conciergeDropoff" placeholder="Unit, Building name or Street"
-                 class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-navy-900 placeholder-slate-400 focus:outline-none focus:border-royal focus:bg-white transition-colors">
-        </div>
-        <div id="pabiliFieldGroup">
-          <label id="lbl-items" class="text-[11px] text-navy-800 font-medium uppercase tracking-wider block mb-1">Purchase Items & Instructions</label>
-          <input type="text" id="itemList" placeholder="e.g. 2x Hot Latte, Sugar-free / Fragile item"
-                 class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-navy-900 placeholder-slate-400 focus:outline-none focus:border-royal focus:bg-white transition-colors">
-        </div>
-        <div id="itemCostGroup">
-          <label id="lbl-itemcost" class="text-[11px] text-navy-800 font-medium uppercase tracking-wider block mb-1">Estimated Goods Cost (PHP)</label>
-          <input type="number" id="itemCost" value="0" oninput="calculateEstimate()"
-                 class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm font-mono text-navy-900 placeholder-slate-400 focus:outline-none focus:border-royal focus:bg-white transition-colors">
+        <div class="relative">
+          <label class="text-[11px] text-navy-800 font-medium uppercase tracking-wider block mb-1">Drop-off Destination</label>
+          <div class="relative flex items-center">
+            <input type="text" id="dropoffLoc" placeholder="Destination Name, Mall or Street"
+                   class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-3.5 pr-8 py-2.5 text-sm text-navy-900 placeholder-slate-400 focus:outline-none focus:border-royal focus:bg-white transition-colors">
+            <button type="button" onclick="clearLocationInput('dropoffLoc', 'dropoff', 'mobility')" class="absolute right-2.5 text-slate-400 hover:text-slate-600 text-sm p-1">✕</button>
+          </div>
         </div>
       </div>
 
-      <!-- 共用即時地圖預覽容器 (Mobility 與 Concierge 雙模式共用) -->
-      <div id="mapPreviewContainer" class="mt-4 mb-2 hidden transition-all duration-300">
-        <div class="flex items-center justify-between mb-1.5 px-1">
-          <span class="text-xs font-semibold tracking-wider text-slate-400 uppercase">Route Preview</span>
-          <span id="routeDistanceBadge" class="text-xs font-mono bg-sky-950 text-sky-400 border border-sky-800 px-2 py-0.5 rounded-full hidden">0 km</span>
+      <!-- 管家路線 (Concierge) -->
+      <div id="fields-concierge" class="space-y-2.5 hidden">
+        <div class="relative">
+          <label class="text-[11px] text-navy-800 font-medium uppercase tracking-wider block mb-1">Store / Pickup Point</label>
+          <div class="relative flex items-center">
+            <input type="text" id="conciergePickup" placeholder="Store name, Mall branch or Pickup address"
+                   class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-3.5 pr-8 py-2.5 text-sm text-navy-900 placeholder-slate-400 focus:outline-none focus:border-royal focus:bg-white transition-colors">
+            <button type="button" onclick="clearLocationInput('conciergePickup', 'pickup', 'concierge')" class="absolute right-2.5 text-slate-400 hover:text-slate-600 text-sm p-1">✕</button>
+          </div>
         </div>
-        <div id="map" class="w-full h-48 rounded-xl border border-slate-700 overflow-hidden shadow-inner bg-slate-900"></div>
+        <div class="relative">
+          <label class="text-[11px] text-navy-800 font-medium uppercase tracking-wider block mb-1">Delivery Destination</label>
+          <div class="relative flex items-center">
+            <input type="text" id="conciergeDropoff" placeholder="Unit, Building name or Street"
+                   class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-3.5 pr-8 py-2.5 text-sm text-navy-900 placeholder-slate-400 focus:outline-none focus:border-royal focus:bg-white transition-colors">
+            <button type="button" onclick="clearLocationInput('conciergeDropoff', 'dropoff', 'concierge')" class="absolute right-2.5 text-slate-400 hover:text-slate-600 text-sm p-1">✕</button>
+          </div>
+        </div>
+        <div id="pabiliFieldGroup" class="space-y-2">
+          <div>
+            <label class="text-[11px] text-navy-800 font-medium uppercase tracking-wider block mb-1">Purchase Items & Instructions</label>
+            <input type="text" id="itemList" placeholder="e.g. 2x Hot Latte, Sugar-free / Fragile item"
+                   class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-sm text-navy-900 placeholder-slate-400 focus:outline-none focus:border-royal focus:bg-white transition-colors">
+          </div>
+          <div>
+            <label class="text-[11px] text-navy-800 font-medium uppercase tracking-wider block mb-1">Estimated Goods Cost (PHP)</label>
+            <input type="number" id="itemCost" value="0" oninput="calculateEstimate()"
+                   class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-sm font-mono text-navy-900 placeholder-slate-400 focus:outline-none focus:border-royal focus:bg-white transition-colors">
+          </div>
+        </div>
+      </div>
+
+      <!-- 地圖放大 1.5 倍 (h-80 = 320px 高度、支援 Pin-Top 確認氣泡) -->
+      <div id="mapPreviewContainer" class="mt-3 relative hidden transition-all duration-300">
+        <div class="flex items-center justify-between mb-1.5 px-0.5">
+          <span class="text-xs font-semibold tracking-wider text-slate-400 uppercase">Map & Pin Precision</span>
+          <span id="pinLockStatusBadge" class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+            Drag pin to adjust
+          </span>
+        </div>
+        <div class="relative w-full h-80 rounded-2xl border border-slate-700 overflow-hidden shadow-md bg-slate-900">
+          <div id="map" class="w-full h-full"></div>
+
+          <!-- Pin-Top 浮動確認氣泡 (拖曳後浮現於地圖中央/焦點) -->
+          <div id="pinActionBubble" class="absolute top-4 left-1/2 -translate-x-1/2 z-20 hidden items-center space-x-2 bg-slate-900/95 border border-slate-600 shadow-2xl px-3.5 py-2 rounded-full text-white backdrop-blur-md">
+            <span id="bubblePinTitle" class="text-xs font-semibold text-slate-200">Confirm Pin Location?</span>
+            <button type="button" onclick="lockCurrentPin(true)" class="w-6 h-6 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white flex items-center justify-center font-bold text-xs shadow-md active:scale-95 transition">
+              ✓
+            </button>
+            <button type="button" onclick="lockCurrentPin(false)" class="w-6 h-6 rounded-full bg-slate-700 hover:bg-slate-600 text-slate-300 flex items-center justify-center text-xs active:scale-95 transition">
+              ✕
+            </button>
+          </div>
+        </div>
       </div>
 
       <!-- 預估行車距離與車程時間卡 -->
@@ -335,7 +350,7 @@
             🛣️
           </div>
           <div>
-            <div id="lbl-distance" class="text-[10px] font-bold tracking-wider text-slate-400 uppercase">ESTIMATED ROUTE</div>
+            <div class="text-[10px] font-bold tracking-wider text-slate-400 uppercase">ESTIMATED ROUTE</div>
             <div id="distVal" class="text-sm font-black text-slate-800">-- km</div>
           </div>
         </div>
@@ -346,11 +361,11 @@
       </div>
       <input type="hidden" id="distance" value="0">
 
-      <!-- 加速小費 -->
+      <!-- Priority Tip -->
       <div>
         <div class="flex justify-between items-center mb-1.5">
-          <label id="lbl-tip-title" class="text-[11px] text-navy-800 font-medium uppercase tracking-wider">Priority Tip</label>
-          <span id="lbl-tip-sub" class="text-[10px] text-royal font-medium">100% to driver</span>
+          <label class="text-[11px] text-navy-800 font-medium uppercase tracking-wider">Priority Tip</label>
+          <span class="text-[10px] text-royal font-medium">100% to driver</span>
         </div>
         <div class="grid grid-cols-4 gap-2 mb-2">
           <button type="button" onclick="setTip(0)" class="tip-btn py-1.5 rounded-lg border border-royal text-xs font-semibold text-royal bg-royal-soft active:scale-95 transition">₱0</button>
@@ -364,28 +379,70 @@
     </section>
 
     <!-- 價格儀表板 -->
-    <section class="bg-gradient-to-br from-navy-900 to-royal rounded-2xl p-5 text-white relative overflow-hidden shadow-lg">
+    <section class="bg-gradient-to-br from-navy-900 to-royal rounded-2xl p-4 text-white relative overflow-hidden shadow-lg">
       <div class="flex justify-between items-end relative z-10">
         <div>
-          <span id="lbl-total-estimate" class="text-[10px] uppercase tracking-widest text-blue-200 block mb-1">Estimated Total</span>
+          <span class="text-[10px] uppercase tracking-widest text-blue-200 block mb-1">Estimated Total</span>
           <div class="text-3xl font-serif font-bold text-white tracking-tight flex items-baseline">
             <span class="text-blue-200 text-lg mr-1">₱</span>
             <span id="estTotal" class="font-mono">0.00</span>
           </div>
         </div>
         <div class="text-right">
-          <span id="lbl-driver-payout" class="text-[10px] text-blue-200 block uppercase">Driver Payout</span>
+          <span class="text-[10px] text-blue-200 block uppercase">Driver Payout</span>
           <span id="estPayout" class="text-xs font-mono text-emerald-300 font-semibold">approx. ₱0.00</span>
         </div>
       </div>
     </section>
 
-    <!-- 呼叫按鈕 -->
+    <!-- 呼叫按鈕 (升級立體皇家藍、呼吸光暈投影、明確按鈕外觀) -->
     <button onclick="requestOrder()" id="btnSubmit"
-            class="w-full py-4 rounded-xl bg-navy-900 hover:bg-royal text-white font-semibold tracking-wider text-sm shadow-md hover:shadow-lg active:scale-[0.98] transition-all flex items-center justify-center space-x-2">
-      <span id="txt-btn-request">REQUEST PRIVATE DRIVER</span>
+            class="w-full py-4 rounded-2xl bg-gradient-to-r from-blue-600 via-royal to-blue-800 hover:from-blue-500 hover:to-blue-700 text-white font-bold tracking-wider text-sm shadow-[0_8px_25px_rgba(30,64,175,0.45)] active:scale-[0.98] active:shadow-inner transition-all flex items-center justify-center space-x-2 border-t border-blue-400/40">
+      <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14.5v-9l6 4.5-6 4.5z"/></svg>
+      <span>REQUEST PRIVATE CHAUFFEUR</span>
     </button>
   </main>
+
+  <!-- VIP 會員資料彈窗 (Profile Modal) -->
+  <div id="profileModal" class="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-5 hidden">
+    <div class="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl border border-slate-100 space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div class="flex items-center space-x-2">
+          <div class="w-9 h-9 rounded-full bg-royal-soft text-royal font-bold flex items-center justify-center">
+            👑
+          </div>
+          <div>
+            <h3 class="font-bold text-sm text-navy-900">VIP Member Center</h3>
+            <p class="text-[10px] text-slate-400">Manage identity & saved places</p>
+          </div>
+        </div>
+        <button type="button" onclick="closeProfileModal()" class="text-slate-400 hover:text-slate-600 text-lg font-bold">✕</button>
+      </div>
+
+      <div class="space-y-3 text-xs">
+        <div>
+          <label class="text-[11px] text-navy-800 font-semibold block mb-1">Guest Name</label>
+          <input type="text" id="prefName" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-navy-900 font-medium focus:border-royal focus:outline-none">
+        </div>
+        <div>
+          <label class="text-[11px] text-navy-800 font-semibold block mb-1">Mobile Phone (Verified)</label>
+          <input type="tel" id="prefPhone" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm font-mono text-navy-900 focus:border-royal focus:outline-none">
+        </div>
+        <div class="pt-2 border-t border-slate-100">
+          <label class="text-[11px] text-navy-800 font-semibold block mb-1">🏠 Saved Home Address</label>
+          <input type="text" id="prefHome" placeholder="e.g. Abreeza Residences, Davao City" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-navy-900 focus:border-royal focus:outline-none">
+        </div>
+        <div>
+          <label class="text-[11px] text-navy-800 font-semibold block mb-1">🏢 Saved Office / Hotel</label>
+          <input type="text" id="prefOffice" placeholder="e.g. Marco Polo Hotel, Davao City" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-navy-900 focus:border-royal focus:outline-none">
+        </div>
+      </div>
+
+      <button type="button" onclick="saveProfile()" class="w-full py-3 rounded-xl bg-navy-900 hover:bg-royal text-white font-bold text-xs tracking-wider transition">
+        SAVE VIP PREFERENCES
+      </button>
+    </div>
+  </div>
 
   <!-- 派單狀態 Modal -->
   <div id="dispatchModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-md flex flex-col items-center justify-center p-6 hidden">
@@ -400,10 +457,10 @@
         </div>
       </div>
       <div>
-        <h3 id="txt-modal-dispatching" class="font-serif text-lg text-navy-900 font-bold uppercase">Dispatching Chauffeur</h3>
-        <p id="txt-modal-connecting" class="text-xs text-slate-500 mt-1">Connecting to exclusive fleet in real-time...</p>
+        <h3 class="font-serif text-lg text-navy-900 font-bold uppercase">Dispatching Chauffeur</h3>
+        <p class="text-xs text-slate-500 mt-1">Connecting to exclusive fleet in real-time...</p>
         <div class="inline-block mt-3 px-3 py-1 rounded-full bg-slate-100 border border-slate-200 text-xs font-mono text-navy-800">
-          <span id="txt-modal-orderid-prefix">Order ID</span>: <span id="modalOrderId">Generating...</span>
+          Order ID: <span id="modalOrderId">Generating...</span>
         </div>
       </div>
       <button onclick="cancelAndReset()" id="btnCancelOrder" class="w-full py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition">
@@ -424,29 +481,28 @@
 
       <div class="bg-slate-50 rounded-xl p-3.5 text-left border border-slate-200 space-y-2 text-xs">
         <div class="flex justify-between">
-          <span id="lbl-matched-pay" class="text-slate-500">Total Payable:</span>
+          <span class="text-slate-500">Total Payable:</span>
           <span id="cardPay" class="font-mono text-royal font-bold">₱0.00</span>
         </div>
         <div class="flex justify-between">
-          <span id="lbl-matched-service" class="text-slate-500">Service:</span>
+          <span class="text-slate-500">Service:</span>
           <span id="cardService" class="text-navy-900 font-medium">Mobility</span>
         </div>
         <div class="flex justify-between" id="driverPlateRow">
-          <span id="lbl-matched-plate" class="text-slate-500">Vehicle / Plate:</span>
+          <span class="text-slate-500">Vehicle / Plate:</span>
           <span id="driverPlate" class="text-navy-900 font-mono font-medium">Private Fleet</span>
         </div>
       </div>
 
-      <button onclick="finishTripAndReset()" id="btnDoneOrder" class="w-full py-3 rounded-xl bg-navy-900 hover:bg-royal text-white text-xs font-semibold tracking-wider transition">
+      <button onclick="finishTripAndReset()" class="w-full py-3 rounded-xl bg-navy-900 hover:bg-royal text-white text-xs font-semibold tracking-wider transition">
         Done
       </button>
     </div>
-
   </div>
 
   <script>
     // --- 1. SERVICE WORKER 版本控管 ---
-    const APP_VERSION = 'ride2gether-cache-v6.2';
+    const APP_VERSION = 'ride2gether-cache-v7.0';
 
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
@@ -459,198 +515,7 @@
       });
     }
 
-    // --- 2. 雙語字典系統 ---
-    let currentLang = localStorage.getItem('r2g_lang') || 'en';
-
-    const I18N = {
-      en: {
-        langBtn: "EN",
-        statusOnline: "VIP Active",
-        step1: "01. Select Service Category",
-        tabMobility: "Mobility",
-        tabConcierge: "Concierge",
-        motoTitle: "Moto Express",
-        motoSub: "Fast Transit",
-        carTitle: "Executive Sedan",
-        carSub: "4-Seater Luxury",
-        suvTitle: "Premium SUV",
-        suvSub: "6-7 Seater / MPV",
-        expTitle: "Instant Parcel",
-        expSub: "Direct Document Delivery",
-        pabTitle: "Pabili Concierge",
-        pabSub: "Queuing & Purchasing",
-        step2: "02. Guest & Route Details",
-        custName: "Guest Name",
-        custNamePh: "e.g. Mr. Vincent",
-        custPhone: "Mobile Number",
-        pickup: "Pick-up Location",
-        pickupPh: "Hotel, Building or Address",
-        dropoff: "Drop-off Destination",
-        dropoffPh: "Destination Name or Address",
-        store: "Store / Pickup Point",
-        storePh: "Store name, Mall branch or Pickup address",
-        delivery: "Delivery Destination",
-        deliveryPh: "Unit, Building name or Street",
-        items: "Purchase Items & Instructions",
-        itemsPh: "e.g. 2x Hot Latte, Sugar-free / Fragile item",
-        itemcost: "Estimated Goods Cost (PHP)",
-        distance: "ESTIMATED ROUTE",
-        tipTitle: "Priority Tip",
-        tipSub: "100% to driver",
-        tipCustomPh: "Custom Tip",
-        totalEst: "Estimated Total",
-        driverPayout: "Driver Payout",
-        btnRequest: "REQUEST PRIVATE DRIVER",
-        modalDispatching: "Dispatching Chauffeur",
-        modalConnecting: "Connecting to exclusive fleet in real-time...",
-        modalOrderPrefix: "Order ID",
-        btnCancel: "Cancel Request",
-        matchedBadge: "Matched Private Chauffeur",
-        driverHeading: "Driver is heading to your pick-up point.",
-        matchedPay: "Total Payable:",
-        matchedService: "Service:",
-        matchedPlate: "Vehicle / Plate:",
-        btnDone: "Done",
-        alertInfo: "Please provide your name and mobile number.",
-        alertMobility: "Please enter both Pick-up and Destination addresses.",
-        alertConcierge: "Please enter Store/Pickup point and Delivery destination."
-      },
-      zh: {
-        langBtn: "繁中",
-        statusOnline: "VIP 營運中",
-        step1: "01. 選擇專屬服務類別",
-        tabMobility: "專屬出行 (Mobility)",
-        tabConcierge: "禮賓管家 (Concierge)",
-        motoTitle: "尊榮機車",
-        motoSub: "極速城市通行",
-        carTitle: "商務轎車",
-        carSub: "4人座冷氣商務",
-        suvTitle: "尊榮休旅",
-        suvSub: "6-7人座豪華休旅",
-        expTitle: "極速快遞",
-        expSub: "專人文件貴重品直送",
-        pabTitle: "尊榮代購",
-        pabSub: "代排代買・採購管家",
-        step2: "02. 貴賓與行程資訊",
-        custName: "貴賓稱呼",
-        custNamePh: "例如：黃先生",
-        custPhone: "聯絡電話",
-        pickup: "上車地點",
-        pickupPh: "輸入飯店、大樓或精確地址",
-        dropoff: "下車目的地",
-        dropoffPh: "輸入抵達地點",
-        store: "採買／取件店家",
-        storePh: "輸入店家名稱、專櫃或取件地址",
-        delivery: "送達目的地",
-        deliveryPh: "輸入送達地址或大樓門牌",
-        items: "採買明細 / 備註事項",
-        itemsPh: "例如：星巴克熱拿鐵 2 杯微糖、易碎品直送",
-        itemcost: "代墊商品預估金額 (PHP)",
-        distance: "預估行程里程",
-        tipTitle: "專屬管家加速金 (小費)",
-        tipSub: "100% 全歸司機・秒速搶單",
-        tipCustomPh: "自訂小費金額",
-        totalEst: "即時動態預估總額",
-        driverPayout: "司機淨收益",
-        btnRequest: "呼叫專屬管家車隊",
-        modalDispatching: "車隊派單調度中",
-        modalConnecting: "毫秒級即時網絡正為您調度專屬司機...",
-        modalOrderPrefix: "訂單編號",
-        btnCancel: "取消調度",
-        matchedBadge: "已為您指派尊榮司機",
-        driverHeading: "司機已確認接單，即將前來為您服務。",
-        matchedPay: "應付總額:",
-        matchedService: "服務類別:",
-        matchedPlate: "車牌車輛:",
-        btnDone: "返回主畫面",
-        alertInfo: "請完整填寫貴賓稱呼與聯絡電話。",
-        alertMobility: "請完整輸入上車地點與目的地。",
-        alertConcierge: "請完整輸入店家/取件點與送達地址。"
-      }
-    };
-
-    function setLanguage(lang) {
-      currentLang = lang;
-      localStorage.setItem('r2g_lang', lang);
-      const dict = I18N[lang];
-
-      const setText = (id, val) => {
-        const el = document.getElementById(id);
-        if (el && val !== undefined) el.innerText = val;
-      };
-
-      const pillEn = document.getElementById('pill-en');
-      const pillZh = document.getElementById('pill-zh');
-      if (lang === 'en') {
-        pillEn.className = "px-2.5 py-0.5 text-[11px] font-bold rounded-full transition-all whitespace-nowrap bg-royal text-white shadow-sm";
-        pillZh.className = "px-2.5 py-0.5 text-[11px] font-medium rounded-full transition-all whitespace-nowrap text-slate-600";
-      } else {
-        pillZh.className = "px-2.5 py-0.5 text-[11px] font-bold rounded-full transition-all whitespace-nowrap bg-royal text-white shadow-sm";
-        pillEn.className = "px-2.5 py-0.5 text-[11px] font-medium rounded-full transition-all whitespace-nowrap text-slate-600";
-      }
-
-      setText('txt-status-online', dict.statusOnline);
-      setText('lbl-step1', dict.step1);
-      setText('txt-tab-mobility', dict.tabMobility);
-      setText('txt-tab-concierge', dict.tabConcierge);
-
-      setText('txt-card-moto-title', dict.motoTitle);
-      setText('txt-card-moto-sub', dict.motoSub);
-      setText('txt-card-car-title', dict.carTitle);
-      setText('txt-card-car-sub', dict.carSub);
-      setText('txt-card-suv-title', dict.suvTitle);
-      setText('txt-card-suv-sub', dict.suvSub);
-      setText('txt-card-exp-title', dict.expTitle);
-      setText('txt-card-exp-sub', dict.expSub);
-      setText('txt-card-pab-title', dict.pabTitle);
-      setText('txt-card-pab-sub', dict.pabSub);
-
-      setText('lbl-step2', dict.step2);
-      setText('lbl-cust-name', dict.custName);
-      document.getElementById('custName').placeholder = dict.custNamePh;
-      setText('lbl-cust-phone', dict.custPhone);
-      setText('lbl-pickup', dict.pickup);
-      document.getElementById('pickupLoc').placeholder = dict.pickupPh;
-      setText('lbl-dropoff', dict.dropoff);
-      document.getElementById('dropoffLoc').placeholder = dict.dropoffPh;
-
-      setText('lbl-store', dict.store);
-      document.getElementById('conciergePickup').placeholder = dict.storePh;
-      setText('lbl-delivery', dict.delivery);
-      document.getElementById('conciergeDropoff').placeholder = dict.deliveryPh;
-      setText('lbl-items', dict.items);
-      document.getElementById('itemList').placeholder = dict.itemsPh;
-      setText('lbl-itemcost', dict.itemcost);
-      setText('lbl-distance', dict.distance);
-
-      setText('lbl-tip-title', dict.tipTitle);
-      setText('lbl-tip-sub', dict.tipSub);
-      document.getElementById('priorityTip').placeholder = dict.tipCustomPh;
-      setText('lbl-total-estimate', dict.totalEst);
-      setText('lbl-driver-payout', dict.driverPayout);
-      setText('txt-btn-request', dict.btnRequest);
-
-      setText('txt-modal-dispatching', dict.modalDispatching);
-      setText('txt-modal-connecting', dict.modalConnecting);
-      setText('txt-modal-orderid-prefix', dict.modalOrderPrefix);
-      setText('btnCancelOrder', dict.btnCancel);
-      setText('txt-matched-badge', dict.matchedBadge);
-      setText('driverContact', dict.driverHeading);
-      setText('lbl-matched-pay', dict.matchedPay);
-      setText('lbl-matched-service', dict.matchedService);
-      setText('lbl-matched-plate', dict.matchedPlate);
-      setText('btnDoneOrder', dict.btnDone);
-
-      updateCardBadges();
-      calculateEstimate();
-    }
-
-    function toggleLang() {
-      const nextLang = currentLang === 'en' ? 'zh' : 'en';
-      setLanguage(nextLang);
-    }
-
-    // --- 3. FIREBASE CONFIG ---
+    // --- 2. FIREBASE CONFIG ---
     const firebaseConfig = {
       apiKey: "AIzaSyB5vPG43r4ULBFe66cYAceyE5nfFoAwSEs",
       authDomain: "gen-lang-client-0194528491.firebaseapp.com",
@@ -666,25 +531,114 @@
 
     const GAS_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbxuT2lHTit53Ezz1eAzKwgIkSM7OVwzQMbGkA-TvYGVerxsNKnZgy5kDz-aVJkB2lJZ/exec";
 
-    // --- 4. 全域變數與動態費率 ---
+    // --- 3. VIP 會員資料管理 (LocalStorage + Modal) ---
+    let currentUserProfile = {
+      name: "Mr. Vincent",
+      phone: "0917-888-9999",
+      home: "Abreeza Residences, J.P. Laurel Ave, Davao City",
+      office: "Marco Polo Hotel, C.M. Recto St, Davao City"
+    };
+
+    function loadProfile() {
+      const saved = localStorage.getItem('r2g_vip_profile');
+      if (saved) {
+        try {
+          currentUserProfile = JSON.parse(saved);
+        } catch(e) {}
+      }
+      updateHeaderProfileUI();
+    }
+
+    function updateHeaderProfileUI() {
+      const nameEl = document.getElementById('headerMemberName');
+      const avatarEl = document.getElementById('memberAvatarText');
+      if (nameEl) nameEl.innerText = currentUserProfile.name || "VIP Guest";
+      if (avatarEl) avatarEl.innerText = (currentUserProfile.name || "V").charAt(0).toUpperCase();
+
+      document.getElementById('prefName').value = currentUserProfile.name || "";
+      document.getElementById('prefPhone').value = currentUserProfile.phone || "";
+      document.getElementById('prefHome').value = currentUserProfile.home || "";
+      document.getElementById('prefOffice').value = currentUserProfile.office || "";
+    }
+
+    function openProfileModal() {
+      document.getElementById('profileModal').classList.remove('hidden');
+    }
+
+    function closeProfileModal() {
+      document.getElementById('profileModal').classList.add('hidden');
+    }
+
+    function saveProfile() {
+      currentUserProfile.name = document.getElementById('prefName').value.trim() || "VIP Guest";
+      currentUserProfile.phone = document.getElementById('prefPhone').value.trim() || "0917-000-0000";
+      currentUserProfile.home = document.getElementById('prefHome').value.trim();
+      currentUserProfile.office = document.getElementById('prefOffice').value.trim();
+
+      localStorage.setItem('r2g_vip_profile', JSON.stringify(currentUserProfile));
+      updateHeaderProfileUI();
+      closeProfileModal();
+    }
+
+    function applySavedPlace(type) {
+      const addr = (type === 'home') ? currentUserProfile.home : currentUserProfile.office;
+      if (!addr) {
+        openProfileModal();
+        return;
+      }
+
+      // 如果起點已經有值，則帶入目的地；起點沒值則帶入起點
+      if (currentCategory === 'mobility') {
+        const pInput = document.getElementById('pickupLoc');
+        const dInput = document.getElementById('dropoffLoc');
+        if (!pInput.value) {
+          pInput.value = addr;
+          geocodeAndFocus(addr, 'pickup', 'mobility');
+        } else {
+          dInput.value = addr;
+          geocodeAndFocus(addr, 'dropoff', 'mobility');
+        }
+      } else {
+        const cPInput = document.getElementById('conciergePickup');
+        const cDInput = document.getElementById('conciergeDropoff');
+        if (!cPInput.value) {
+          cPInput.value = addr;
+          geocodeAndFocus(addr, 'pickup', 'concierge');
+        } else {
+          cDInput.value = addr;
+          geocodeAndFocus(addr, 'dropoff', 'concierge');
+        }
+      }
+    }
+
+    function geocodeAndFocus(address, fieldType, catType) {
+      if (!geocoderInstance) return;
+      geocoderInstance.geocode({ address: address }, (results, status) => {
+        if (status === "OK" && results[0]) {
+          const pos = results[0].geometry.location;
+          setPointPosition(pos, fieldType, catType, address);
+        }
+      });
+    }
+
+    // --- 4. 服務與費率 ---
     let currentCategory = 'mobility';
     let currentService = 'RIDE_MOTO';
     let unsubscribeOrder = null;
     let currentOrderId = null;
 
     let RATES = {
-      RIDE_MOTO: { base: 40, baseKm: 2, perKm: 10, commType: 'PERCENT', commVal: 0.15, nameEn: 'Moto Express', nameZh: '尊榮機車' },
-      RIDE_CAR:  { base: 70, baseKm: 2, perKm: 18, commType: 'PERCENT', commVal: 0.20, nameEn: 'Executive Sedan', nameZh: '商務轎車' },
-      RIDE_SUV:  { base: 120, baseKm: 2, perKm: 25, commType: 'PERCENT', commVal: 0.20, nameEn: 'Premium SUV', nameZh: '尊榮休旅' },
-      EXPRESS:   { base: 50, baseKm: 2, perKm: 12, commType: 'FIXED',   commVal: 15,   nameEn: 'Instant Parcel', nameZh: '極速快遞' },
-      PABILI:    { base: 60, baseKm: 2, perKm: 11, commType: 'FIXED',   commVal: 10,   nameEn: 'Pabili Concierge', nameZh: '尊榮代購' }
+      RIDE_MOTO: { base: 40, baseKm: 2, perKm: 10, commType: 'PERCENT', commVal: 0.15, nameEn: 'Moto Express' },
+      RIDE_CAR:  { base: 70, baseKm: 2, perKm: 18, commType: 'PERCENT', commVal: 0.20, nameEn: 'Executive Sedan' },
+      RIDE_SUV:  { base: 120, baseKm: 2, perKm: 25, commType: 'PERCENT', commVal: 0.20, nameEn: 'Premium SUV' },
+      EXPRESS:   { base: 50, baseKm: 2, perKm: 12, commType: 'FIXED',   commVal: 15,   nameEn: 'Instant Parcel' },
+      PABILI:    { base: 60, baseKm: 2, perKm: 11, commType: 'FIXED',   commVal: 10,   nameEn: 'Pabili Concierge' }
     };
 
     function updateCardBadges() {
-      const prefix = currentLang === 'en' ? 'From' : '起步';
       const setBadge = (id, base) => {
         const el = document.getElementById(id);
-        if (el) el.innerText = `${prefix} ₱${base}`;
+        if (el) el.innerText = `From ₱${base}`;
       };
       setBadge('badge-RIDE_MOTO', RATES.RIDE_MOTO.base);
       setBadge('badge-RIDE_CAR', RATES.RIDE_CAR.base);
@@ -704,7 +658,7 @@
 
       if (cat === 'mobility') {
         tabMobility.className = "py-2.5 rounded-lg text-xs font-semibold tracking-wider flex items-center justify-center space-x-2 transition-all duration-300 bg-white text-royal shadow-sm";
-        tabConcierge.className = "py-2.5 rounded-lg text-xs font-semibold tracking-wider flex items-center justify-center space-x-2 transition-all duration-300 text-slate-600 hover:text-navy-900";
+        tabConcierge.className = "py-2.5 rounded-lg text-xs font-semibold tracking-wider flex items-center justify-center space-x-2 transition-all duration-300 text-slate-400 hover:text-white";
         gridMobility.classList.remove('hidden');
         gridConcierge.classList.add('hidden');
         fieldsMobility.classList.remove('hidden');
@@ -713,7 +667,7 @@
         syncCategoryCoords('mobility');
       } else {
         tabConcierge.className = "py-2.5 rounded-lg text-xs font-semibold tracking-wider flex items-center justify-center space-x-2 transition-all duration-300 bg-white text-royal shadow-sm";
-        tabMobility.className = "py-2.5 rounded-lg text-xs font-semibold tracking-wider flex items-center justify-center space-x-2 transition-all duration-300 text-slate-600 hover:text-navy-900";
+        tabMobility.className = "py-2.5 rounded-lg text-xs font-semibold tracking-wider flex items-center justify-center space-x-2 transition-all duration-300 text-slate-400 hover:text-white";
         gridConcierge.classList.remove('hidden');
         gridMobility.classList.add('hidden');
         fieldsConcierge.classList.remove('hidden');
@@ -755,13 +709,10 @@
       }
 
       const pabiliFields = document.getElementById('pabiliFieldGroup');
-      const costFields = document.getElementById('itemCostGroup');
       if (type === 'PABILI') {
         pabiliFields.classList.remove('hidden');
-        costFields.classList.remove('hidden');
       } else {
         pabiliFields.classList.add('hidden');
-        costFields.classList.add('hidden');
       }
       calculateEstimate();
     }
@@ -794,27 +745,380 @@
       const driverPayout = totalCustomerPay - commission;
 
       document.getElementById('estTotal').innerText = totalCustomerPay.toFixed(2);
-      const prefix = currentLang === 'en' ? 'approx.' : '約';
-      document.getElementById('estPayout').innerText = `${prefix} ₱${driverPayout.toFixed(2)}`;
+      document.getElementById('estPayout').innerText = `approx. ₱${driverPayout.toFixed(2)}`;
     }
 
-    // --- 5. 提交下單與 Firestore 監聽 ---
-    async function requestOrder() {
-      const dict = I18N[currentLang];
-      const custName = document.getElementById('custName').value.trim();
-      const custPhone = document.getElementById('custPhone').value.trim();
+    // --- 5. 地圖、圖釘鎖定 (Lockdown) 與情境感知定位核心 ---
+    let mapInstance = null;
+    let pickupMarker = null;
+    let dropoffMarker = null;
+    let userLocationMarker = null;
+    let geocoderInstance = null;
+    let directionsService = null;
+    let directionsRenderer = null;
 
-      if (!custName || !custPhone) {
-        alert(dict.alertInfo);
-        return;
+    let mobilityPickupCoord = null;
+    let mobilityDropoffCoord = null;
+    let conciergePickupCoord = null;
+    let conciergeDropoffCoord = null;
+
+    let activeFieldFocus = 'pickup'; // 追蹤目前使用者焦點: 'pickup' 或 'dropoff'
+    let currentEditingMarkerType = null; // 'pickup' 或 'dropoff'
+
+    const PERSON_PIN_ICON = {
+      url: "data:image/svg+xml;charset=UTF-8," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="32" height="36" viewBox="0 0 30 34"><filter id="s" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="1.5" stdDeviation="1.5" flood-color="#000" flood-opacity="0.3"/></filter><g filter="url(#s)"><path d="M5 21 C5 15.5 9.5 13.5 15 13.5 C20.5 13.5 25 15.5 25 21 C25 24 18.5 26 18.5 26 L15 31.5 L11.5 26 C11.5 26 5 24 5 21 Z" fill="#2563eb" stroke="#ffffff" stroke-width="1" stroke-linejoin="round"/><circle cx="15" cy="7.5" r="5" fill="#2563eb" stroke="#ffffff" stroke-width="1"/></g></svg>'),
+      scaledSize: new google.maps.Size(28, 32),
+      anchor: new google.maps.Point(14, 32)
+    };
+
+    const DESTINATION_FLAG_ICON = {
+      url: "data:image/svg+xml;charset=UTF-8," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="28" height="32" viewBox="0 0 24 28"><filter id="s" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="1.5" stdDeviation="1.5" flood-color="#000" flood-opacity="0.3"/></filter><g filter="url(#s)"><line x1="6" y1="3" x2="6" y2="25" stroke="#0f172a" stroke-width="2.5" stroke-linecap="round"/><circle cx="6" cy="25" r="1.8" fill="#0f172a"/><path d="M6 4 L20 9 L6 14 Z" fill="#dc2626" stroke="#ffffff" stroke-width="0.8" stroke-linejoin="round"/><circle cx="6" cy="3" r="1.8" fill="#f87171"/></g></svg>'),
+      scaledSize: new google.maps.Size(24, 28),
+      anchor: new google.maps.Point(6, 28)
+    };
+
+    const USER_GPS_ICON = {
+      url: "data:image/svg+xml;charset=UTF-8," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#3b82f6" fill-opacity="0.3"/><circle cx="12" cy="12" r="6" fill="#1d4ed8" stroke="#ffffff" stroke-width="2"/></svg>'),
+      scaledSize: new google.maps.Size(24, 24),
+      anchor: new google.maps.Point(12, 12)
+    };
+
+    function addContextAwareLocationControl(map) {
+      const controlDiv = document.createElement("div");
+      controlDiv.style.margin = "12px";
+      
+      const controlBtn = document.createElement("button");
+      controlBtn.type = "button";
+      controlBtn.title = "Locate or Center Point";
+      controlBtn.style.backgroundColor = "#ffffff";
+      controlBtn.style.border = "none";
+      controlBtn.style.outline = "none";
+      controlBtn.style.width = "40px";
+      controlBtn.style.height = "40px";
+      controlBtn.style.borderRadius = "50%";
+      controlBtn.style.boxShadow = "0 3px 8px rgba(0,0,0,0.3)";
+      controlBtn.style.cursor = "pointer";
+      controlBtn.style.display = "flex";
+      controlBtn.style.alignItems = "center";
+      controlBtn.style.justifyContent = "center";
+      controlBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1e40af" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="7"/><polyline points="12 2 12 5"/><polyline points="12 19 12 22"/><polyline points="2 12 5 12"/><polyline points="19 12 22 12"/></svg>';
+
+      controlBtn.addEventListener("click", () => {
+        const isMobility = currentCategory === 'mobility';
+        const curPickup = isMobility ? mobilityPickupCoord : conciergePickupCoord;
+        const curDropoff = isMobility ? mobilityDropoffCoord : conciergeDropoffCoord;
+
+        // 若使用者正在操作 dropoff 且已有終點點位，優先聚焦到終點特寫
+        if (activeFieldFocus === 'dropoff' && curDropoff) {
+          map.panTo(curDropoff);
+          map.setZoom(17);
+          return;
+        }
+
+        // 若無或在起點焦點，則回到手機 GPS 真實位置
+        if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(
+            (position) => {
+              const userPos = { lat: position.coords.latitude, lng: position.coords.longitude };
+              if (userLocationMarker) {
+                userLocationMarker.setPosition(userPos);
+                userLocationMarker.setMap(map);
+              } else {
+                userLocationMarker = new google.maps.Marker({
+                  position: userPos,
+                  map: map,
+                  icon: USER_GPS_ICON,
+                  zIndex: 999
+                });
+              }
+
+              // 若起點尚未選定，則自動設為起點
+              if (!curPickup) {
+                setPointPosition(userPos, 'pickup', currentCategory);
+              } else {
+                map.panTo(userPos);
+                map.setZoom(16);
+              }
+            },
+            (err) => console.warn("GPS lookup failed:", err),
+            { enableHighAccuracy: true, timeout: 6000 }
+          );
+        }
+      });
+
+      controlDiv.appendChild(controlBtn);
+      map.controls[google.maps.ControlPosition.RIGHT_BOTTOM].push(controlDiv);
+    }
+
+    function getOrCreateMap(centerLatLng) {
+      const container = document.getElementById("mapPreviewContainer");
+      if (container) container.classList.remove("hidden");
+
+      if (!mapInstance && window.google && window.google.maps) {
+        mapInstance = new google.maps.Map(document.getElementById("map"), {
+          center: centerLatLng,
+          zoom: 16,
+          disableDefaultUI: true,
+          zoomControl: true
+        });
+
+        directionsRenderer = new google.maps.DirectionsRenderer({
+          map: mapInstance,
+          suppressMarkers: true,
+          preserveViewport: true,
+          polylineOptions: { strokeColor: "#1e40af", strokeWeight: 5, strokeOpacity: 0.9 }
+        });
+
+        addContextAwareLocationControl(mapInstance);
+      }
+      return mapInstance;
+    }
+
+    function setPointPosition(pos, fieldType, catType, optAddressText) {
+      const map = getOrCreateMap(pos);
+      map.panTo(pos);
+      map.setZoom(17); // 特寫進入微調
+
+      currentEditingMarkerType = fieldType;
+
+      if (catType === 'mobility') {
+        if (fieldType === 'pickup') mobilityPickupCoord = pos;
+        else mobilityDropoffCoord = pos;
+      } else {
+        if (fieldType === 'pickup') conciergePickupCoord = pos;
+        else conciergeDropoffCoord = pos;
       }
 
+      if (fieldType === 'pickup') {
+        if (pickupMarker) pickupMarker.setMap(null);
+        pickupMarker = new google.maps.Marker({
+          position: pos,
+          map: map,
+          draggable: true,
+          icon: PERSON_PIN_ICON
+        });
+        pickupMarker.addListener("dragend", () => showPinBubble(pickupMarker, 'pickup', catType));
+      } else {
+        if (dropoffMarker) dropoffMarker.setMap(null);
+        dropoffMarker = new google.maps.Marker({
+          position: pos,
+          map: map,
+          draggable: true,
+          icon: DESTINATION_FLAG_ICON
+        });
+        dropoffMarker.addListener("dragend", () => showPinBubble(dropoffMarker, 'dropoff', catType));
+      }
+
+      // 顯示頭頂確認氣泡供確認
+      showPinBubble(fieldType === 'pickup' ? pickupMarker : dropoffMarker, fieldType, catType, optAddressText);
+    }
+
+    function showPinBubble(marker, fieldType, catType, optAddressText) {
+      const bubble = document.getElementById('pinActionBubble');
+      const title = document.getElementById('bubblePinTitle');
+      const badge = document.getElementById('pinLockStatusBadge');
+
+      currentEditingMarkerType = fieldType;
+      const typeLabel = (fieldType === 'pickup') ? "Pick-up Point" : "Drop-off Destination";
+      title.innerText = `Confirm ${typeLabel}?`;
+
+      if (badge) {
+        badge.innerText = "Adjusting pin...";
+        badge.className = "text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-200";
+      }
+      bubble.classList.remove('hidden');
+      bubble.classList.add('flex');
+
+      // 反查地址至輸入框
+      if (geocoderInstance && !optAddressText) {
+        geocoderInstance.geocode({ location: marker.getPosition() }, (res, status) => {
+          if (status === "OK" && res[0]) {
+            updateInputBoxText(fieldType, catType, res[0].formatted_address);
+          }
+        });
+      } else if (optAddressText) {
+        updateInputBoxText(fieldType, catType, optAddressText);
+      }
+    }
+
+    function updateInputBoxText(fieldType, catType, text) {
+      if (catType === 'mobility') {
+        const el = (fieldType === 'pickup') ? document.getElementById("pickupLoc") : document.getElementById("dropoffLoc");
+        if (el) el.value = text;
+      } else {
+        const el = (fieldType === 'pickup') ? document.getElementById("conciergePickup") : document.getElementById("conciergeDropoff");
+        if (el) el.value = text;
+      }
+    }
+
+    function lockCurrentPin(isConfirmed) {
+      const bubble = document.getElementById('pinActionBubble');
+      const badge = document.getElementById('pinLockStatusBadge');
+      bubble.classList.add('hidden');
+      bubble.classList.remove('flex');
+
+      const isMobility = currentCategory === 'mobility';
+      const marker = (currentEditingMarkerType === 'pickup') ? pickupMarker : dropoffMarker;
+
+      if (isConfirmed) {
+        if (marker) marker.setDraggable(false); // 鎖定不可拖曳，防誤觸！
+        if (badge) {
+          badge.innerText = "Location Locked 🔒";
+          badge.className = "text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200";
+        }
+
+        // 檢查兩端是否皆已就緒，若齊全則觸發路線鎖定 (Lockdown)
+        const curPickup = isMobility ? mobilityPickupCoord : conciergePickupCoord;
+        const curDropoff = isMobility ? mobilityDropoffCoord : conciergeDropoffCoord;
+
+        if (curPickup && curDropoff) {
+          calculateAndDisplayRoute(true);
+        }
+      } else {
+        // 取消目前微調
+        clearLocationInput(
+          (currentEditingMarkerType === 'pickup') ? (isMobility ? 'pickupLoc' : 'conciergePickup') : (isMobility ? 'dropoffLoc' : 'conciergeDropoff'),
+          currentEditingMarkerType,
+          currentCategory
+        );
+      }
+    }
+
+    function clearLocationInput(inputId, fieldType, catType) {
+      const el = document.getElementById(inputId);
+      if (el) el.value = '';
+
+      if (catType === 'mobility') {
+        if (fieldType === 'pickup') {
+          mobilityPickupCoord = null;
+          if (pickupMarker) pickupMarker.setMap(null);
+        } else {
+          mobilityDropoffCoord = null;
+          if (dropoffMarker) dropoffMarker.setMap(null);
+        }
+      } else {
+        if (fieldType === 'pickup') {
+          conciergePickupCoord = null;
+          if (pickupMarker) pickupMarker.setMap(null);
+        } else {
+          conciergeDropoffCoord = null;
+          if (dropoffMarker) dropoffMarker.setMap(null);
+        }
+      }
+
+      if (directionsRenderer) directionsRenderer.set('directions', null);
+      document.getElementById("distance").value = "0";
+      document.getElementById("distVal").innerText = "-- km";
+      document.getElementById("durationVal").innerText = "-- mins";
+      document.getElementById('pinActionBubble').classList.add('hidden');
+      calculateEstimate();
+    }
+
+    function calculateAndDisplayRoute(fitRoute = true) {
+      const isMobility = currentCategory === 'mobility';
+      const curPickup = isMobility ? mobilityPickupCoord : conciergePickupCoord;
+      const curDropoff = isMobility ? mobilityDropoffCoord : conciergeDropoffCoord;
+
+      if (!curPickup || !curDropoff || !directionsService || !directionsRenderer) return;
+
+      directionsService.route(
+        { origin: curPickup, destination: curDropoff, travelMode: google.maps.TravelMode.DRIVING },
+        (response, status) => {
+          if (status === "OK") {
+            directionsRenderer.setDirections(response);
+            if (fitRoute && mapInstance) {
+              const bounds = new google.maps.LatLngBounds();
+              bounds.extend(curPickup);
+              bounds.extend(curDropoff);
+              mapInstance.fitBounds(bounds, { top: 40, bottom: 40, left: 40, right: 40 });
+            }
+
+            const leg = response.routes[0]?.legs[0];
+            if (leg) {
+              const distanceInKm = (leg.distance.value / 1000).toFixed(1);
+              document.getElementById("distance").value = distanceInKm;
+              document.getElementById("distVal").innerText = `${distanceInKm} km`;
+              document.getElementById("durationVal").innerText = leg.duration.text;
+              calculateEstimate();
+            }
+          }
+        }
+      );
+    }
+
+    function syncCategoryCoords(cat) {
+      const isMobility = (cat === 'mobility');
+      const curPickup = isMobility ? mobilityPickupCoord : conciergePickupCoord;
+      const curDropoff = isMobility ? mobilityDropoffCoord : conciergeDropoffCoord;
+
+      if (pickupMarker) {
+        if (curPickup) { pickupMarker.setPosition(curPickup); pickupMarker.setMap(mapInstance); }
+        else { pickupMarker.setMap(null); }
+      }
+      if (dropoffMarker) {
+        if (curDropoff) { dropoffMarker.setPosition(curDropoff); dropoffMarker.setMap(mapInstance); }
+        else { dropoffMarker.setMap(null); }
+      }
+
+      if (curPickup && curDropoff) {
+        calculateAndDisplayRoute(true);
+      } else {
+        if (directionsRenderer) directionsRenderer.set('directions', null);
+        document.getElementById("distance").value = "0";
+        document.getElementById("distVal").innerText = "-- km";
+        document.getElementById("durationVal").innerText = "-- mins";
+        calculateEstimate();
+      }
+    }
+
+    function initAutocomplete() {
+      const options = {
+        componentRestrictions: { country: "ph" },
+        fields: ["formatted_address", "geometry", "name"]
+      };
+
+      const pickupInput = document.getElementById("pickupLoc");
+      const dropoffInput = document.getElementById("dropoffLoc");
+      const cPickupInput = document.getElementById("conciergePickup");
+      const cDropoffInput = document.getElementById("conciergeDropoff");
+
+      if (window.google && window.google.maps) {
+        if (!geocoderInstance) geocoderInstance = new google.maps.Geocoder();
+        if (!directionsService) directionsService = new google.maps.DirectionsService();
+      }
+
+      const bindAuto = (input, fieldType, catType) => {
+        if (!input || !window.google || !window.google.maps || !window.google.maps.places) return;
+
+        input.addEventListener("focus", () => { activeFieldFocus = fieldType; });
+
+        const auto = new google.maps.places.Autocomplete(input, options);
+        google.maps.event.addDomListener(input, "keydown", (e) => { if (e.keyCode === 13) e.preventDefault(); });
+
+        auto.addListener("place_changed", () => {
+          const place = auto.getPlace();
+          if (!place || !place.geometry || !place.geometry.location) return;
+
+          const addressText = place.name ? `${place.name}, ${place.formatted_address}` : place.formatted_address;
+          input.value = addressText;
+          setPointPosition(place.geometry.location, fieldType, catType, addressText);
+        });
+      };
+
+      bindAuto(pickupInput, "pickup", "mobility");
+      bindAuto(dropoffInput, "dropoff", "mobility");
+      bindAuto(cPickupInput, "pickup", "concierge");
+      bindAuto(cDropoffInput, "dropoff", "concierge");
+    }
+
+    // --- 6. 叫車下單與 Firestore 連線 ---
+    async function requestOrder() {
       let from = "", to = "", notes = "";
       if (currentCategory === 'mobility') {
         from = document.getElementById('pickupLoc').value.trim();
         to = document.getElementById('dropoffLoc').value.trim();
         if (!from || !to) {
-          alert(dict.alertMobility);
+          alert("Please specify both Pick-up and Drop-off locations.");
           return;
         }
       } else {
@@ -822,10 +1126,13 @@
         to = document.getElementById('conciergeDropoff').value.trim();
         notes = document.getElementById('itemList').value.trim();
         if (!from || !to) {
-          alert(dict.alertConcierge);
+          alert("Please specify both Store/Pickup and Delivery locations.");
           return;
         }
       }
+
+      const custName = currentUserProfile.name || "VIP Guest";
+      const custPhone = currentUserProfile.phone || "0917-000-0000";
 
       const dist = parseFloat(document.getElementById('distance').value) || 0;
       const itemCost = (currentService === 'PABILI') ? (parseFloat(document.getElementById('itemCost').value) || 0) : 0;
@@ -841,8 +1148,6 @@
       currentOrderId = orderId;
       document.getElementById('modalOrderId').innerText = orderId;
 
-      const currentServiceName = currentLang === 'en' ? RATES[currentService].nameEn : RATES[currentService].nameZh;
-
       const orderData = {
         orderId: orderId,
         customerName: custName,
@@ -850,7 +1155,7 @@
         customerInfo: `${custName} (${custPhone})`,
         category: currentCategory,
         serviceId: currentService,
-        serviceName: currentServiceName,
+        serviceName: RATES[currentService].nameEn,
         origin: from,
         destination: to,
         distance: dist,
@@ -870,15 +1175,11 @@
           method: 'POST',
           mode: 'no-cors',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'NEW_ORDER',
-            ...orderData
-          })
-        }).catch(e => console.warn('Sync in background:', e));
-
+          body: JSON.stringify({ action: 'NEW_ORDER', ...orderData })
+        }).catch(e => console.warn('Background sync:', e));
       } catch (err) {
-        console.error("Firestore Write Failed:", err);
-        alert(currentLang === 'en' ? "Connection error. Please try again." : "網路連線異常，請重試。");
+        console.error("Order dispatch failed:", err);
+        alert("Connection error. Please try again.");
         cancelAndReset();
       }
     }
@@ -894,11 +1195,9 @@
           showMatchedDriver(data);
           updateTripStatusUI(data.status);
         }
-      }, err => {
-        console.warn("Realtime listener error:", err);
-      });
+      }, err => console.warn("Realtime listener error:", err));
     }
-    
+
     function showMatchedDriver(data) {
       document.getElementById('radarSection').classList.add('hidden');
       document.getElementById('matchedCard').classList.remove('hidden');
@@ -947,18 +1246,14 @@
 
       const driverPlateEl = document.getElementById('driverPlate');
       if (driverPlateEl) {
-        const vehicleInfo = [data.driverPlate, data.driverModel].filter(Boolean).join(' • ') || 'VIP Fleet';
-        driverPlateEl.innerText = vehicleInfo;
+        driverPlateEl.innerText = [data.driverPlate, data.driverModel].filter(Boolean).join(' • ') || 'VIP Fleet';
       }
 
       const cardPayEl = document.getElementById('cardPay');
       if (cardPayEl) cardPayEl.innerText = `₱${parseFloat(data.totalPay || 0).toFixed(2)}`;
 
       const cardServiceEl = document.getElementById('cardService');
-      if (cardServiceEl) {
-        const defaultName = RATES[currentService] ? RATES[currentService].nameEn : 'Executive Mobility';
-        cardServiceEl.innerText = data.serviceName || defaultName;
-      }
+      if (cardServiceEl) cardServiceEl.innerText = data.serviceName || RATES[currentService].nameEn;
     }
 
     function updateTripStatusUI(status) {
@@ -976,13 +1271,9 @@
         badge.className = 'text-[10px] tracking-widest font-semibold uppercase text-slate-600 bg-slate-100 px-2.5 py-1 rounded-full border border-slate-300 inline-block';
         const contactSec = document.getElementById('chauffeurContactSection');
         if (contactSec) contactSec.style.display = 'none';
-      } else {
-        badge.innerText = 'MATCHED PRIVATE CHAUFFEUR';
-        badge.className = 'text-[10px] tracking-widest text-royal uppercase font-semibold inline-block';
       }
     }
 
-    // --- 6. 取消訂單與重設 ---
     async function cancelAndReset() {
       if (typeof unsubscribeOrder === 'function') {
         unsubscribeOrder();
@@ -995,8 +1286,6 @@
       document.getElementById('dispatchModal').classList.add('hidden');
       document.getElementById('radarSection').classList.remove('hidden');
       document.getElementById('matchedCard').classList.add('hidden');
-      const contactSec = document.getElementById('chauffeurContactSection');
-      if (contactSec) contactSec.style.display = '';
 
       if (targetOrderId && targetOrderId !== 'Generating...') {
         try {
@@ -1004,34 +1293,26 @@
             method: 'POST',
             mode: 'no-cors',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              action: 'CANCEL_ORDER',
-              orderId: targetOrderId
-            })
+            body: JSON.stringify({ action: 'CANCEL_ORDER', orderId: targetOrderId })
           });
         } catch (err) {
-          console.error('Failed to notify cancellation:', err);
+          console.error('Failed to cancel:', err);
         }
       }
-
       currentOrderId = null;
     }
 
-    // --- 7. 完成行程 ---
     function finishTripAndReset() {
       if (typeof unsubscribeOrder === 'function') {
         unsubscribeOrder();
         unsubscribeOrder = null;
       }
-
       document.getElementById('dispatchModal').classList.add('hidden');
       document.getElementById('radarSection').classList.remove('hidden');
       document.getElementById('matchedCard').classList.add('hidden');
-
       currentOrderId = null;
     }
 
-    // --- 8. 拉取後端即時動態費率 ---
     async function fetchLatestRates() {
       try {
         const res = await fetch(GAS_WEBHOOK_URL);
@@ -1050,331 +1331,13 @@
           calculateEstimate();
         }
       } catch (err) {
-        console.warn("Using default rates:", err);
+        console.warn("Using local rates:", err);
       }
     }
 
-    // --- 9. 全域地圖、座標與導航連動核心 ---
-    let mapInstance = null;
-    let pickupMarker = null;
-    let dropoffMarker = null;
-    let geocoderInstance = null;
-    let directionsService = null;
-    let directionsRenderer = null;
-
-    let mobilityPickupCoord = null;
-    let mobilityDropoffCoord = null;
-    let conciergePickupCoord = null;
-    let conciergeDropoffCoord = null;
-
-    const PERSON_PIN_ICON = {
-      url: "data:image/svg+xml;charset=UTF-8," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="30" height="34" viewBox="0 0 30 34"><filter id="soft-shadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="1.2" stdDeviation="1.2" flood-color="#000" flood-opacity="0.22"/></filter><g filter="url(#soft-shadow)"><path d="M5 21 C5 15.5 9.5 13.5 15 13.5 C20.5 13.5 25 15.5 25 21 C25 24 18.5 26 18.5 26 L15 31.5 L11.5 26 C11.5 26 5 24 5 21 Z" fill="#2563eb" stroke="#ffffff" stroke-width="0.6" stroke-linejoin="round"/><circle cx="15" cy="7.5" r="4.8" fill="#2563eb" stroke="#ffffff" stroke-width="0.6"/></g></svg>'),
-      scaledSize: new google.maps.Size(26, 30),
-      anchor: new google.maps.Point(13, 30)
-    };
-
-    const DESTINATION_FLAG_ICON = {
-      url: "data:image/svg+xml;charset=UTF-8," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="24" height="28" viewBox="0 0 24 28"><filter id="flag-shadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="1.2" stdDeviation="1.2" flood-color="#000" flood-opacity="0.25"/></filter><g filter="url(#flag-shadow)"><line x1="6" y1="3" x2="6" y2="25" stroke="#0f172a" stroke-width="2" stroke-linecap="round"/><circle cx="6" cy="25" r="1.5" fill="#0f172a"/><path d="M6 4 L19 8.5 L6 13 Z" fill="#0f172a" stroke="#ffffff" stroke-width="0.6" stroke-linejoin="round"/><circle cx="6" cy="3" r="1.5" fill="#38bdf8"/></g></svg>'),
-      scaledSize: new google.maps.Size(20, 24),
-      anchor: new google.maps.Point(5, 24)
-    };
-
-    function addLocateMeControl(map) {
-      const controlDiv = document.createElement("div");
-      controlDiv.style.margin = "12px";
-      
-      const controlBtn = document.createElement("button");
-      controlBtn.type = "button";
-      controlBtn.title = "重新定位到我目前位置";
-      controlBtn.style.backgroundColor = "#ffffff";
-      controlBtn.style.border = "none";
-      controlBtn.style.outline = "none";
-      controlBtn.style.width = "40px";
-      controlBtn.style.height = "40px";
-      controlBtn.style.borderRadius = "50%";
-      controlBtn.style.boxShadow = "0 2px 6px rgba(0,0,0,0.25)";
-      controlBtn.style.cursor = "pointer";
-      controlBtn.style.display = "flex";
-      controlBtn.style.alignItems = "center";
-      controlBtn.style.justifyContent = "center";
-      controlBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="7"/><polyline points="12 2 12 5"/><polyline points="12 19 12 22"/><polyline points="2 12 5 12"/><polyline points="19 12 22 12"/></svg>';
-
-      controlBtn.addEventListener("click", () => {
-        if (navigator.geolocation) {
-          navigator.geolocation.getCurrentPosition((position) => {
-            const userPos = {
-              lat: position.coords.latitude,
-              lng: position.coords.longitude
-            };
-
-            const isMobility = currentCategory === 'mobility';
-            if (isMobility) {
-              mobilityPickupCoord = userPos;
-            } else {
-              conciergePickupCoord = userPos;
-            }
-
-            map.panTo(userPos);
-            map.setZoom(16);
-
-            if (pickupMarker) {
-              pickupMarker.setPosition(userPos);
-            } else {
-              pickupMarker = new google.maps.Marker({
-                position: userPos,
-                map: map,
-                draggable: true,
-                icon: PERSON_PIN_ICON
-              });
-            }
-
-            const pInput = isMobility ? document.getElementById("pickupLoc") : document.getElementById("conciergePickup");
-            if (pInput && geocoderInstance) {
-              geocoderInstance.geocode({ location: userPos }, (res, status) => {
-                if (status === "OK" && res[0]) pInput.value = res[0].formatted_address;
-              });
-            }
-
-            const curDropoff = isMobility ? mobilityDropoffCoord : conciergeDropoffCoord;
-            if (curDropoff) {
-              calculateAndDisplayRoute(false);
-            }
-          });
-        }
-      });
-
-      controlDiv.appendChild(controlBtn);
-      map.controls[google.maps.ControlPosition.RIGHT_BOTTOM].push(controlDiv);
-    }
-
-    function getOrCreateMap(latLng) {
-      const mapContainer = document.getElementById("mapPreviewContainer");
-      if (!mapContainer) return null;
-      mapContainer.classList.remove("hidden");
-
-      if (!mapInstance && window.google && window.google.maps) {
-        mapInstance = new google.maps.Map(document.getElementById("map"), {
-          center: latLng,
-          zoom: 15,
-          disableDefaultUI: true,
-          zoomControl: true
-        });
-
-        directionsRenderer = new google.maps.DirectionsRenderer({
-          map: mapInstance,
-          suppressMarkers: true,
-          preserveViewport: true,
-          polylineOptions: {
-            strokeColor: "#2563eb",
-            strokeWeight: 5,
-            strokeOpacity: 0.85
-          }
-        });
-
-        addLocateMeControl(mapInstance);
-      }
-      return mapInstance;
-    }
-
-    function calculateAndDisplayRoute(shouldFit = true) {
-      const isMobility = currentCategory === 'mobility';
-      const curPickup = isMobility ? mobilityPickupCoord : conciergePickupCoord;
-      const curDropoff = isMobility ? mobilityDropoffCoord : conciergeDropoffCoord;
-
-      if (!curPickup || !curDropoff || !directionsService || !directionsRenderer) return;
-
-      directionsService.route(
-        {
-          origin: curPickup,
-          destination: curDropoff,
-          travelMode: google.maps.TravelMode.DRIVING
-        },
-        (response, status) => {
-          if (status === "OK") {
-            directionsRenderer.setDirections(response);
-
-            if (shouldFit && mapInstance) {
-              const bounds = new google.maps.LatLngBounds();
-              bounds.extend(curPickup);
-              bounds.extend(curDropoff);
-              mapInstance.fitBounds(bounds, { top: 40, bottom: 40, left: 40, right: 40 });
-            }
-
-            const leg = response.routes[0]?.legs[0];
-            if (leg) {
-              const distanceInKm = (leg.distance.value / 1000).toFixed(1);
-              const durationText = leg.duration.text;
-
-              const hiddenDistInput = document.getElementById("distance");
-              const distValText = document.getElementById("distVal");
-              const durationValText = document.getElementById("durationVal");
-
-              if (hiddenDistInput) hiddenDistInput.value = distanceInKm;
-              if (distValText) distValText.innerText = `${distanceInKm} km`;
-              if (durationValText) durationValText.innerText = durationText;
-
-              calculateEstimate();
-            }
-          }
-        }
-      );
-    }
-
-    function syncCategoryCoords(cat) {
-      const isMobility = (cat === 'mobility');
-      const curPickup = isMobility ? mobilityPickupCoord : conciergePickupCoord;
-      const curDropoff = isMobility ? mobilityDropoffCoord : conciergeDropoffCoord;
-
-      if (pickupMarker) {
-        if (curPickup) {
-          pickupMarker.setPosition(curPickup);
-          pickupMarker.setMap(mapInstance);
-        } else {
-          pickupMarker.setMap(null);
-        }
-      }
-
-      if (dropoffMarker) {
-        if (curDropoff) {
-          dropoffMarker.setPosition(curDropoff);
-          dropoffMarker.setMap(mapInstance);
-        } else {
-          dropoffMarker.setMap(null);
-        }
-      }
-
-      if (curPickup && curDropoff) {
-        calculateAndDisplayRoute(true);
-      } else {
-        if (directionsRenderer) directionsRenderer.set('directions', null);
-        document.getElementById("distance").value = "0";
-        document.getElementById("distVal").innerText = "-- km";
-        document.getElementById("durationVal").innerText = "-- mins";
-        calculateEstimate();
-      }
-    }
-
-    function handleMarkerDrag(marker, input, fieldType, catType) {
-      if (!geocoderInstance) return;
-      const pos = marker.getPosition();
-
-      if (catType === 'mobility') {
-        if (fieldType === 'pickup') mobilityPickupCoord = pos;
-        else mobilityDropoffCoord = pos;
-      } else {
-        if (fieldType === 'pickup') conciergePickupCoord = pos;
-        else conciergeDropoffCoord = pos;
-      }
-
-      geocoderInstance.geocode({ location: pos }, (results, status) => {
-        if (status === "OK" && results[0]) {
-          input.value = results[0].formatted_address;
-        }
-        calculateAndDisplayRoute(false);
-      });
-    }
-
-    function initAutocomplete() {
-      const options = {
-        componentRestrictions: { country: "ph" },
-        fields: ["formatted_address", "geometry", "name"]
-      };
-
-      const pickupInput = document.getElementById("pickupLoc");
-      const dropoffInput = document.getElementById("dropoffLoc");
-      const cPickupInput = document.getElementById("conciergePickup");
-      const cDropoffInput = document.getElementById("conciergeDropoff");
-
-      [pickupInput, dropoffInput, cPickupInput, cDropoffInput].forEach(input => {
-        if (input) {
-          input.addEventListener("focus", () => {
-            setTimeout(() => {
-              input.scrollIntoView({ behavior: "smooth", block: "center" });
-            }, 300);
-          });
-        }
-      });
-
-      if (window.google && window.google.maps) {
-        if (!geocoderInstance) geocoderInstance = new google.maps.Geocoder();
-        if (!directionsService) directionsService = new google.maps.DirectionsService();
-      }
-
-      const bindAutocomplete = (input, fieldType, catType) => {
-        if (!input || !window.google || !window.google.maps || !window.google.maps.places) return;
-
-        const auto = new google.maps.places.Autocomplete(input, options);
-
-        google.maps.event.addDomListener(input, "keydown", (e) => {
-          if (e.keyCode === 13) e.preventDefault();
-        });
-
-        auto.addListener("place_changed", () => {
-          const place = auto.getPlace();
-          if (!place || !place.geometry || !place.geometry.location) return;
-
-          input.value = place.name ? `${place.name}, ${place.formatted_address}` : place.formatted_address;
-          const pos = place.geometry.location;
-          const map = getOrCreateMap(pos);
-
-          if (catType === 'mobility') {
-            if (fieldType === 'pickup') mobilityPickupCoord = pos;
-            else mobilityDropoffCoord = pos;
-          } else {
-            if (fieldType === 'pickup') conciergePickupCoord = pos;
-            else conciergeDropoffCoord = pos;
-          }
-
-          if (fieldType === "pickup") {
-            if (pickupMarker) pickupMarker.setMap(null);
-            pickupMarker = new google.maps.Marker({
-              position: pos,
-              map: map,
-              draggable: true,
-              icon: PERSON_PIN_ICON,
-              title: "可拖曳微調起點"
-            });
-
-            pickupMarker.addListener("dragend", () => {
-              handleMarkerDrag(pickupMarker, input, fieldType, catType);
-            });
-
-            const curDropoff = (catType === 'mobility') ? mobilityDropoffCoord : conciergeDropoffCoord;
-            if (!curDropoff) map.panTo(pos);
-          } else if (fieldType === "dropoff") {
-            if (dropoffMarker) dropoffMarker.setMap(null);
-            dropoffMarker = new google.maps.Marker({
-              position: pos,
-              map: map,
-              draggable: true,
-              icon: DESTINATION_FLAG_ICON,
-              title: "可拖曳微調終點"
-            });
-
-            dropoffMarker.addListener("dragend", () => {
-              handleMarkerDrag(dropoffMarker, input, fieldType, catType);
-            });
-
-            const curPickup = (catType === 'mobility') ? mobilityPickupCoord : conciergePickupCoord;
-            if (!curPickup) map.panTo(pos);
-          }
-
-          const curPickup = (catType === 'mobility') ? mobilityPickupCoord : conciergePickupCoord;
-          const curDropoff = (catType === 'mobility') ? mobilityDropoffCoord : conciergeDropoffCoord;
-          if (curPickup && curDropoff) {
-            calculateAndDisplayRoute(true);
-          }
-        });
-      };
-
-      bindAutocomplete(pickupInput, "pickup", "mobility");
-      bindAutocomplete(dropoffInput, "dropoff", "mobility");
-      bindAutocomplete(cPickupInput, "pickup", "concierge");
-      bindAutocomplete(cDropoffInput, "dropoff", "concierge");
-    }
-
-    // 初始化載入
-    setLanguage(currentLang);
+    // 初始化
+    loadProfile();
+    updateCardBadges();
     fetchLatestRates();
     window.addEventListener("DOMContentLoaded", initAutocomplete);
     window.addEventListener("load", initAutocomplete);
