@@ -313,7 +313,7 @@
         </div>
       </div>
 
-      <!-- 地圖放大 1.5 倍 (h-80 = 320px 高度、支援 Pin-Top 確認氣泡) -->
+      <!-- 地圖容器 (動態展開) -->
       <div id="mapPreviewContainer" class="mt-3 relative hidden transition-all duration-300">
         <div class="flex items-center justify-between mb-1.5 px-0.5">
           <span class="text-xs font-semibold tracking-wider text-slate-400 uppercase">Map & Pin Precision</span>
@@ -324,23 +324,19 @@
         <div class="relative w-full h-80 rounded-2xl border border-slate-700 overflow-hidden shadow-md bg-slate-900">
           <div id="map" class="w-full h-full"></div>
 
-          <!-- Pin-Top 浮動確認氣泡 (高度壓縮 1/3，左右大按鈕不變，視野極大化) -->
+          <!-- Pin-Top 浮動確認氣泡 -->
           <div id="pinActionBubble" class="absolute top-2 left-1/2 -translate-x-1/2 z-20 hidden items-center space-x-2.5 bg-slate-900/95 border border-slate-700 shadow-xl px-3 py-1 rounded-full text-white backdrop-blur-md">
-            <!-- 左邊：綠色確認 (寬度維持 w-12，高度壓縮至 h-7) -->
             <button type="button" onclick="lockCurrentPin(true)" class="w-12 h-7 rounded-lg bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white flex items-center justify-center font-black text-sm shadow transition">
               ✓
             </button>
-            
-            <!-- 中間：Confirm 標籤 (精簡字距與內距) -->
             <span id="bubblePinTitle" class="text-[11px] font-bold text-slate-100 tracking-wider uppercase px-1 leading-none">
               Confirm
             </span>
-
-            <!-- 右邊：紅色取消 (寬度維持 w-12，高度壓縮至 h-7) -->
             <button type="button" onclick="lockCurrentPin(false)" class="w-12 h-7 rounded-lg bg-rose-600 hover:bg-rose-700 active:scale-95 text-white flex items-center justify-center font-black text-sm shadow transition">
               ✕
             </button>
-          </div>                       
+          </div>
+        </div>
       </div>
 
       <!-- 預估行車距離與車程時間卡 -->
@@ -395,7 +391,7 @@
       </div>
     </section>
 
-    <!-- 呼叫按鈕 (升級立體皇家藍、呼吸光暈投影、明確按鈕外觀) -->
+    <!-- 呼叫按鈕 -->
     <button onclick="requestOrder()" id="btnSubmit"
             class="w-full py-4 rounded-2xl bg-gradient-to-r from-blue-600 via-royal to-blue-800 hover:from-blue-500 hover:to-blue-700 text-white font-bold tracking-wider text-sm shadow-[0_8px_25px_rgba(30,64,175,0.45)] active:scale-[0.98] active:shadow-inner transition-all flex items-center justify-center space-x-2 border-t border-blue-400/40">
       <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14.5v-9l6 4.5-6 4.5z"/></svg>
@@ -429,18 +425,14 @@
           <input type="tel" id="prefPhone" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm font-mono text-navy-900 focus:border-royal focus:outline-none">
         </div>
 
-        <!-- 必備保留項：🏠 Home (雙軌：一鍵 GPS + 打字自動開地圖微調) -->
         <div class="pt-2 border-t border-slate-100 space-y-1.5">
           <div class="flex justify-between items-center">
             <label class="text-[11px] text-navy-800 font-bold uppercase tracking-wider">🏠 Saved Home</label>
-            <!-- 醒目的一鍵使用目前 GPS 按鈕 -->
             <button type="button" onclick="useCurrentGpsForHome()" 
                     class="px-2.5 py-1 rounded-full bg-blue-50 hover:bg-blue-100 text-royal font-bold text-[11px] border border-blue-200 flex items-center space-x-1 active:scale-95 transition shadow-sm">
               <span>📍 Use Current GPS</span>
             </button>
           </div>
-          
-          <!-- 輸入框本體 + 右側常駐大地圖按鈕 -->
           <div class="relative flex items-center">
             <input type="text" id="prefHome" placeholder="Search village, condo, or street..." 
                    class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-3 pr-16 py-2.5 text-xs text-navy-900 focus:border-royal focus:bg-white focus:outline-none transition">
@@ -452,7 +444,6 @@
           <p class="text-[10px] text-slate-400">Tip: Click GPS if you're home, or type to search & adjust on map.</p>
         </div>
 
-        <!-- 自訂地點區域 (Custom Places) -->
         <div class="pt-2 border-t border-slate-100 space-y-2">
           <div class="flex justify-between items-center">
             <label class="text-[11px] text-navy-800 font-semibold">⭐ Custom Favorite Places</label>
@@ -461,7 +452,6 @@
             </button>
           </div>
 
-          <!-- 新增自訂地點的折疊小表單 -->
           <div id="addPlaceBox" class="hidden bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2">
             <input type="text" id="newPlaceLabel" placeholder="Label name (e.g. Office, Conrado's)" class="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-navy-900 focus:outline-none focus:border-royal">
             <div class="relative">
@@ -473,10 +463,7 @@
             </div>
           </div>
 
-          <!-- 已儲存的自訂地點清單 (動態渲染) -->
-          <div id="customPlacesList" class="space-y-1.5 max-h-36 overflow-y-auto">
-            <!-- 動態插入項目 -->
-          </div>
+          <div id="customPlacesList" class="space-y-1.5 max-h-36 overflow-y-auto"></div>
         </div>
       </div>
 
@@ -486,7 +473,7 @@
     </div>
   </div>
 
-  <!-- 會員中心專屬的地圖微調彈窗 (Picker Map Modal) -->
+  <!-- 會員中心專屬微調地圖彈窗 -->
   <div id="pickerMapModal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex flex-col items-center justify-center p-4 hidden">
     <div class="bg-white w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl border border-slate-700 flex flex-col h-[520px]">
       <div class="p-3 bg-slate-900 text-white flex items-center justify-between">
@@ -497,10 +484,8 @@
         <button type="button" onclick="closePickerMap()" class="text-slate-400 hover:text-white text-base font-bold px-2">✕</button>
       </div>
 
-      <!-- 微調地圖容器 -->
       <div class="relative flex-1 bg-slate-800">
         <div id="pickerMap" class="w-full h-full"></div>
-        <!-- 頂部確認條 -->
         <div class="absolute top-2 left-1/2 -translate-x-1/2 z-20 flex items-center space-x-2.5 bg-slate-900/95 border border-slate-700 shadow-xl px-3 py-1 rounded-full text-white backdrop-blur-md">
           <button type="button" onclick="confirmPickerLocation()" class="w-12 h-7 rounded-lg bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white flex items-center justify-center font-black text-sm shadow transition">
             ✓
@@ -510,12 +495,11 @@
             ✕
           </button>
         </div>
-        <!-- 右上角 GPS 定位鈕 (避開右下角縮放按鈕) -->
         <button type="button" onclick="locatePickerGps()" title="Locate my position"
                 class="absolute top-4 right-4 z-20 w-10 h-10 rounded-full bg-white shadow-lg border border-slate-200 flex items-center justify-center text-royal active:scale-90 transition">
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1e40af" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="7"/><polyline points="12 2 12 5"/><polyline points="12 19 12 22"/><polyline points="2 12 5 12"/><polyline points="19 12 22 12"/></svg>
         </button>
-        </div>
+      </div>
       <div class="p-3 bg-slate-50 border-t border-slate-200">
         <div class="text-[10px] font-bold text-slate-400 uppercase">Selected Address</div>
         <div id="pickerCurrentAddressText" class="text-xs text-navy-900 font-medium truncate mt-0.5">Adjusting pin...</div>
@@ -523,11 +507,11 @@
     </div>
   </div>
   
-  <!-- 派單狀態 Modal -->
-  <div id="dispatchModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-md flex flex-col items-center justify-center p-6 hidden">
+  <!-- 派單狀態 Modal (升級：透明浮動層，不擋住大地圖，卡片下沉置底) -->
+  <div id="dispatchModal" class="fixed inset-0 z-40 bg-transparent pointer-events-none flex flex-col justify-end items-center p-4 pb-6 hidden">
     
-    <!-- 雷達掃描區 -->
-    <div id="radarSection" class="w-full max-w-sm bg-white rounded-3xl p-7 text-center space-y-5 shadow-2xl border border-slate-100">
+    <!-- 雷達掃描區 (保留置中全黑毛玻璃，接單後才消失) -->
+    <div id="radarSection" class="w-full max-w-sm bg-white rounded-3xl p-7 text-center space-y-5 shadow-2xl border border-slate-100 pointer-events-auto mb-auto mt-auto">
       <div class="relative w-32 h-32 mx-auto flex items-center justify-center">
         <div class="absolute inset-0 rounded-full border border-royal/30 animate-ping-slow"></div>
         <div class="absolute inset-3 rounded-full border border-royal/40"></div>
@@ -547,18 +531,21 @@
       </button>
     </div>
 
-    <!-- 媒合成功卡片 -->
-    <div id="matchedCard" class="w-full max-w-sm bg-white border border-royal/30 rounded-3xl p-6 text-center space-y-5 shadow-2xl hidden">
-      <div class="w-16 h-16 mx-auto rounded-full bg-emerald-50 border border-emerald-400 flex items-center justify-center">
-        <span class="text-2xl text-emerald-600 font-bold">✓</span>
-      </div>
-      <div>
-        <span id="txt-matched-badge" class="text-[10px] tracking-widest text-royal uppercase font-semibold">Matched Private Chauffeur</span>
-        <h4 id="driverName" class="text-xl font-bold text-navy-900 mt-0.5">Assigned Driver</h4>
-        <p id="driverContact" class="text-xs text-slate-500 mt-1">Driver is heading to your pick-up point.</p>
+    <!-- 媒合成功卡片 (置底浮動、可點擊) -->
+    <div id="matchedCard" class="w-full max-w-sm bg-white border border-royal/30 rounded-3xl p-5 text-center space-y-4 shadow-2xl pointer-events-auto hidden mb-2">
+      <div class="flex items-center justify-between pb-1">
+        <div class="text-left">
+          <span id="txt-matched-badge" class="text-[10px] tracking-widest text-royal uppercase font-semibold block">Matched Private Chauffeur</span>
+          <h4 id="driverName" class="text-lg font-bold text-navy-900 mt-0.5">Assigned Driver</h4>
+        </div>
+        <div class="w-10 h-10 rounded-full bg-emerald-50 border border-emerald-400 flex items-center justify-center flex-shrink-0">
+          <span class="text-lg text-emerald-600 font-bold">✓</span>
+        </div>
       </div>
 
-      <div class="bg-slate-50 rounded-xl p-3.5 text-left border border-slate-200 space-y-2 text-xs">
+      <p id="driverContact" class="text-xs text-slate-500 text-left -mt-2">Driver is heading to your pick-up point.</p>
+
+      <div class="bg-slate-50 rounded-xl p-3 text-left border border-slate-200 space-y-1.5 text-xs">
         <div class="flex justify-between">
           <span class="text-slate-500">Total Payable:</span>
           <span id="cardPay" class="font-mono text-royal font-bold">₱0.00</span>
@@ -578,12 +565,13 @@
         <span>🔗</span>
         <span>SHARE TRIP STATUS (LIVE TRACKING)</span>
       </button>
-      <button onclick="finishTripAndReset()" class="w-full py-3 rounded-xl bg-navy-900 hover:bg-royal text-white text-xs font-semibold tracking-wider transition">
+      <button onclick="finishTripAndReset()" class="w-full py-2.5 rounded-xl bg-navy-900 hover:bg-royal text-white text-xs font-semibold tracking-wider transition">
         Done
       </button>
     </div>
-      <!-- 階段一超時卡片：詢問是否繼續等待 -->
-    <div id="timeoutStage1Card" class="w-full max-w-sm bg-white rounded-3xl p-6 text-center space-y-4 shadow-2xl border border-slate-100 hidden">
+
+    <!-- 階段一超時卡片 -->
+    <div id="timeoutStage1Card" class="w-full max-w-sm bg-white rounded-3xl p-6 text-center space-y-4 shadow-2xl border border-slate-100 pointer-events-auto hidden mb-auto mt-auto">
       <div class="w-14 h-14 mx-auto rounded-full bg-amber-50 border border-amber-300 flex items-center justify-center">
         <span class="text-2xl">⏳</span>
       </div>
@@ -603,8 +591,8 @@
       </div>
     </div>
 
-    <!-- 階段二超時卡片：累積滿 6 分鐘禮貌切斷 -->
-    <div id="timeoutStage2Card" class="w-full max-w-sm bg-white rounded-3xl p-6 text-center space-y-4 shadow-2xl border border-slate-100 hidden">
+    <!-- 階段二超時卡片 -->
+    <div id="timeoutStage2Card" class="w-full max-w-sm bg-white rounded-3xl p-6 text-center space-y-4 shadow-2xl border border-slate-100 pointer-events-auto hidden mb-auto mt-auto">
       <div class="w-14 h-14 mx-auto rounded-full bg-slate-100 border border-slate-300 flex items-center justify-center">
         <span class="text-2xl">🙇‍♂️</span>
       </div>
@@ -624,7 +612,7 @@
 
   <script>
     // --- 1. SERVICE WORKER 版本控管 ---
-    const APP_VERSION = 'ride2gether-cache-v7.1';
+    const APP_VERSION = 'ride2gether-cache-v7.2';
 
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
@@ -654,7 +642,6 @@
     const GAS_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbxuT2lHTit53Ezz1eAzKwgIkSM7OVwzQMbGkA-TvYGVerxsNKnZgy5kDz-aVJkB2lJZ/exec";
 
     // --- 3. VIP 會員與自訂常用地點核心 ---
-    // --- 補回：開啟與關閉會員中心彈窗 ---
     function openProfileModal() {
       const modal = document.getElementById('profileModal');
       if (modal) modal.classList.remove('hidden');
@@ -664,6 +651,7 @@
       const modal = document.getElementById('profileModal');
       if (modal) modal.classList.add('hidden');
     }
+
     let currentUserProfile = {
       name: "Mr. Vincent",
       phone: "0917-888-9999",
@@ -672,7 +660,7 @@
         lat: 7.0512,
         lng: 125.5684
       },
-      customPlaces: [] // 結構: [{ id: 1, label: "Conrado's", address: "...", lat: ..., lng: ... }]
+      customPlaces: []
     };
 
     function loadProfile() {
@@ -680,7 +668,6 @@
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
-          // 相容舊版字串格式
           if (typeof parsed.home === 'string') {
             currentUserProfile.home = { address: parsed.home, lat: null, lng: null };
           } else {
@@ -712,7 +699,6 @@
       if (!container) return;
       container.innerHTML = '';
 
-      // 1. 必備 Home
       if (currentUserProfile.home && currentUserProfile.home.address) {
         const btn = document.createElement('button');
         btn.type = 'button';
@@ -722,7 +708,6 @@
         container.appendChild(btn);
       }
 
-      // 2. 自訂地點
       if (currentUserProfile.customPlaces && currentUserProfile.customPlaces.length > 0) {
         currentUserProfile.customPlaces.forEach(p => {
           const btn = document.createElement('button');
@@ -797,7 +782,6 @@
         return;
       }
 
-      // 優先使用地圖微調鎖定的精準座標
       const lat = window._tempCustomPos?.lat || null;
       const lng = window._tempCustomPos?.lng || null;
 
@@ -808,6 +792,7 @@
       renderCustomPlacesList();
       renderMainSavedPlacesChips();
     }
+
     function deleteCustomPlace(index) {
       currentUserProfile.customPlaces.splice(index, 1);
       saveProfileToStorage();
@@ -841,7 +826,6 @@
     let temporaryPickerPos = null;
     let temporaryPickerAddress = "";
 
-    // 1. 人在家裡：一鍵使用目前手機真實 GPS 當作 Home
     function useCurrentGpsForHome() {
       if (!navigator.geolocation) {
         alert("Geolocation is not supported by your device.");
@@ -858,7 +842,6 @@
             lng: position.coords.longitude
           };
 
-          // 反查地址並儲存
           if (geocoderInstance) {
             geocoderInstance.geocode({ location: userPos }, (res, status) => {
               let addrText = `GPS: ${userPos.lat.toFixed(5)}, ${userPos.lng.toFixed(5)}`;
@@ -886,7 +869,6 @@
       );
     }
 
-    // 2. 打開微調地圖 (支援帶入指定經緯度或打字地址)
     function openPickerFor(target, optPos, optAddress) {
       currentPickerTarget = target;
       const modal = document.getElementById('pickerMapModal');
@@ -895,7 +877,7 @@
       modal.classList.remove('hidden');
 
       setTimeout(() => {
-        let initialPos = optPos || { lat: 7.0722, lng: 125.6125 }; // 預設達沃市中心
+        let initialPos = optPos || { lat: 7.0722, lng: 125.6125 };
         if (!optPos && target === 'home' && currentUserProfile.home?.lat) {
           initialPos = { lat: currentUserProfile.home.lat, lng: currentUserProfile.home.lng };
         }
@@ -936,7 +918,6 @@
       }, 200);
     }
 
-    // 3. 微調地圖內的 GPS 靶心按鈕
     function locatePickerGps() {
       if (!navigator.geolocation) return;
       navigator.geolocation.getCurrentPosition(
@@ -965,7 +946,6 @@
       });
     }
 
-    // 4. 按下 Confirm 鎖定儲存並同步
     function confirmPickerLocation() {
       const finalAddr = temporaryPickerAddress || (currentPickerTarget === 'home' ? document.getElementById('prefHome').value : document.getElementById('newPlaceAddress').value);
       const finalLat = temporaryPickerPos?.lat || null;
@@ -981,7 +961,6 @@
         saveProfileToStorage();
         renderMainSavedPlacesChips();
       } else if (currentPickerTarget === 'custom') {
-        // 自訂地點：將微調後地址填回輸入框，暫存精確座標
         document.getElementById('newPlaceAddress').value = finalAddr;
         window._tempCustomPos = { lat: finalLat, lng: finalLng };
       }
@@ -1119,7 +1098,7 @@
       document.getElementById('estPayout').innerText = `approx. ₱${driverPayout.toFixed(2)}`;
     }
 
-    // --- 5. 地圖、圖釘鎖定 (Lockdown) 與情境感知定位核心 ---
+    // --- 5. 地圖、圖釘鎖定與路線核心 ---
     let mapInstance = null;
     let pickupMarker = null;
     let dropoffMarker = null;
@@ -1133,8 +1112,8 @@
     let conciergePickupCoord = null;
     let conciergeDropoffCoord = null;
 
-    let activeFieldFocus = 'pickup'; // 追蹤目前使用者焦點: 'pickup' 或 'dropoff'
-    let currentEditingMarkerType = null; // 'pickup' 或 'dropoff'
+    let activeFieldFocus = 'pickup';
+    let currentEditingMarkerType = null;
 
     const PERSON_PIN_ICON = {
       url: "data:image/svg+xml;charset=UTF-8," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="32" height="36" viewBox="0 0 30 34"><filter id="s" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="1.5" stdDeviation="1.5" flood-color="#000" flood-opacity="0.3"/></filter><g filter="url(#s)"><path d="M5 21 C5 15.5 9.5 13.5 15 13.5 C20.5 13.5 25 15.5 25 21 C25 24 18.5 26 18.5 26 L15 31.5 L11.5 26 C11.5 26 5 24 5 21 Z" fill="#2563eb" stroke="#ffffff" stroke-width="1" stroke-linejoin="round"/><circle cx="15" cy="7.5" r="5" fill="#2563eb" stroke="#ffffff" stroke-width="1"/></g></svg>'),
@@ -1179,14 +1158,12 @@
         const curPickup = isMobility ? mobilityPickupCoord : conciergePickupCoord;
         const curDropoff = isMobility ? mobilityDropoffCoord : conciergeDropoffCoord;
 
-        // 若使用者正在操作 dropoff 且已有終點點位，優先聚焦到終點特寫
         if (activeFieldFocus === 'dropoff' && curDropoff) {
           map.panTo(curDropoff);
           map.setZoom(17);
           return;
         }
 
-        // 若無或在起點焦點，則回到手機 GPS 真實位置
         if (navigator.geolocation) {
           navigator.geolocation.getCurrentPosition(
             (position) => {
@@ -1203,7 +1180,6 @@
                 });
               }
 
-              // 若起點尚未選定，則自動設為起點
               if (!curPickup) {
                 setPointPosition(userPos, 'pickup', currentCategory);
               } else {
@@ -1248,7 +1224,7 @@
     function setPointPosition(pos, fieldType, catType, optAddressText) {
       const map = getOrCreateMap(pos);
       map.panTo(pos);
-      map.setZoom(17); // 特寫進入微調
+      map.setZoom(17);
 
       currentEditingMarkerType = fieldType;
 
@@ -1280,7 +1256,6 @@
         dropoffMarker.addListener("dragend", () => showPinBubble(dropoffMarker, 'dropoff', catType));
       }
 
-      // 顯示頭頂確認氣泡供確認
       showPinBubble(fieldType === 'pickup' ? pickupMarker : dropoffMarker, fieldType, catType, optAddressText);
     }
 
@@ -1299,7 +1274,6 @@
       bubble.classList.remove('hidden');
       bubble.classList.add('flex');
 
-      // 反查地址至輸入框
       if (geocoderInstance && !optAddressText) {
         geocoderInstance.geocode({ location: marker.getPosition() }, (res, status) => {
           if (status === "OK" && res[0]) {
@@ -1331,13 +1305,12 @@
       const marker = (currentEditingMarkerType === 'pickup') ? pickupMarker : dropoffMarker;
 
       if (isConfirmed) {
-        if (marker) marker.setDraggable(false); // 鎖定不可拖曳，防誤觸！
+        if (marker) marker.setDraggable(false);
         if (badge) {
           badge.innerText = "Location Locked 🔒";
           badge.className = "text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200";
         }
 
-        // 檢查兩端是否皆已就緒，若齊全則觸發路線鎖定 (Lockdown)
         const curPickup = isMobility ? mobilityPickupCoord : conciergePickupCoord;
         const curDropoff = isMobility ? mobilityDropoffCoord : conciergeDropoffCoord;
 
@@ -1345,7 +1318,6 @@
           calculateAndDisplayRoute(true);
         }
       } else {
-        // 取消目前微調
         clearLocationInput(
           (currentEditingMarkerType === 'pickup') ? (isMobility ? 'pickupLoc' : 'conciergePickup') : (isMobility ? 'dropoffLoc' : 'conciergeDropoff'),
           currentEditingMarkerType,
@@ -1479,7 +1451,7 @@
       bindAuto(dropoffInput, "dropoff", "mobility");
       bindAuto(cPickupInput, "pickup", "concierge");
       bindAuto(cDropoffInput, "dropoff", "concierge");
-      // Home 輸入框：選中地點後「自動彈出微調地圖」
+
       const prefHomeInput = document.getElementById("prefHome");
       if (prefHomeInput && window.google && window.google.maps && window.google.maps.places) {
         const homeAuto = new google.maps.places.Autocomplete(prefHomeInput, options);
@@ -1490,13 +1462,11 @@
             const chosenPos = { lat: loc.lat(), lng: loc.lng() };
             const chosenAddr = place.name ? `${place.name}, ${place.formatted_address}` : place.formatted_address;
             prefHomeInput.value = chosenAddr;
-
-            // 自動彈出微調地圖，讓使用者做最後的大門/巷口微調！
             openPickerFor('home', chosenPos, chosenAddr);
           }
         });
       }
-      // 自訂地點輸入框：選中地點後「自動彈出微調地圖」
+
       const newPlaceAddressInput = document.getElementById("newPlaceAddress");
       if (newPlaceAddressInput && window.google && window.google.maps && window.google.maps.places) {
         const customAuto = new google.maps.places.Autocomplete(newPlaceAddressInput, options);
@@ -1507,8 +1477,6 @@
             const chosenPos = { lat: loc.lat(), lng: loc.lng() };
             const chosenAddr = place.name ? `${place.name}, ${place.formatted_address}` : place.formatted_address;
             newPlaceAddressInput.value = chosenAddr;
-
-            // 自動彈出微調地圖，讓使用者做最後的大門/巷口微調！
             openPickerFor('custom', chosenPos, chosenAddr);
           }
         });
@@ -1550,6 +1518,8 @@
 
       const orderId = 'OD-' + Math.floor(100000 + Math.random() * 900000);
       currentOrderId = orderId;
+      localStorage.setItem('r2g_active_order_id', orderId); // 任務3：記憶訂單狀態
+
       document.getElementById('modalOrderId').innerText = orderId;
       dispatchStage = 1;
       dispatchStartTime = Date.now();
@@ -1598,7 +1568,9 @@
         if (!doc.exists) return;
         const data = doc.data();
 
-        if (data.driverLat && data.driverLng) updateDriverLocationOnMap(data.driverLat, data.driverLng);
+        if (data.driverLat && data.driverLng) {
+          updateDriverLocationOnMap(data.driverLat, data.driverLng);
+        }
         if (['MATCHED', 'ACCEPTED', 'ARRIVED', 'IN_TRANSIT', 'COMPLETED'].includes(data.status)) {
           showMatchedDriver(data);
           updateTripStatusUI(data.status);
@@ -1606,29 +1578,57 @@
       }, err => console.warn("Realtime listener error:", err));
     }
 
-    // --- 司機即時動態追蹤 (小藍人 Marker) ---
+    // --- 任務 2：司機即時動態追蹤 (平滑補間動畫 Lerp 1.5s) ---
     let driverMarker = null;
+    let driverAnimFrame = null;
 
     function updateDriverLocationOnMap(lat, lng) {
-      if (!lat || !lng) return;
-      const driverPos = { lat: parseFloat(lat), lng: parseFloat(lng) };
-      const map = mapInstance || (typeof getOrCreateMap === 'function' ? getOrCreateMap(driverPos) : null);
+      const toLat = parseFloat(lat);
+      const toLng = parseFloat(lng);
+      if (isNaN(toLat) || isNaN(toLng)) return;
+
+      const targetPos = new google.maps.LatLng(toLat, toLng);
+      const map = mapInstance || (typeof getOrCreateMap === 'function' ? getOrCreateMap(targetPos) : null);
       if (!map) return;
 
       if (!driverMarker) {
         driverMarker = new google.maps.Marker({
-          position: driverPos,
+          position: targetPos,
           map: map,
           title: "Chauffeur Live Location",
           zIndex: 999,
-          icon: PERSON_PIN_ICON // 使用與上車點一致的經典小藍人
+          icon: PERSON_PIN_ICON
         });
-      } else {
-        driverMarker.setPosition(driverPos);
+        return;
       }
+
+      const fromPos = driverMarker.getPosition();
+      const fromLat = fromPos.lat();
+      const fromLng = fromPos.lng();
+      if (fromLat === toLat && fromLng === toLng) return;
+
+      if (driverAnimFrame) cancelAnimationFrame(driverAnimFrame);
+
+      const duration = 1500;
+      const startTime = performance.now();
+
+      function animateMarker(currentTime) {
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        const currentLat = fromLat + (toLat - fromLat) * progress;
+        const currentLng = fromLng + (toLng - fromLng) * progress;
+
+        driverMarker.setPosition(new google.maps.LatLng(currentLat, currentLng));
+
+        if (progress < 1) {
+          driverAnimFrame = requestAnimationFrame(animateMarker);
+        }
+      }
+      driverAnimFrame = requestAnimationFrame(animateMarker);
     }
 
     function removeDriverMarker() {
+      if (driverAnimFrame) cancelAnimationFrame(driverAnimFrame);
       if (driverMarker) {
         driverMarker.setMap(null);
         driverMarker = null;
@@ -1666,26 +1666,21 @@
       }
     }
 
-    // --- 訪客唯讀追蹤模式 (免登入查看親友行程) ---
+    // --- 任務 4：訪客唯讀追蹤模式 (免登入、唯讀地圖、即時狀態膠囊) ---
     function checkViewerTrackingMode() {
       const urlParams = new URLSearchParams(window.location.search);
       const trackOrderId = urlParams.get('track');
       if (!trackOrderId || !db) return;
 
-      // 1. 隱藏不必要的下單區塊與呼叫按鈕，但保留地圖
       const mainEl = document.querySelector('main');
       if (mainEl) {
-        // 隱藏第一個區塊 (服務類別選擇)
         const sec1 = mainEl.querySelector('section:nth-of-type(1)');
         if (sec1) sec1.classList.add('hidden');
-
-        // 隱藏價格區塊與叫車按鈕
         const sec3 = mainEl.querySelector('section:nth-of-type(3)');
         if (sec3) sec3.classList.add('hidden');
         const submitBtn = document.getElementById('btnSubmit');
         if (submitBtn) submitBtn.classList.add('hidden');
 
-        // 隱藏起終點輸入框與常用地點，讓畫面純淨
         const fieldsMobility = document.getElementById('fields-mobility');
         if (fieldsMobility) fieldsMobility.classList.add('hidden');
         const fieldsConcierge = document.getElementById('fields-concierge');
@@ -1694,15 +1689,13 @@
         if (mainSavedPlaces) mainSavedPlaces.classList.add('hidden');
       }
 
-      // 2. 展開地圖容器
       const mapContainer = document.getElementById('mapPreviewContainer');
       if (mapContainer) {
         mapContainer.classList.remove('hidden');
         mapContainer.classList.remove('mt-3');
-        mapContainer.style.height = '75vh';
+        mapContainer.style.height = '80vh';
       }
 
-      // 3. 確保地圖繪製
       const defaultCenter = { lat: 7.0512, lng: 125.5684 };
       const map = getOrCreateMap(defaultCenter);
       setTimeout(() => {
@@ -1713,7 +1706,6 @@
         }
       }, 300);
 
-      // 4. 即時監聽該筆被追蹤的訂單
       db.collection("ride_orders").doc(trackOrderId).onSnapshot(doc => {
         if (!doc.exists) {
           alert("Trip not found or has concluded.");
@@ -1726,14 +1718,60 @@
             mapInstance.panTo({ lat: parseFloat(data.driverLat), lng: parseFloat(data.driverLng) });
           }
         }
+
+        // 訪客頂部即時狀態同步徽章
+        const statusBadge = document.getElementById('pinLockStatusBadge');
+        if (statusBadge && data.status) {
+          if (data.status === 'MATCHED' || data.status === 'ACCEPTED') {
+            statusBadge.innerText = 'Chauffeur En Route 🚗';
+            statusBadge.className = 'text-[11px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-royal border border-blue-200';
+          } else if (data.status === 'ARRIVED') {
+            statusBadge.innerText = 'Chauffeur Has Arrived 📍';
+            statusBadge.className = 'text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200';
+          } else if (data.status === 'IN_TRANSIT') {
+            statusBadge.innerText = 'Trip In Progress 🛣️';
+            statusBadge.className = 'text-[11px] font-semibold px-2 py-0.5 rounded-full bg-purple-50 text-purple-600 border border-purple-200';
+          } else if (data.status === 'COMPLETED') {
+            statusBadge.innerText = 'Trip Completed ✓';
+            statusBadge.className = 'text-[11px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-300';
+          }
+        }
       });
     }
-    
+
+    // --- 任務 1：司機接單後自動切換全幅大地圖＋底部浮動卡片 ---
     function showMatchedDriver(data) {
       stopDispatchTimer();
-      document.getElementById('dispatchModal').classList.add('hidden'); // 關掉遮罩，露出地圖！
+
+      const mainEl = document.querySelector('main');
+      if (mainEl) {
+        const sec1 = mainEl.querySelector('section:nth-of-type(1)');
+        if (sec1) sec1.classList.add('hidden');
+        const sec3 = mainEl.querySelector('section:nth-of-type(3)');
+        if (sec3) sec3.classList.add('hidden');
+        const submitBtn = document.getElementById('btnSubmit');
+        if (submitBtn) submitBtn.classList.add('hidden');
+        const fieldsMobility = document.getElementById('fields-mobility');
+        if (fieldsMobility) fieldsMobility.classList.add('hidden');
+        const fieldsConcierge = document.getElementById('fields-concierge');
+        if (fieldsConcierge) fieldsConcierge.classList.add('hidden');
+        const mainSavedPlaces = document.getElementById('mainSavedPlacesChips');
+        if (mainSavedPlaces) mainSavedPlaces.classList.add('hidden');
+      }
+
+      const mapContainer = document.getElementById('mapPreviewContainer');
+      if (mapContainer) {
+        mapContainer.classList.remove('hidden');
+        mapContainer.classList.remove('mt-3');
+        mapContainer.style.height = '65vh';
+        if (mapInstance) {
+          google.maps.event.trigger(mapInstance, 'resize');
+        }
+      }
+
       document.getElementById('radarSection').classList.add('hidden');
       document.getElementById('matchedCard').classList.remove('hidden');
+      document.getElementById('dispatchModal').classList.remove('hidden');
 
       const driverNameEl = document.getElementById('driverName');
       if (driverNameEl) driverNameEl.innerText = data.driverName || 'Executive Chauffeur';
@@ -1746,28 +1784,28 @@
         const tgUsername = data.driverTelegram ? data.driverTelegram.replace('@', '') : '';
 
         let buttonsHtml = `
-          <div id="chauffeurContactSection" class="mt-3 pt-3 border-t border-slate-100">
-            <div class="text-[11px] font-semibold tracking-wider uppercase text-slate-400 mb-2">Direct Chauffeur Contact</div>
+          <div id="chauffeurContactSection" class="mt-2.5 pt-2.5 border-t border-slate-100">
+            <div class="text-[10px] font-semibold tracking-wider uppercase text-slate-400 mb-1.5">Direct Chauffeur Contact</div>
             <div class="grid grid-cols-2 gap-2">
-              <a href="tel:${phone}" class="flex items-center justify-center py-2.5 px-3 bg-slate-900 hover:bg-black text-white text-xs font-semibold rounded-xl shadow-sm transition-all active:scale-95">
-                <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24"><path d="M20 15.5c-1.2 0-2.4-.2-3.6-.6-.3-.1-.7 0-1 .2l-2.2 2.2c-2.8-1.4-5.1-3.8-6.6-6.6l2.2-2.2c.3-.3.4-.7.2-1-.4-1.1-.6-2.3-.6-3.5 0-.6-.4-1-1-1H4c-.6 0-1 .4-1 1 0 9.4 7.6 17 17 17 .6 0 1-.4 1-1v-3.5c0-.6-.4-1-1-1z"/></svg>
+              <a href="tel:${phone}" class="flex items-center justify-center py-2 px-3 bg-slate-900 hover:bg-black text-white text-xs font-semibold rounded-xl shadow-sm transition-all active:scale-95">
+                <svg class="w-4 h-4 mr-1.5" fill="currentColor" viewBox="0 0 24 24"><path d="M20 15.5c-1.2 0-2.4-.2-3.6-.6-.3-.1-.7 0-1 .2l-2.2 2.2c-2.8-1.4-5.1-3.8-6.6-6.6l2.2-2.2c.3-.3.4-.7.2-1-.4-1.1-.6-2.3-.6-3.5 0-.6-.4-1-1-1H4c-.6 0-1 .4-1 1 0 9.4 7.6 17 17 17 .6 0 1-.4 1-1v-3.5c0-.6-.4-1-1-1z"/></svg>
                 Call
               </a>
-              <a href="https://wa.me/${wa}" target="_blank" class="flex items-center justify-center py-2.5 px-3 bg-[#25D366] hover:bg-[#20ba5a] text-white text-xs font-semibold rounded-xl shadow-sm transition-all active:scale-95">
-                <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>
+              <a href="https://wa.me/${wa}" target="_blank" class="flex items-center justify-center py-2 px-3 bg-[#25D366] hover:bg-[#20ba5a] text-white text-xs font-semibold rounded-xl shadow-sm transition-all active:scale-95">
+                <svg class="w-4 h-4 mr-1.5" fill="currentColor" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>
                 WhatsApp
               </a>
-              <a href="viber://chat?number=${viberNum}" class="flex items-center justify-center py-2.5 px-3 bg-[#7360F2] hover:bg-[#624ee8] text-white text-xs font-semibold rounded-xl shadow-sm transition-all active:scale-95">
-                <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24"><path d="M11.398 0C4.877 0 .195 4.316.008 10.372c-.12 3.864 1.776 7.428 4.968 9.24v2.964c0 .648.648 1.068 1.2.78l3.192-1.656c.672.108 1.368.168 2.076.168 6.516 0 12.36-4.308 12.552-10.368C24.191 5.436 18.96 0 11.398 0zm6.192 14.196c-.252.696-1.224 1.344-1.992 1.488-.528.096-1.224.168-3.552-.804-2.964-1.236-4.884-4.224-5.028-4.416-.144-.192-1.188-1.584-1.188-3.024 0-1.44.756-2.148 1.02-2.436.264-.288.588-.36.78-.36.204 0 .396.012.564.024.18.012.42-.072.66.504.252.612.852 2.088.924 2.244.072.156.12.336.024.528-.096.204-.144.324-.288.504-.144.18-.312.396-.444.528-.156.144-.312.312-.132.624.18.312.804 1.32 1.728 2.136 1.188 1.056 2.184 1.38 2.496 1.536.312.144.492.12.672-.084.18-.204.78-.912.984-1.224.204-.312.42-.264.696-.156.288.096 1.8.852 2.112 1.008.312.156.516.228.588.36.072.144.072.828-.18 1.524z"/></svg>
+              <a href="viber://chat?number=${viberNum}" class="flex items-center justify-center py-2 px-3 bg-[#7360F2] hover:bg-[#624ee8] text-white text-xs font-semibold rounded-xl shadow-sm transition-all active:scale-95">
+                <svg class="w-4 h-4 mr-1.5" fill="currentColor" viewBox="0 0 24 24"><path d="M11.398 0C4.877 0 .195 4.316.008 10.372c-.12 3.864 1.776 7.428 4.968 9.24v2.964c0 .648.648 1.068 1.2.78l3.192-1.656c.672.108 1.368.168 2.076.168 6.516 0 12.36-4.308 12.552-10.368C24.191 5.436 18.96 0 11.398 0zm6.192 14.196c-.252.696-1.224 1.344-1.992 1.488-.528.096-1.224.168-3.552-.804-2.964-1.236-4.884-4.224-5.028-4.416-.144-.192-1.188-1.584-1.188-3.024 0-1.44.756-2.148 1.02-2.436.264-.288.588-.36.78-.36.204 0 .396.012.564.024.18.012.42-.072.66.504.252.612.852 2.088.924 2.244.072.156.12.336.024.528-.096.204-.144.324-.288.504-.144.18-.312.396-.444.528-.156.144-.312.312-.132.624.18.312.804 1.32 1.728 2.136 1.188 1.056 2.184 1.38 2.496 1.536.312.144.492.12.672-.084.18-.204.78-.912.984-1.224.204-.312.42-.264.696-.156.288.096 1.8.852 2.112 1.008.312.156.516.228.588.36.072.144.072.828-.18 1.524z"/></svg>
                 Viber
               </a>
               ${tgUsername ? `
-                <a href="https://t.me/${tgUsername}" target="_blank" class="flex items-center justify-center py-2.5 px-3 bg-[#229ED9] hover:bg-[#1f8fc4] text-white text-xs font-semibold rounded-xl shadow-sm transition-all active:scale-95">
-                  <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.121l-6.871 4.326-2.962-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.832.922z"/></svg>
+                <a href="https://t.me/${tgUsername}" target="_blank" class="flex items-center justify-center py-2 px-3 bg-[#229ED9] hover:bg-[#1f8fc4] text-white text-xs font-semibold rounded-xl shadow-sm transition-all active:scale-95">
+                  <svg class="w-4 h-4 mr-1.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.121l-6.871 4.326-2.962-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.832.922z"/></svg>
                   Telegram
                 </a>
               ` : `
-                <div class="flex items-center justify-center py-2.5 px-3 bg-slate-100 text-slate-500 text-xs font-medium rounded-xl">
+                <div class="flex items-center justify-center py-2 px-3 bg-slate-100 text-slate-500 text-xs font-medium rounded-xl">
                   <span class="mr-1.5 text-sm">⏱️</span> ~8-12 mins
                 </div>
               `}
@@ -1810,8 +1848,8 @@
     // --- 派單超時兩階段計時控制 ---
     let dispatchTimer = null;
     let dispatchStartTime = null;
-    let dispatchStage = 1; // 1: 第一個3分鐘, 2: 第二個3分鐘
-    const STAGE_DURATION_MS = 180 * 1000; // 180秒
+    let dispatchStage = 1;
+    const STAGE_DURATION_MS = 180 * 1000;
 
     function startDispatchTimeoutChecker() {
       if (dispatchTimer) clearInterval(dispatchTimer);
@@ -1822,7 +1860,6 @@
         if ((dispatchStage === 1 || dispatchStage === 2) && elapsed >= STAGE_DURATION_MS) {
           clearInterval(dispatchTimer);
 
-          // 防撞單檢查：彈出超時卡片前，先向資料庫確認司機是否已接單
           if (currentOrderId && db) {
             try {
               const docSnap = await db.collection("ride_orders").doc(currentOrderId).get();
@@ -1830,7 +1867,6 @@
                 const data = docSnap.data();
                 const matchedStatuses = ['MATCHED', 'ACCEPTED', 'ARRIVED', 'IN_TRANSIT', 'COMPLETED'];
                 if (matchedStatuses.includes(data.status)) {
-                  // 司機已接單，終止超時流程並切換至司機資訊卡
                   stopDispatchTimer();
                   showMatchedDriver(data);
                   updateTripStatusUI(data.status);
@@ -1842,7 +1878,6 @@
             }
           }
 
-          // 確認依然無人接單，才顯示對應階段的超時卡片
           if (dispatchStage === 1) {
             showTimeoutStage1UI();
           } else {
@@ -1885,6 +1920,8 @@
     async function cancelAndReset() {
       stopDispatchTimer();
       removeDriverMarker();
+      localStorage.removeItem('r2g_active_order_id'); // 清空本地記憶
+
       if (typeof unsubscribeOrder === 'function') {
         unsubscribeOrder();
         unsubscribeOrder = null;
@@ -1914,6 +1951,8 @@
 
     function finishTripAndReset() {
       removeDriverMarker();
+      localStorage.removeItem('r2g_active_order_id'); // 清空本地記憶
+
       if (typeof unsubscribeOrder === 'function') {
         unsubscribeOrder();
         unsubscribeOrder = null;
@@ -1922,6 +1961,18 @@
       document.getElementById('radarSection').classList.remove('hidden');
       document.getElementById('matchedCard').classList.add('hidden');
       currentOrderId = null;
+    }
+
+    // --- 任務 3：網頁載入時自動恢復正在進行的訂單 (防跳App或刷新丟失) ---
+    function checkActiveOrderOnLoad() {
+      const activeId = localStorage.getItem('r2g_active_order_id');
+      const urlParams = new URLSearchParams(window.location.search);
+      if (activeId && !urlParams.has('track')) {
+        currentOrderId = activeId;
+        const modalIdEl = document.getElementById('modalOrderId');
+        if (modalIdEl) modalIdEl.innerText = activeId;
+        subscribeToOrder(activeId);
+      }
     }
 
     async function fetchLatestRates() {
@@ -1946,13 +1997,14 @@
       }
     }
 
-    // 初始化
+    // 系統初始化
     loadProfile();
     updateCardBadges();
     fetchLatestRates();
     window.addEventListener("DOMContentLoaded", initAutocomplete);
     window.addEventListener("load", initAutocomplete);
     window.addEventListener("DOMContentLoaded", checkViewerTrackingMode);
+    window.addEventListener("DOMContentLoaded", checkActiveOrderOnLoad);
   </script>
 </body>
 </html>
