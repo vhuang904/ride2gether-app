@@ -766,6 +766,18 @@
         return;
       }
 
+      // 優先使用地圖微調鎖定的精準座標
+      const lat = window._tempCustomPos?.lat || null;
+      const lng = window._tempCustomPos?.lng || null;
+
+      currentUserProfile.customPlaces.push({ label, address: addr, lat, lng });
+      saveProfileToStorage();
+      window._tempCustomPos = null;
+      closeAddPlaceForm();
+      renderCustomPlacesList();
+      renderMainSavedPlacesChips();
+    }
+
       // 如果有經緯度或透過 Geocoder 查座標
       if (geocoderInstance) {
         geocoderInstance.geocode({ address: addr }, (res, status) => {
@@ -948,16 +960,23 @@
 
     // 4. 按下 Confirm 鎖定儲存並同步
     function confirmPickerLocation() {
+      const finalAddr = temporaryPickerAddress || (currentPickerTarget === 'home' ? document.getElementById('prefHome').value : document.getElementById('newPlaceAddress').value);
+      const finalLat = temporaryPickerPos?.lat || null;
+      const finalLng = temporaryPickerPos?.lng || null;
+
       if (currentPickerTarget === 'home') {
-        const finalAddr = temporaryPickerAddress || document.getElementById('prefHome').value;
         currentUserProfile.home = {
           address: finalAddr,
-          lat: temporaryPickerPos?.lat || null,
-          lng: temporaryPickerPos?.lng || null
+          lat: finalLat,
+          lng: finalLng
         };
         document.getElementById('prefHome').value = finalAddr;
         saveProfileToStorage();
         renderMainSavedPlacesChips();
+      } else if (currentPickerTarget === 'custom') {
+        // 自訂地點：將微調後地址填回輸入框，暫存精確座標
+        document.getElementById('newPlaceAddress').value = finalAddr;
+        window._tempCustomPos = { lat: finalLat, lng: finalLng };
       }
       closePickerMap();
     }
@@ -1467,6 +1486,23 @@
 
             // 自動彈出微調地圖，讓使用者做最後的大門/巷口微調！
             openPickerFor('home', chosenPos, chosenAddr);
+          }
+        });
+      }
+      // 自訂地點輸入框：選中地點後「自動彈出微調地圖」
+      const newPlaceAddressInput = document.getElementById("newPlaceAddress");
+      if (newPlaceAddressInput && window.google && window.google.maps && window.google.maps.places) {
+        const customAuto = new google.maps.places.Autocomplete(newPlaceAddressInput, options);
+        customAuto.addListener("place_changed", () => {
+          const place = customAuto.getPlace();
+          if (place && place.geometry && place.geometry.location) {
+            const loc = place.geometry.location;
+            const chosenPos = { lat: loc.lat(), lng: loc.lng() };
+            const chosenAddr = place.name ? `${place.name}, ${place.formatted_address}` : place.formatted_address;
+            newPlaceAddressInput.value = chosenAddr;
+
+            // 自動彈出微調地圖，讓使用者做最後的大門/巷口微調！
+            openPickerFor('custom', chosenPos, chosenAddr);
           }
         });
       }
