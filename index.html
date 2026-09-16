@@ -1731,6 +1731,7 @@
     
     function showMatchedDriver(data) {
       stopDispatchTimer();
+      document.getElementById('dispatchModal').classList.add('hidden'); // 關掉遮罩，露出地圖！
       document.getElementById('radarSection').classList.add('hidden');
       document.getElementById('matchedCard').classList.remove('hidden');
 
