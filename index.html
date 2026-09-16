@@ -508,10 +508,10 @@
   </div>
   
   <!-- 派單狀態 Modal (升級：透明浮動層，不擋住大地圖，卡片下沉置底) -->
-  <div id="dispatchModal" class="fixed inset-0 z-40 bg-transparent pointer-events-none flex flex-col justify-end items-center p-4 pb-6 hidden">
+  <div id="dispatchModal" class="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex flex-col justify-center items-center p-4 hidden">
     
     <!-- 雷達掃描區 (保留置中全黑毛玻璃，接單後才消失) -->
-    <div id="radarSection" class="w-full max-w-sm bg-white rounded-3xl p-7 text-center space-y-5 shadow-2xl border border-slate-100 pointer-events-auto mb-auto mt-auto">
+    <div id="radarSection" class="w-full max-w-sm bg-white rounded-3xl p-7 text-center space-y-5 shadow-2xl border border-slate-100">
       <div class="relative w-32 h-32 mx-auto flex items-center justify-center">
         <div class="absolute inset-0 rounded-full border border-royal/30 animate-ping-slow"></div>
         <div class="absolute inset-3 rounded-full border border-royal/40"></div>
@@ -612,7 +612,7 @@
 
   <script>
     // --- 1. SERVICE WORKER 版本控管 ---
-    const APP_VERSION = 'ride2gether-cache-v7.3';
+    const APP_VERSION = 'ride2gether-cache-v7.4';
 
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
