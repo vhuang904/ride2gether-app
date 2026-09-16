@@ -441,15 +441,27 @@
           <input type="tel" id="prefPhone" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm font-mono text-navy-900 focus:border-royal focus:outline-none">
         </div>
 
-        <!-- 必備保留項：🏠 Home -->
-        <div class="pt-2 border-t border-slate-100">
-          <div class="flex justify-between items-center mb-1">
-            <label class="text-[11px] text-navy-800 font-semibold">🏠 Saved Home</label>
-            <button type="button" onclick="openPickerFor('home')" class="text-[10px] text-royal font-bold hover:underline flex items-center">
-              <span>📍 Pick on Map</span>
+        <!-- 必備保留項：🏠 Home (雙軌：一鍵 GPS + 打字自動開地圖微調) -->
+        <div class="pt-2 border-t border-slate-100 space-y-1.5">
+          <div class="flex justify-between items-center">
+            <label class="text-[11px] text-navy-800 font-bold uppercase tracking-wider">🏠 Saved Home</label>
+            <!-- 醒目的一鍵使用目前 GPS 按鈕 -->
+            <button type="button" onclick="useCurrentGpsForHome()" 
+                    class="px-2.5 py-1 rounded-full bg-blue-50 hover:bg-blue-100 text-royal font-bold text-[11px] border border-blue-200 flex items-center space-x-1 active:scale-95 transition shadow-sm">
+              <span>📍 Use Current GPS</span>
             </button>
           </div>
-          <input type="text" id="prefHome" placeholder="Search home address or village..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-navy-900 focus:border-royal focus:outline-none">
+          
+          <!-- 輸入框本體 + 右側常駐大地圖按鈕 -->
+          <div class="relative flex items-center">
+            <input type="text" id="prefHome" placeholder="Search village, condo, or street..." 
+                   class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-3 pr-16 py-2.5 text-xs text-navy-900 focus:border-royal focus:bg-white focus:outline-none transition">
+            <button type="button" onclick="openPickerFor('home')" 
+                    class="absolute right-1.5 px-2 py-1 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-[10px] font-semibold flex items-center space-x-1 active:scale-95 transition shadow-sm">
+              <span>🗺️ Pin</span>
+            </button>
+          </div>
+          <p class="text-[10px] text-slate-400">Tip: Click GPS if you're home, or type to search & adjust on map.</p>
         </div>
 
         <!-- 自訂地點區域 (Custom Places) -->
@@ -510,6 +522,11 @@
             ✕
           </button>
         </div>
+        <!-- 右下角 GPS 定位鈕 (地圖內隨時拉回腳下) -->
+        <button type="button" onclick="locatePickerGps()" title="Locate my position"
+                class="absolute bottom-4 right-4 z-20 w-10 h-10 rounded-full bg-white shadow-lg border border-slate-200 flex items-center justify-center text-royal active:scale-90 transition">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1e40af" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="7"/><polyline points="12 2 12 5"/><polyline points="12 19 12 22"/><polyline points="2 12 5 12"/><polyline points="19 12 22 12"/></svg>
+        </button>
       </div>
       <div class="p-3 bg-slate-50 border-t border-slate-200">
         <div class="text-[10px] font-bold text-slate-400 uppercase">Selected Address</div>
@@ -798,14 +815,60 @@
       localStorage.setItem('r2g_vip_profile', JSON.stringify(currentUserProfile));
     }
 
-    // --- 3.1 會員中心專屬地圖微調邏輯 (Picker Map) ---
+    // --- 3.1 會員中心專屬地圖微調與 GPS 邏輯 ---
     let pickerMapInstance = null;
     let pickerMarker = null;
-    let currentPickerTarget = 'home'; // 'home' 或其他自訂點
+    let currentPickerTarget = 'home';
     let temporaryPickerPos = null;
     let temporaryPickerAddress = "";
 
-    function openPickerFor(target) {
+    // 1. 人在家裡：一鍵使用目前手機真實 GPS 當作 Home
+    function useCurrentGpsForHome() {
+      if (!navigator.geolocation) {
+        alert("Geolocation is not supported by your device.");
+        return;
+      }
+
+      const prefHomeInput = document.getElementById('prefHome');
+      prefHomeInput.value = "Locating via GPS...";
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const userPos = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude
+          };
+
+          // 反查地址並儲存
+          if (geocoderInstance) {
+            geocoderInstance.geocode({ location: userPos }, (res, status) => {
+              let addrText = `GPS: ${userPos.lat.toFixed(5)}, ${userPos.lng.toFixed(5)}`;
+              if (status === "OK" && res[0]) {
+                addrText = res[0].formatted_address;
+              }
+              prefHomeInput.value = addrText;
+              currentUserProfile.home = {
+                address: addrText,
+                lat: userPos.lat,
+                lng: userPos.lng
+              };
+              saveProfileToStorage();
+              renderMainSavedPlacesChips();
+              alert("🏠 Home location successfully set from your GPS!");
+            });
+          }
+        },
+        (err) => {
+          console.warn("GPS error:", err);
+          alert("Unable to retrieve your location. Please ensure location permissions are enabled.");
+          prefHomeInput.value = currentUserProfile.home?.address || "";
+        },
+        { enableHighAccuracy: true, timeout: 8000 }
+      );
+    }
+
+    // 2. 打開微調地圖 (支援帶入指定經緯度或打字地址)
+    function openPickerFor(target, optPos, optAddress) {
       currentPickerTarget = target;
       const modal = document.getElementById('pickerMapModal');
       const title = document.getElementById('pickerMapTitle');
@@ -813,8 +876,8 @@
       modal.classList.remove('hidden');
 
       setTimeout(() => {
-        let initialPos = { lat: 7.0722, lng: 125.6125 }; // Davao City Center Default
-        if (target === 'home' && currentUserProfile.home?.lat) {
+        let initialPos = optPos || { lat: 7.0722, lng: 125.6125 }; // 預設達沃市中心
+        if (!optPos && target === 'home' && currentUserProfile.home?.lat) {
           initialPos = { lat: currentUserProfile.home.lat, lng: currentUserProfile.home.lng };
         }
 
@@ -839,7 +902,12 @@
         });
 
         temporaryPickerPos = initialPos;
-        reverseGeocodePicker(initialPos);
+        if (optAddress) {
+          temporaryPickerAddress = optAddress;
+          document.getElementById('pickerCurrentAddressText').innerText = optAddress;
+        } else {
+          reverseGeocodePicker(initialPos);
+        }
 
         pickerMarker.addListener("dragend", () => {
           const newPos = pickerMarker.getPosition();
@@ -847,6 +915,25 @@
           reverseGeocodePicker(temporaryPickerPos);
         });
       }, 200);
+    }
+
+    // 3. 微調地圖內的 GPS 靶心按鈕
+    function locatePickerGps() {
+      if (!navigator.geolocation) return;
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const userPos = { lat: position.coords.latitude, lng: position.coords.longitude };
+          if (pickerMapInstance && pickerMarker) {
+            pickerMapInstance.panTo(userPos);
+            pickerMapInstance.setZoom(17);
+            pickerMarker.setPosition(userPos);
+            temporaryPickerPos = userPos;
+            reverseGeocodePicker(userPos);
+          }
+        },
+        (err) => console.warn(err),
+        { enableHighAccuracy: true, timeout: 6000 }
+      );
     }
 
     function reverseGeocodePicker(pos) {
@@ -859,14 +946,16 @@
       });
     }
 
+    // 4. 按下 Confirm 鎖定儲存並同步
     function confirmPickerLocation() {
       if (currentPickerTarget === 'home') {
+        const finalAddr = temporaryPickerAddress || document.getElementById('prefHome').value;
         currentUserProfile.home = {
-          address: temporaryPickerAddress || document.getElementById('prefHome').value,
+          address: finalAddr,
           lat: temporaryPickerPos?.lat || null,
           lng: temporaryPickerPos?.lng || null
         };
-        document.getElementById('prefHome').value = currentUserProfile.home.address;
+        document.getElementById('prefHome').value = finalAddr;
         saveProfileToStorage();
         renderMainSavedPlacesChips();
       }
@@ -876,7 +965,7 @@
     function closePickerMap() {
       document.getElementById('pickerMapModal').classList.add('hidden');
     }
-
+    
     // --- 4. 服務與費率 ---
     let currentCategory = 'mobility';
     let currentService = 'RIDE_MOTO';
@@ -1364,6 +1453,23 @@
       bindAuto(dropoffInput, "dropoff", "mobility");
       bindAuto(cPickupInput, "pickup", "concierge");
       bindAuto(cDropoffInput, "dropoff", "concierge");
+      // Home 輸入框：選中地點後「自動彈出微調地圖」
+      const prefHomeInput = document.getElementById("prefHome");
+      if (prefHomeInput && window.google && window.google.maps && window.google.maps.places) {
+        const homeAuto = new google.maps.places.Autocomplete(prefHomeInput, options);
+        homeAuto.addListener("place_changed", () => {
+          const place = homeAuto.getPlace();
+          if (place && place.geometry && place.geometry.location) {
+            const loc = place.geometry.location;
+            const chosenPos = { lat: loc.lat(), lng: loc.lng() };
+            const chosenAddr = place.name ? `${place.name}, ${place.formatted_address}` : place.formatted_address;
+            prefHomeInput.value = chosenAddr;
+
+            // 自動彈出微調地圖，讓使用者做最後的大門/巷口微調！
+            openPickerFor('home', chosenPos, chosenAddr);
+          }
+        });
+      }
     }
 
     // --- 6. 叫車下單與 Firestore 連線 ---
