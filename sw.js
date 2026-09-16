@@ -2,13 +2,13 @@
 // RIDE2GETHER Service Worker
 // ==========================================
 
-const CACHE_NAME = 'ride2gether-cache-v6.1';
+const CACHE_NAME = 'ride2gether-cache-v6.2';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
   './manifest.json',
-  'https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap',
-  'https://img.icons8.com/fluency-systems-filled/192/1E40AF/crown.png', // 換成皇家藍圖標
+  './icon.svg',
+  'https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap',
   'https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js',
   'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js'
 ];
@@ -17,14 +17,14 @@ const ASSETS_TO_CACHE = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('[SW] 正在預先快取藍白新版核心資源...');
+      console.log('[SW] 正在預先快取核心資源...');
       return cache.addAll(ASSETS_TO_CACHE);
     })
   );
   self.skipWaiting();
 });
 
-// 啟動階段：清除舊版本的快取 (v1, v2, v3 等舊版全部刪除)
+// 啟動階段：清除舊版本的快取 (淘汰 v6.1 與更早的舊快取)
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
@@ -45,11 +45,12 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = event.request.url;
 
-  // 1. 即時連線排除：GAS 與 Firebase 即時通道完全不走快取，直接聯網
+  // 1. 即時連線排除：GAS、Firebase、Google Maps API 完全不走快取，直接聯網
   if (
     url.includes('script.google.com') ||
     url.includes('firestore.googleapis.com') ||
-    url.includes('firebaseinstallations.googleapis.com')
+    url.includes('firebaseinstallations.googleapis.com') ||
+    url.includes('maps.googleapis.com')
   ) {
     event.respondWith(fetch(event.request));
     return;
