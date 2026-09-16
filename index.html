@@ -1697,16 +1697,39 @@
 
     function startDispatchTimeoutChecker() {
       if (dispatchTimer) clearInterval(dispatchTimer);
-      dispatchTimer = setInterval(() => {
+      dispatchTimer = setInterval(async () => {
         if (!dispatchStartTime) return;
         const elapsed = Date.now() - dispatchStartTime;
 
-        if (dispatchStage === 1 && elapsed >= STAGE_DURATION_MS) {
+        if ((dispatchStage === 1 || dispatchStage === 2) && elapsed >= STAGE_DURATION_MS) {
           clearInterval(dispatchTimer);
-          showTimeoutStage1UI();
-        } else if (dispatchStage === 2 && elapsed >= STAGE_DURATION_MS) {
-          clearInterval(dispatchTimer);
-          showTimeoutStage2UI();
+
+          // 防撞單檢查：彈出超時卡片前，先向資料庫確認司機是否已接單
+          if (currentOrderId && db) {
+            try {
+              const docSnap = await db.collection("ride_orders").doc(currentOrderId).get();
+              if (docSnap.exists) {
+                const data = docSnap.data();
+                const matchedStatuses = ['MATCHED', 'ACCEPTED', 'ARRIVED', 'IN_TRANSIT', 'COMPLETED'];
+                if (matchedStatuses.includes(data.status)) {
+                  // 司機已接單，終止超時流程並切換至司機資訊卡
+                  stopDispatchTimer();
+                  showMatchedDriver(data);
+                  updateTripStatusUI(data.status);
+                  return;
+                }
+              }
+            } catch (err) {
+              console.warn("Race condition check error:", err);
+            }
+          }
+
+          // 確認依然無人接單，才顯示對應階段的超時卡片
+          if (dispatchStage === 1) {
+            showTimeoutStage1UI();
+          } else {
+            showTimeoutStage2UI();
+          }
         }
       }, 1000);
     }
