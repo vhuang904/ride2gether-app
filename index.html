@@ -522,12 +522,12 @@
             ✕
           </button>
         </div>
-        <!-- 右下角 GPS 定位鈕 (地圖內隨時拉回腳下) -->
+        <!-- 右上角 GPS 定位鈕 (避開右下角縮放按鈕) -->
         <button type="button" onclick="locatePickerGps()" title="Locate my position"
-                class="absolute bottom-4 right-4 z-20 w-10 h-10 rounded-full bg-white shadow-lg border border-slate-200 flex items-center justify-center text-royal active:scale-90 transition">
+                class="absolute top-4 right-4 z-20 w-10 h-10 rounded-full bg-white shadow-lg border border-slate-200 flex items-center justify-center text-royal active:scale-90 transition">
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1e40af" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="7"/><polyline points="12 2 12 5"/><polyline points="12 19 12 22"/><polyline points="2 12 5 12"/><polyline points="19 12 22 12"/></svg>
         </button>
-      </div>
+        </div>
       <div class="p-3 bg-slate-50 border-t border-slate-200">
         <div class="text-[10px] font-bold text-slate-400 uppercase">Selected Address</div>
         <div id="pickerCurrentAddressText" class="text-xs text-navy-900 font-medium truncate mt-0.5">Adjusting pin...</div>
