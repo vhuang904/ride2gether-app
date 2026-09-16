@@ -589,6 +589,44 @@
         Done
       </button>
     </div>
+      <!-- 階段一超時卡片：詢問是否繼續等待 -->
+    <div id="timeoutStage1Card" class="w-full max-w-sm bg-white rounded-3xl p-6 text-center space-y-4 shadow-2xl border border-slate-100 hidden">
+      <div class="w-14 h-14 mx-auto rounded-full bg-amber-50 border border-amber-300 flex items-center justify-center">
+        <span class="text-2xl">⏳</span>
+      </div>
+      <div>
+        <h4 class="text-base font-bold text-navy-900">All Chauffeurs Currently Busy</h4>
+        <p class="text-xs text-slate-500 mt-1.5 leading-relaxed">
+          Our drivers are currently on trips. Would you like to keep waiting, or cancel your request for now?
+        </p>
+      </div>
+      <div class="space-y-2 pt-2">
+        <button type="button" onclick="extendDispatchWait()" class="w-full py-3 rounded-xl bg-navy-900 hover:bg-royal text-white text-xs font-bold tracking-wider transition active:scale-95 shadow-md">
+          KEEP WAITING (+3 MINS)
+        </button>
+        <button type="button" onclick="cancelAndReset()" class="w-full py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition active:scale-95">
+          Cancel Request
+        </button>
+      </div>
+    </div>
+
+    <!-- 階段二超時卡片：累積滿 6 分鐘禮貌切斷 -->
+    <div id="timeoutStage2Card" class="w-full max-w-sm bg-white rounded-3xl p-6 text-center space-y-4 shadow-2xl border border-slate-100 hidden">
+      <div class="w-14 h-14 mx-auto rounded-full bg-slate-100 border border-slate-300 flex items-center justify-center">
+        <span class="text-2xl">🙇‍♂️</span>
+      </div>
+      <div>
+        <h4 class="text-base font-bold text-navy-900">No Chauffeur Available</h4>
+        <p class="text-xs text-slate-500 mt-1.5 leading-relaxed">
+          We sincerely apologize. No fleet units are currently available in your area. Please try requesting again later.
+        </p>
+      </div>
+      <div class="pt-2">
+        <button type="button" onclick="cancelAndReset()" class="w-full py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold tracking-wider transition active:scale-95 shadow-md">
+          OK, UNDERSTOOD
+        </button>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -1520,6 +1558,9 @@
       const orderId = 'OD-' + Math.floor(100000 + Math.random() * 900000);
       currentOrderId = orderId;
       document.getElementById('modalOrderId').innerText = orderId;
+      dispatchStage = 1;
+      dispatchStartTime = Date.now();
+      startDispatchTimeoutChecker();
 
       const orderData = {
         orderId: orderId,
@@ -1572,6 +1613,7 @@
     }
 
     function showMatchedDriver(data) {
+      stopDispatchTimer();
       document.getElementById('radarSection').classList.add('hidden');
       document.getElementById('matchedCard').classList.remove('hidden');
 
@@ -1647,7 +1689,60 @@
       }
     }
 
+    // --- 派單超時兩階段計時控制 ---
+    let dispatchTimer = null;
+    let dispatchStartTime = null;
+    let dispatchStage = 1; // 1: 第一個3分鐘, 2: 第二個3分鐘
+    const STAGE_DURATION_MS = 5 * 1000; // 5秒
+
+    function startDispatchTimeoutChecker() {
+      if (dispatchTimer) clearInterval(dispatchTimer);
+      dispatchTimer = setInterval(() => {
+        if (!dispatchStartTime) return;
+        const elapsed = Date.now() - dispatchStartTime;
+
+        if (dispatchStage === 1 && elapsed >= STAGE_DURATION_MS) {
+          clearInterval(dispatchTimer);
+          showTimeoutStage1UI();
+        } else if (dispatchStage === 2 && elapsed >= STAGE_DURATION_MS) {
+          clearInterval(dispatchTimer);
+          showTimeoutStage2UI();
+        }
+      }, 1000);
+    }
+
+    function showTimeoutStage1UI() {
+      document.getElementById('radarSection').classList.add('hidden');
+      document.getElementById('timeoutStage1Card').classList.remove('hidden');
+    }
+
+    function extendDispatchWait() {
+      document.getElementById('timeoutStage1Card').classList.add('hidden');
+      document.getElementById('radarSection').classList.remove('hidden');
+      dispatchStage = 2;
+      dispatchStartTime = Date.now();
+      startDispatchTimeoutChecker();
+    }
+
+    function showTimeoutStage2UI() {
+      document.getElementById('radarSection').classList.add('hidden');
+      document.getElementById('timeoutStage1Card').classList.add('hidden');
+      document.getElementById('timeoutStage2Card').classList.remove('hidden');
+    }
+
+    function stopDispatchTimer() {
+      if (dispatchTimer) clearInterval(dispatchTimer);
+      dispatchTimer = null;
+      dispatchStartTime = null;
+      dispatchStage = 1;
+      const t1 = document.getElementById('timeoutStage1Card');
+      const t2 = document.getElementById('timeoutStage2Card');
+      if (t1) t1.classList.add('hidden');
+      if (t2) t2.classList.add('hidden');
+    }
+    
     async function cancelAndReset() {
+      stopDispatchTimer();
       if (typeof unsubscribeOrder === 'function') {
         unsubscribeOrder();
         unsubscribeOrder = null;
