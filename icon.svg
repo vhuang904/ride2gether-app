@@ -18,16 +18,25 @@
   <rect width="512" height="512" rx="112" fill="url(#bgGrad)"/>
   <rect x="12" y="12" width="488" height="488" rx="100" fill="none" stroke="#60A5FA" stroke-width="2" stroke-opacity="0.25"/>
 
-  <g transform="translate(142, 42) scale(4.5)">
-    <path d="M7 28 L11 11 L26 19 L41 11 L45 28 Z" 
-          fill="url(#goldGrad)" 
-          stroke="#FEF08A" 
-          stroke-width="1" 
-          stroke-linejoin="round"/>
-    <rect x="7" y="28.8" width="38" height="3" rx="1.5" fill="url(#goldGrad)"/>
-    <circle cx="11" cy="10" r="2.4" fill="#FFFBEB" stroke="#B45309" stroke-width="0.7"/>
-    <circle cx="26" cy="6.5" r="3" fill="#FFFBEB" stroke="#B45309" stroke-width="0.7"/>
-    <circle cx="41" cy="10" r="2.4" fill="#FFFBEB" stroke="#B45309" stroke-width="0.7"/>
+  <g transform="translate(101, 30) scale(3.1)">
+    <path d="M26 48 C24 35, 36 28, 50 28 C64 28, 76 35, 74 48 C68 53, 32 53, 26 48 Z" fill="#991B1B" />
+    <path d="M18 48 C14 36, 18 22, 28 20 C36 18, 42 26, 48 33" stroke="#F59E0B" stroke-width="3.5" stroke-linecap="round" fill="none"/>
+    <path d="M82 48 C86 36, 82 22, 72 20 C64 18, 58 26, 52 33" stroke="#F59E0B" stroke-width="3.5" stroke-linecap="round" fill="none"/>
+    <path d="M50 28 L50 49" stroke="#F59E0B" stroke-width="3" stroke-linecap="round" fill="none"/>
+    <circle cx="50" cy="38" r="2.2" fill="#FDE68A" />
+    <rect x="20" y="49" width="60" height="8" rx="2.5" fill="#F59E0B" />
+    <circle cx="30" cy="53" r="1.5" fill="#FEF3C7" />
+    <circle cx="40" cy="53" r="1.5" fill="#FEF3C7" />
+    <circle cx="50" cy="53" r="1.8" fill="#FFFFFF" />
+    <circle cx="60" cy="53" r="1.5" fill="#FEF3C7" />
+    <circle cx="70" cy="53" r="1.5" fill="#FEF3C7" />
+    <ellipse cx="50" cy="58" rx="26" ry="2.2" fill="#D97706" />
+    <path d="M50 7 C47 13, 46 18, 50 22 C54 18, 53 13, 50 7 Z" fill="#F59E0B" />
+    <path d="M49 19 C44 15, 40 16, 41 19 C42 22, 47 22, 49 22 Z" fill="#F59E0B" />
+    <path d="M51 19 C56 15, 60 16, 59 19 C58 22, 53 22, 51 22 Z" fill="#F59E0B" />
+    <rect x="46.5" y="21.5" width="7" height="2" rx="0.5" fill="#B45309" />
+    <path d="M30 49 L32 44 L34 49 Z" fill="#F59E0B" />
+    <path d="M66 49 L68 44 L70 49 Z" fill="#F59E0B" />
   </g>
 
   <text x="256" y="320" 
