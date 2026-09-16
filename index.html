@@ -6,10 +6,10 @@
   <title>Ride2gether | Private Concierge & Mobility</title>
   
   <!-- PWA Meta -->
-  <link rel="manifest" href="manifest.json?v=v5">
-  <meta name="theme-color" content="#F8FAFC">
+  <link rel="manifest" href="ride2gether-cache-v6.1">
+  <meta name="theme-color" content="#0F172A">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="apple-touch-icon" href="https://img.icons8.com/fluency-systems-filled/192/1E40AF/car.png">
   <link rel="icon" type="image/png" href="https://img.icons8.com/fluency-systems-filled/192/1E40AF/car.png">
 
@@ -127,7 +127,7 @@
     <div class="flex flex-col items-start">
         <!-- 上排：皇冠與 Ride2gether 緊鄰並排 -->
         <div class="flex items-center space-x-1.5">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 80" class="w-6 h-6 flex-shrink-0 drop-shadow-sm" fill="none">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 80" class="w-8 h-8 flex-shrink-0 drop-shadow-md -mt-1" fill="none">
             <!-- 內部深紅絲絨布冠頂 -->
             <path d="M26 48 C24 35, 36 28, 50 28 C64 28, 76 35, 74 48 C68 53, 32 53, 26 48 Z" fill="#991B1B" />
             <!-- 皇家拱樑主體骨架 -->
@@ -437,7 +437,7 @@
 
   <script>
     // --- 1. SERVICE WORKER 版本控管 ---
-    const APP_VERSION = 'ride2gether-cache-v6.0';
+    const APP_VERSION = 'ride2gether-cache-v6.1';
 
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
