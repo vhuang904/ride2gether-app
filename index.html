@@ -777,30 +777,6 @@
       renderCustomPlacesList();
       renderMainSavedPlacesChips();
     }
-
-      // 如果有經緯度或透過 Geocoder 查座標
-      if (geocoderInstance) {
-        geocoderInstance.geocode({ address: addr }, (res, status) => {
-          let lat = null, lng = null;
-          if (status === "OK" && res[0]) {
-            lat = res[0].geometry.location.lat();
-            lng = res[0].geometry.location.lng();
-          }
-          currentUserProfile.customPlaces.push({ label, address: addr, lat, lng });
-          saveProfileToStorage();
-          closeAddPlaceForm();
-          renderCustomPlacesList();
-          renderMainSavedPlacesChips();
-        });
-      } else {
-        currentUserProfile.customPlaces.push({ label, address: addr, lat: null, lng: null });
-        saveProfileToStorage();
-        closeAddPlaceForm();
-        renderCustomPlacesList();
-        renderMainSavedPlacesChips();
-      }
-    }
-
     function deleteCustomPlace(index) {
       currentUserProfile.customPlaces.splice(index, 1);
       saveProfileToStorage();
