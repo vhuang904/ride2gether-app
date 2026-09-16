@@ -124,38 +124,39 @@
 
   <!-- Header: 珍珠白底 + 深藍文字與切換鈕 -->
   <header class="sticky top-0 z-40 glass-nav border-b border-slate-200/80 px-5 py-3 flex items-center justify-between shadow-sm">
-    <div class="flex items-center space-x-2.5">
-        <!-- 方案 A：皇家鳶尾花酒紅內襯皇冠 Logo -->
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 80" class="w-7 h-7 flex-shrink-0 drop-shadow-sm" fill="none">
-          <!-- 內部深紅絲絨布冠頂 -->
-          <path d="M26 48 C24 35, 36 28, 50 28 C64 28, 76 35, 74 48 C68 53, 32 53, 26 48 Z" fill="#991B1B" />
-          <!-- 皇家拱樑主體骨架 -->
-          <path d="M18 48 C14 36, 18 22, 28 20 C36 18, 42 26, 48 33" stroke="#F59E0B" stroke-width="3.5" stroke-linecap="round" />
-          <path d="M82 48 C86 36, 82 22, 72 20 C64 18, 58 26, 52 33" stroke="#F59E0B" stroke-width="3.5" stroke-linecap="round" />
-          <!-- 中央主立柱與寶珠 -->
-          <path d="M50 28 L50 49" stroke="#F59E0B" stroke-width="3" stroke-linecap="round" />
-          <circle cx="50" cy="38" r="2.2" fill="#FDE68A" />
-          <!-- 底部金環基座 -->
-          <rect x="20" y="49" width="60" height="8" rx="2.5" fill="#F59E0B" />
-          <circle cx="30" cy="53" r="1.5" fill="#FEF3C7" />
-          <circle cx="40" cy="53" r="1.5" fill="#FEF3C7" />
-          <circle cx="50" cy="53" r="1.8" fill="#FFFFFF" />
-          <circle cx="60" cy="53" r="1.5" fill="#FEF3C7" />
-          <circle cx="70" cy="53" r="1.5" fill="#FEF3C7" />
-          <ellipse cx="50" cy="58" rx="26" ry="2.2" fill="#D97706" />
-          <!-- 頂部鳶尾花 -->
-          <path d="M50 7 C47 13, 46 18, 50 22 C54 18, 53 13, 50 7 Z" fill="#F59E0B" />
-          <path d="M49 19 C44 15, 40 16, 41 19 C42 22, 47 22, 49 22 Z" fill="#F59E0B" />
-          <path d="M51 19 C56 15, 60 16, 59 19 C58 22, 53 22, 51 22 Z" fill="#F59E0B" />
-          <rect x="46.5" y="21.5" width="7" height="2" rx="0.5" fill="#B45309" />
-          <!-- 兩側小尖頂 -->
-          <path d="M30 49 L32 44 L34 49 Z" fill="#F59E0B" />
-          <path d="M66 49 L68 44 L70 49 Z" fill="#F59E0B" />
-        </svg>
-        <div>
+    <div class="flex flex-col items-start">
+        <!-- 上排：皇冠與 Ride2gether 緊鄰並排 -->
+        <div class="flex items-center space-x-1.5">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 80" class="w-6 h-6 flex-shrink-0 drop-shadow-sm" fill="none">
+            <!-- 內部深紅絲絨布冠頂 -->
+            <path d="M26 48 C24 35, 36 28, 50 28 C64 28, 76 35, 74 48 C68 53, 32 53, 26 48 Z" fill="#991B1B" />
+            <!-- 皇家拱樑主體骨架 -->
+            <path d="M18 48 C14 36, 18 22, 28 20 C36 18, 42 26, 48 33" stroke="#F59E0B" stroke-width="3.5" stroke-linecap="round" />
+            <path d="M82 48 C86 36, 82 22, 72 20 C64 18, 58 26, 52 33" stroke="#F59E0B" stroke-width="3.5" stroke-linecap="round" />
+            <!-- 中央主立柱與寶珠 -->
+            <path d="M50 28 L50 49" stroke="#F59E0B" stroke-width="3" stroke-linecap="round" />
+            <circle cx="50" cy="38" r="2.2" fill="#FDE68A" />
+            <!-- 底部金環基座 -->
+            <rect x="20" y="49" width="60" height="8" rx="2.5" fill="#F59E0B" />
+            <circle cx="30" cy="53" r="1.5" fill="#FEF3C7" />
+            <circle cx="40" cy="53" r="1.5" fill="#FEF3C7" />
+            <circle cx="50" cy="53" r="1.8" fill="#FFFFFF" />
+            <circle cx="60" cy="53" r="1.5" fill="#FEF3C7" />
+            <circle cx="70" cy="53" r="1.5" fill="#FEF3C7" />
+            <ellipse cx="50" cy="58" rx="26" ry="2.2" fill="#D97706" />
+            <!-- 頂部鳶尾花 -->
+            <path d="M50 7 C47 13, 46 18, 50 22 C54 18, 53 13, 50 7 Z" fill="#F59E0B" />
+            <path d="M49 19 C44 15, 40 16, 41 19 C42 22, 47 22, 49 22 Z" fill="#F59E0B" />
+            <path d="M51 19 C56 15, 60 16, 59 19 C58 22, 53 22, 51 22 Z" fill="#F59E0B" />
+            <rect x="46.5" y="21.5" width="7" height="2" rx="0.5" fill="#B45309" />
+            <!-- 兩側小尖頂 -->
+            <path d="M30 49 L32 44 L34 49 Z" fill="#F59E0B" />
+            <path d="M66 49 L68 44 L70 49 Z" fill="#F59E0B" />
+          </svg>
           <h1 class="font-serif text-lg tracking-wider navy-gradient-text font-bold uppercase leading-none">Ride2gether</h1>
-          <p class="text-[9px] tracking-[0.2em] text-slate-500 uppercase mt-1">Private Concierge & Mobility</p>
         </div>
+        <!-- 下排：副標題靠齊最左邊 -->
+        <p class="text-[9px] tracking-[0.2em] text-slate-500 uppercase mt-1">Private Concierge & Mobility</p>
       </div>
     
     <!-- 右側上下對調 + 中線垂直居中對齊 -->
