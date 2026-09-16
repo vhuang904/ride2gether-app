@@ -1672,22 +1672,37 @@
       const trackOrderId = urlParams.get('track');
       if (!trackOrderId || !db) return;
 
-      // 隱藏下單輸入與會員入口
+      // 1. 隱藏不必要的下單區塊與呼叫按鈕，但保留地圖
       const mainEl = document.querySelector('main');
       if (mainEl) {
-        const sections = mainEl.querySelectorAll('section, button#btnSubmit');
-        sections.forEach(s => s.classList.add('hidden'));
+        // 隱藏第一個區塊 (服務類別選擇)
+        const sec1 = mainEl.querySelector('section:nth-of-type(1)');
+        if (sec1) sec1.classList.add('hidden');
+
+        // 隱藏價格區塊與叫車按鈕
+        const sec3 = mainEl.querySelector('section:nth-of-type(3)');
+        if (sec3) sec3.classList.add('hidden');
+        const submitBtn = document.getElementById('btnSubmit');
+        if (submitBtn) submitBtn.classList.add('hidden');
+
+        // 隱藏起終點輸入框與常用地點，讓畫面純淨
+        const fieldsMobility = document.getElementById('fields-mobility');
+        if (fieldsMobility) fieldsMobility.classList.add('hidden');
+        const fieldsConcierge = document.getElementById('fields-concierge');
+        if (fieldsConcierge) fieldsConcierge.classList.add('hidden');
+        const mainSavedPlaces = document.getElementById('mainSavedPlacesChips');
+        if (mainSavedPlaces) mainSavedPlaces.classList.add('hidden');
       }
 
-      // 強制展開地圖容器
+      // 2. 展開地圖容器
       const mapContainer = document.getElementById('mapPreviewContainer');
       if (mapContainer) {
         mapContainer.classList.remove('hidden');
         mapContainer.classList.remove('mt-3');
-        mapContainer.style.height = 'calc(100vh - 80px)';
+        mapContainer.style.height = '75vh';
       }
 
-      // 確保地圖物件已建立並觸發重繪
+      // 3. 確保地圖繪製
       const defaultCenter = { lat: 7.0512, lng: 125.5684 };
       const map = getOrCreateMap(defaultCenter);
       setTimeout(() => {
@@ -1698,7 +1713,7 @@
         }
       }, 300);
 
-      // 即時監聽該筆被追蹤的訂單
+      // 4. 即時監聽該筆被追蹤的訂單
       db.collection("ride_orders").doc(trackOrderId).onSnapshot(doc => {
         if (!doc.exists) {
           alert("Trip not found or has concluded.");
