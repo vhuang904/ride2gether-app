@@ -256,14 +256,8 @@
           02. Route & Location
         </label>
         
-        <!-- 常用地址快速藥丸按鈕 -->
-        <div class="flex space-x-1.5">
-          <button type="button" onclick="applySavedPlace('home')" class="px-2.5 py-1 rounded-full bg-slate-100 hover:bg-royal-soft text-slate-700 hover:text-royal text-[11px] font-semibold transition border border-slate-200 flex items-center">
-            🏠 Home
-          </button>
-          <button type="button" onclick="applySavedPlace('office')" class="px-2.5 py-1 rounded-full bg-slate-100 hover:bg-royal-soft text-slate-700 hover:text-royal text-[11px] font-semibold transition border border-slate-200 flex items-center">
-            🏢 Office
-          </button>
+        <!-- 動態常用地點列容器 (由 JS 自動載入 Home 及自訂地點) -->
+        <div id="mainSavedPlacesChips" class="flex space-x-1.5 overflow-x-auto max-w-[200px] no-scrollbar py-0.5">
         </div>
       </div>
 
@@ -422,8 +416,8 @@
   </main>
 
   <!-- VIP 會員資料彈窗 (Profile Modal) -->
-  <div id="profileModal" class="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-5 hidden">
-    <div class="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl border border-slate-100 space-y-4">
+  <div id="profileModal" class="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+    <div class="bg-white w-full max-w-sm rounded-3xl p-5 shadow-2xl border border-slate-100 space-y-4 max-h-[90vh] overflow-y-auto">
       <div class="flex items-center justify-between border-b border-slate-100 pb-3">
         <div class="flex items-center space-x-2">
           <div class="w-9 h-9 rounded-full bg-royal-soft text-royal font-bold flex items-center justify-center">
@@ -431,10 +425,10 @@
           </div>
           <div>
             <h3 class="font-bold text-sm text-navy-900">VIP Member Center</h3>
-            <p class="text-[10px] text-slate-400">Manage identity & saved places</p>
+            <p class="text-[10px] text-slate-400">Manage profile & saved places</p>
           </div>
         </div>
-        <button type="button" onclick="closeProfileModal()" class="text-slate-400 hover:text-slate-600 text-lg font-bold">✕</button>
+        <button type="button" onclick="closeProfileModal()" class="text-slate-400 hover:text-slate-600 text-lg font-bold p-1">✕</button>
       </div>
 
       <div class="space-y-3 text-xs">
@@ -446,22 +440,84 @@
           <label class="text-[11px] text-navy-800 font-semibold block mb-1">Mobile Phone (Verified)</label>
           <input type="tel" id="prefPhone" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm font-mono text-navy-900 focus:border-royal focus:outline-none">
         </div>
+
+        <!-- 必備保留項：🏠 Home -->
         <div class="pt-2 border-t border-slate-100">
-          <label class="text-[11px] text-navy-800 font-semibold block mb-1">🏠 Saved Home Address</label>
-          <input type="text" id="prefHome" placeholder="e.g. Abreeza Residences, Davao City" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-navy-900 focus:border-royal focus:outline-none">
+          <div class="flex justify-between items-center mb-1">
+            <label class="text-[11px] text-navy-800 font-semibold">🏠 Saved Home</label>
+            <button type="button" onclick="openPickerFor('home')" class="text-[10px] text-royal font-bold hover:underline flex items-center">
+              <span>📍 Pick on Map</span>
+            </button>
+          </div>
+          <input type="text" id="prefHome" placeholder="Search home address or village..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-navy-900 focus:border-royal focus:outline-none">
         </div>
-        <div>
-          <label class="text-[11px] text-navy-800 font-semibold block mb-1">🏢 Saved Office / Hotel</label>
-          <input type="text" id="prefOffice" placeholder="e.g. Marco Polo Hotel, Davao City" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-navy-900 focus:border-royal focus:outline-none">
+
+        <!-- 自訂地點區域 (Custom Places) -->
+        <div class="pt-2 border-t border-slate-100 space-y-2">
+          <div class="flex justify-between items-center">
+            <label class="text-[11px] text-navy-800 font-semibold">⭐ Custom Favorite Places</label>
+            <button type="button" onclick="openAddPlaceForm()" class="text-[10px] font-bold text-royal bg-royal-soft px-2 py-0.5 rounded-md hover:bg-blue-100 transition">
+              + Add Place
+            </button>
+          </div>
+
+          <!-- 新增自訂地點的折疊小表單 -->
+          <div id="addPlaceBox" class="hidden bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2">
+            <input type="text" id="newPlaceLabel" placeholder="Label name (e.g. Office, Conrado's)" class="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-navy-900 focus:outline-none focus:border-royal">
+            <div class="relative">
+              <input type="text" id="newPlaceAddress" placeholder="Search location..." class="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-navy-900 focus:outline-none focus:border-royal">
+            </div>
+            <div class="flex space-x-2 pt-1">
+              <button type="button" onclick="confirmSaveNewPlace()" class="flex-1 py-1.5 bg-royal text-white rounded-lg text-xs font-bold hover:bg-blue-700">Save</button>
+              <button type="button" onclick="closeAddPlaceForm()" class="px-3 py-1.5 bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold">Cancel</button>
+            </div>
+          </div>
+
+          <!-- 已儲存的自訂地點清單 (動態渲染) -->
+          <div id="customPlacesList" class="space-y-1.5 max-h-36 overflow-y-auto">
+            <!-- 動態插入項目 -->
+          </div>
         </div>
       </div>
 
-      <button type="button" onclick="saveProfile()" class="w-full py-3 rounded-xl bg-navy-900 hover:bg-royal text-white font-bold text-xs tracking-wider transition">
+      <button type="button" onclick="saveProfile()" class="w-full py-3 rounded-xl bg-navy-900 hover:bg-royal text-white font-bold text-xs tracking-wider transition shadow-md">
         SAVE VIP PREFERENCES
       </button>
     </div>
   </div>
 
+  <!-- 會員中心專屬的地圖微調彈窗 (Picker Map Modal) -->
+  <div id="pickerMapModal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex flex-col items-center justify-center p-4 hidden">
+    <div class="bg-white w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl border border-slate-700 flex flex-col h-[520px]">
+      <div class="p-3 bg-slate-900 text-white flex items-center justify-between">
+        <div>
+          <div class="text-xs font-bold uppercase tracking-wider" id="pickerMapTitle">Adjust Location on Map</div>
+          <div class="text-[10px] text-slate-400">Drag pin to exact gate / entrance</div>
+        </div>
+        <button type="button" onclick="closePickerMap()" class="text-slate-400 hover:text-white text-base font-bold px-2">✕</button>
+      </div>
+
+      <!-- 微調地圖容器 -->
+      <div class="relative flex-1 bg-slate-800">
+        <div id="pickerMap" class="w-full h-full"></div>
+        <!-- 頂部確認條 -->
+        <div class="absolute top-2 left-1/2 -translate-x-1/2 z-20 flex items-center space-x-2.5 bg-slate-900/95 border border-slate-700 shadow-xl px-3 py-1 rounded-full text-white backdrop-blur-md">
+          <button type="button" onclick="confirmPickerLocation()" class="w-12 h-7 rounded-lg bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white flex items-center justify-center font-black text-sm shadow transition">
+            ✓
+          </button>
+          <span class="text-[11px] font-bold text-slate-100 tracking-wider uppercase px-1 leading-none">Confirm</span>
+          <button type="button" onclick="closePickerMap()" class="w-12 h-7 rounded-lg bg-rose-600 hover:bg-rose-700 active:scale-95 text-white flex items-center justify-center font-black text-sm shadow transition">
+            ✕
+          </button>
+        </div>
+      </div>
+      <div class="p-3 bg-slate-50 border-t border-slate-200">
+        <div class="text-[10px] font-bold text-slate-400 uppercase">Selected Address</div>
+        <div id="pickerCurrentAddressText" class="text-xs text-navy-900 font-medium truncate mt-0.5">Adjusting pin...</div>
+      </div>
+    </div>
+  </div>
+  
   <!-- 派單狀態 Modal -->
   <div id="dispatchModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-md flex flex-col items-center justify-center p-6 hidden">
     
@@ -520,7 +576,7 @@
 
   <script>
     // --- 1. SERVICE WORKER 版本控管 ---
-    const APP_VERSION = 'ride2gether-cache-v7.0';
+    const APP_VERSION = 'ride2gether-cache-v7.1';
 
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
@@ -549,22 +605,37 @@
 
     const GAS_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbxuT2lHTit53Ezz1eAzKwgIkSM7OVwzQMbGkA-TvYGVerxsNKnZgy5kDz-aVJkB2lJZ/exec";
 
-    // --- 3. VIP 會員資料管理 (LocalStorage + Modal) ---
+    // --- 3. VIP 會員與自訂常用地點核心 ---
     let currentUserProfile = {
       name: "Mr. Vincent",
       phone: "0917-888-9999",
-      home: "Abreeza Residences, J.P. Laurel Ave, Davao City",
-      office: "Marco Polo Hotel, C.M. Recto St, Davao City"
+      home: {
+        address: "Villa Josefina Resort Village, Dumoy, Davao City",
+        lat: 7.0512,
+        lng: 125.5684
+      },
+      customPlaces: [] // 結構: [{ id: 1, label: "Conrado's", address: "...", lat: ..., lng: ... }]
     };
 
     function loadProfile() {
       const saved = localStorage.getItem('r2g_vip_profile');
       if (saved) {
         try {
-          currentUserProfile = JSON.parse(saved);
-        } catch(e) {}
+          const parsed = JSON.parse(saved);
+          // 相容舊版字串格式
+          if (typeof parsed.home === 'string') {
+            currentUserProfile.home = { address: parsed.home, lat: null, lng: null };
+          } else {
+            currentUserProfile.home = parsed.home || { address: "", lat: null, lng: null };
+          }
+          currentUserProfile.name = parsed.name || "VIP Guest";
+          currentUserProfile.phone = parsed.phone || "0917-000-0000";
+          currentUserProfile.customPlaces = parsed.customPlaces || [];
+        } catch(e) { console.warn("Load profile error:", e); }
       }
       updateHeaderProfileUI();
+      renderMainSavedPlacesChips();
+      renderCustomPlacesList();
     }
 
     function updateHeaderProfileUI() {
@@ -575,68 +646,225 @@
 
       document.getElementById('prefName').value = currentUserProfile.name || "";
       document.getElementById('prefPhone').value = currentUserProfile.phone || "";
-      document.getElementById('prefHome').value = currentUserProfile.home || "";
-      document.getElementById('prefOffice').value = currentUserProfile.office || "";
+      document.getElementById('prefHome').value = (currentUserProfile.home && currentUserProfile.home.address) ? currentUserProfile.home.address : "";
     }
 
-    function openProfileModal() {
-      document.getElementById('profileModal').classList.remove('hidden');
+    function renderMainSavedPlacesChips() {
+      const container = document.getElementById('mainSavedPlacesChips');
+      if (!container) return;
+      container.innerHTML = '';
+
+      // 1. 必備 Home
+      if (currentUserProfile.home && currentUserProfile.home.address) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = "px-2.5 py-1 rounded-full bg-slate-100 hover:bg-royal-soft text-slate-700 hover:text-royal text-[11px] font-semibold transition border border-slate-200 flex-shrink-0 flex items-center";
+        btn.innerHTML = `🏠 Home`;
+        btn.onclick = () => applyPlaceToRoute(currentUserProfile.home);
+        container.appendChild(btn);
+      }
+
+      // 2. 自訂地點
+      if (currentUserProfile.customPlaces && currentUserProfile.customPlaces.length > 0) {
+        currentUserProfile.customPlaces.forEach(p => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = "px-2.5 py-1 rounded-full bg-slate-100 hover:bg-royal-soft text-slate-700 hover:text-royal text-[11px] font-semibold transition border border-slate-200 flex-shrink-0 flex items-center";
+          btn.innerHTML = `📍 ${p.label}`;
+          btn.onclick = () => applyPlaceToRoute(p);
+          container.appendChild(btn);
+        });
+      }
     }
 
-    function closeProfileModal() {
-      document.getElementById('profileModal').classList.add('hidden');
+    function applyPlaceToRoute(placeObj) {
+      if (!placeObj || !placeObj.address) return;
+
+      const isMobility = currentCategory === 'mobility';
+      const pInput = isMobility ? document.getElementById('pickupLoc') : document.getElementById('conciergePickup');
+      const dInput = isMobility ? document.getElementById('dropoffLoc') : document.getElementById('conciergeDropoff');
+
+      const targetField = (!pInput.value) ? 'pickup' : 'dropoff';
+      const targetInput = (!pInput.value) ? pInput : dInput;
+
+      targetInput.value = placeObj.address;
+
+      if (placeObj.lat && placeObj.lng) {
+        setPointPosition({ lat: placeObj.lat, lng: placeObj.lng }, targetField, currentCategory, placeObj.address);
+      } else {
+        geocodeAndFocus(placeObj.address, targetField, currentCategory);
+      }
+    }
+
+    function renderCustomPlacesList() {
+      const listEl = document.getElementById('customPlacesList');
+      if (!listEl) return;
+      listEl.innerHTML = '';
+
+      if (!currentUserProfile.customPlaces || currentUserProfile.customPlaces.length === 0) {
+        listEl.innerHTML = '<div class="text-[10px] text-slate-400 py-1 italic">No custom places added yet.</div>';
+        return;
+      }
+
+      currentUserProfile.customPlaces.forEach((item, index) => {
+        const row = document.createElement('div');
+        row.className = "flex items-center justify-between bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs";
+        row.innerHTML = `
+          <div class="truncate mr-2">
+            <span class="font-bold text-navy-900">${item.label}</span>
+            <p class="text-[10px] text-slate-500 truncate">${item.address}</p>
+          </div>
+          <button type="button" onclick="deleteCustomPlace(${index})" class="text-slate-400 hover:text-rose-600 font-bold px-1 text-sm">🗑️</button>
+        `;
+        listEl.appendChild(row);
+      });
+    }
+
+    function openAddPlaceForm() {
+      document.getElementById('addPlaceBox').classList.remove('hidden');
+      document.getElementById('newPlaceLabel').value = '';
+      document.getElementById('newPlaceAddress').value = '';
+    }
+
+    function closeAddPlaceForm() {
+      document.getElementById('addPlaceBox').classList.add('hidden');
+    }
+
+    function confirmSaveNewPlace() {
+      const label = document.getElementById('newPlaceLabel').value.trim();
+      const addr = document.getElementById('newPlaceAddress').value.trim();
+
+      if (!label || !addr) {
+        alert("Please provide both label name and address.");
+        return;
+      }
+
+      // 如果有經緯度或透過 Geocoder 查座標
+      if (geocoderInstance) {
+        geocoderInstance.geocode({ address: addr }, (res, status) => {
+          let lat = null, lng = null;
+          if (status === "OK" && res[0]) {
+            lat = res[0].geometry.location.lat();
+            lng = res[0].geometry.location.lng();
+          }
+          currentUserProfile.customPlaces.push({ label, address: addr, lat, lng });
+          saveProfileToStorage();
+          closeAddPlaceForm();
+          renderCustomPlacesList();
+          renderMainSavedPlacesChips();
+        });
+      } else {
+        currentUserProfile.customPlaces.push({ label, address: addr, lat: null, lng: null });
+        saveProfileToStorage();
+        closeAddPlaceForm();
+        renderCustomPlacesList();
+        renderMainSavedPlacesChips();
+      }
+    }
+
+    function deleteCustomPlace(index) {
+      currentUserProfile.customPlaces.splice(index, 1);
+      saveProfileToStorage();
+      renderCustomPlacesList();
+      renderMainSavedPlacesChips();
     }
 
     function saveProfile() {
       currentUserProfile.name = document.getElementById('prefName').value.trim() || "VIP Guest";
       currentUserProfile.phone = document.getElementById('prefPhone').value.trim() || "0917-000-0000";
-      currentUserProfile.home = document.getElementById('prefHome').value.trim();
-      currentUserProfile.office = document.getElementById('prefOffice').value.trim();
+      const homeInputVal = document.getElementById('prefHome').value.trim();
 
-      localStorage.setItem('r2g_vip_profile', JSON.stringify(currentUserProfile));
+      if (homeInputVal !== (currentUserProfile.home?.address || '')) {
+        currentUserProfile.home = { address: homeInputVal, lat: null, lng: null };
+      }
+
+      saveProfileToStorage();
       updateHeaderProfileUI();
+      renderMainSavedPlacesChips();
       closeProfileModal();
     }
 
-    function applySavedPlace(type) {
-      const addr = (type === 'home') ? currentUserProfile.home : currentUserProfile.office;
-      if (!addr) {
-        openProfileModal();
-        return;
-      }
-
-      // 如果起點已經有值，則帶入目的地；起點沒值則帶入起點
-      if (currentCategory === 'mobility') {
-        const pInput = document.getElementById('pickupLoc');
-        const dInput = document.getElementById('dropoffLoc');
-        if (!pInput.value) {
-          pInput.value = addr;
-          geocodeAndFocus(addr, 'pickup', 'mobility');
-        } else {
-          dInput.value = addr;
-          geocodeAndFocus(addr, 'dropoff', 'mobility');
-        }
-      } else {
-        const cPInput = document.getElementById('conciergePickup');
-        const cDInput = document.getElementById('conciergeDropoff');
-        if (!cPInput.value) {
-          cPInput.value = addr;
-          geocodeAndFocus(addr, 'pickup', 'concierge');
-        } else {
-          cDInput.value = addr;
-          geocodeAndFocus(addr, 'dropoff', 'concierge');
-        }
-      }
+    function saveProfileToStorage() {
+      localStorage.setItem('r2g_vip_profile', JSON.stringify(currentUserProfile));
     }
 
-    function geocodeAndFocus(address, fieldType, catType) {
+    // --- 3.1 會員中心專屬地圖微調邏輯 (Picker Map) ---
+    let pickerMapInstance = null;
+    let pickerMarker = null;
+    let currentPickerTarget = 'home'; // 'home' 或其他自訂點
+    let temporaryPickerPos = null;
+    let temporaryPickerAddress = "";
+
+    function openPickerFor(target) {
+      currentPickerTarget = target;
+      const modal = document.getElementById('pickerMapModal');
+      const title = document.getElementById('pickerMapTitle');
+      title.innerText = `Adjust ${target.toUpperCase()} Location`;
+      modal.classList.remove('hidden');
+
+      setTimeout(() => {
+        let initialPos = { lat: 7.0722, lng: 125.6125 }; // Davao City Center Default
+        if (target === 'home' && currentUserProfile.home?.lat) {
+          initialPos = { lat: currentUserProfile.home.lat, lng: currentUserProfile.home.lng };
+        }
+
+        if (!pickerMapInstance && window.google && window.google.maps) {
+          pickerMapInstance = new google.maps.Map(document.getElementById("pickerMap"), {
+            center: initialPos,
+            zoom: 17,
+            disableDefaultUI: true,
+            zoomControl: true
+          });
+        } else if (pickerMapInstance) {
+          pickerMapInstance.setCenter(initialPos);
+          pickerMapInstance.setZoom(17);
+        }
+
+        if (pickerMarker) pickerMarker.setMap(null);
+        pickerMarker = new google.maps.Marker({
+          position: initialPos,
+          map: pickerMapInstance,
+          draggable: true,
+          icon: PERSON_PIN_ICON
+        });
+
+        temporaryPickerPos = initialPos;
+        reverseGeocodePicker(initialPos);
+
+        pickerMarker.addListener("dragend", () => {
+          const newPos = pickerMarker.getPosition();
+          temporaryPickerPos = { lat: newPos.lat(), lng: newPos.lng() };
+          reverseGeocodePicker(temporaryPickerPos);
+        });
+      }, 200);
+    }
+
+    function reverseGeocodePicker(pos) {
       if (!geocoderInstance) return;
-      geocoderInstance.geocode({ address: address }, (results, status) => {
-        if (status === "OK" && results[0]) {
-          const pos = results[0].geometry.location;
-          setPointPosition(pos, fieldType, catType, address);
+      geocoderInstance.geocode({ location: pos }, (res, status) => {
+        if (status === "OK" && res[0]) {
+          temporaryPickerAddress = res[0].formatted_address;
+          document.getElementById('pickerCurrentAddressText').innerText = temporaryPickerAddress;
         }
       });
+    }
+
+    function confirmPickerLocation() {
+      if (currentPickerTarget === 'home') {
+        currentUserProfile.home = {
+          address: temporaryPickerAddress || document.getElementById('prefHome').value,
+          lat: temporaryPickerPos?.lat || null,
+          lng: temporaryPickerPos?.lng || null
+        };
+        document.getElementById('prefHome').value = currentUserProfile.home.address;
+        saveProfileToStorage();
+        renderMainSavedPlacesChips();
+      }
+      closePickerMap();
+    }
+
+    function closePickerMap() {
+      document.getElementById('pickerMapModal').classList.add('hidden');
     }
 
     // --- 4. 服務與費率 ---
