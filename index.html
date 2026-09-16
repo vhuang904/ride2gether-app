@@ -606,6 +606,16 @@
     const GAS_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbxuT2lHTit53Ezz1eAzKwgIkSM7OVwzQMbGkA-TvYGVerxsNKnZgy5kDz-aVJkB2lJZ/exec";
 
     // --- 3. VIP 會員與自訂常用地點核心 ---
+    // --- 補回：開啟與關閉會員中心彈窗 ---
+    function openProfileModal() {
+      const modal = document.getElementById('profileModal');
+      if (modal) modal.classList.remove('hidden');
+    }
+
+    function closeProfileModal() {
+      const modal = document.getElementById('profileModal');
+      if (modal) modal.classList.add('hidden');
+    }
     let currentUserProfile = {
       name: "Mr. Vincent",
       phone: "0917-888-9999",
