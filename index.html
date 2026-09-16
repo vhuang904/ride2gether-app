@@ -9,9 +9,10 @@
   <link rel="manifest" href="./manifest.json">
   <meta name="theme-color" content="#0F172A">
   <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="apple-touch-icon" href="./icon.svg">
-<link rel="icon" type="image/svg+xml" href="./icon.svg">
-  
+  <link rel="icon" type="image/svg+xml" href="./icon.svg">
+
   <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
@@ -87,7 +88,6 @@
   <!-- Google Maps Places API -->
   <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB2ePR5LnmHDJrzHx2ib0oRQfrM_c8IcOk&libraries=places&language=en"></script>
   <style>
-    /* Google Places 下拉選單深色質感美化與層級保證 */
     .pac-container {
       background-color: #1e293b !important;
       border: 1px solid #334155 !important;
@@ -121,51 +121,40 @@
 </head>
 <body class="bg-[#0F172A] min-h-screen flex flex-col justify-between selection:bg-royal selection:text-white">
 
-  <!-- Header: 珍珠白底 + 深藍文字與切換鈕 -->
+  <!-- Header -->
   <header class="sticky top-0 z-40 glass-nav border-b border-slate-200/80 px-5 py-3 flex items-center justify-between shadow-sm">
     <div class="flex flex-col items-start">
-        <!-- 上排：皇冠與 Ride2gether 緊鄰並排 -->
-        <div class="flex items-center space-x-1.5">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 80" class="w-8 h-8 flex-shrink-0 drop-shadow-md -mt-1" fill="none">
-            <!-- 內部深紅絲絨布冠頂 -->
-            <path d="M26 48 C24 35, 36 28, 50 28 C64 28, 76 35, 74 48 C68 53, 32 53, 26 48 Z" fill="#991B1B" />
-            <!-- 皇家拱樑主體骨架 -->
-            <path d="M18 48 C14 36, 18 22, 28 20 C36 18, 42 26, 48 33" stroke="#F59E0B" stroke-width="3.5" stroke-linecap="round" />
-            <path d="M82 48 C86 36, 82 22, 72 20 C64 18, 58 26, 52 33" stroke="#F59E0B" stroke-width="3.5" stroke-linecap="round" />
-            <!-- 中央主立柱與寶珠 -->
-            <path d="M50 28 L50 49" stroke="#F59E0B" stroke-width="3" stroke-linecap="round" />
-            <circle cx="50" cy="38" r="2.2" fill="#FDE68A" />
-            <!-- 底部金環基座 -->
-            <rect x="20" y="49" width="60" height="8" rx="2.5" fill="#F59E0B" />
-            <circle cx="30" cy="53" r="1.5" fill="#FEF3C7" />
-            <circle cx="40" cy="53" r="1.5" fill="#FEF3C7" />
-            <circle cx="50" cy="53" r="1.8" fill="#FFFFFF" />
-            <circle cx="60" cy="53" r="1.5" fill="#FEF3C7" />
-            <circle cx="70" cy="53" r="1.5" fill="#FEF3C7" />
-            <ellipse cx="50" cy="58" rx="26" ry="2.2" fill="#D97706" />
-            <!-- 頂部鳶尾花 -->
-            <path d="M50 7 C47 13, 46 18, 50 22 C54 18, 53 13, 50 7 Z" fill="#F59E0B" />
-            <path d="M49 19 C44 15, 40 16, 41 19 C42 22, 47 22, 49 22 Z" fill="#F59E0B" />
-            <path d="M51 19 C56 15, 60 16, 59 19 C58 22, 53 22, 51 22 Z" fill="#F59E0B" />
-            <rect x="46.5" y="21.5" width="7" height="2" rx="0.5" fill="#B45309" />
-            <!-- 兩側小尖頂 -->
-            <path d="M30 49 L32 44 L34 49 Z" fill="#F59E0B" />
-            <path d="M66 49 L68 44 L70 49 Z" fill="#F59E0B" />
-          </svg>
-          <h1 class="font-serif text-lg tracking-wider navy-gradient-text font-bold uppercase leading-none">Ride2gether</h1>
-        </div>
-        <!-- 下排：副標題靠齊最左邊 -->
-        <p class="text-[9px] tracking-[0.2em] text-slate-500 uppercase mt-1">Private Concierge & Mobility</p>
+      <div class="flex items-center space-x-1.5">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 80" class="w-8 h-8 flex-shrink-0 drop-shadow-md -mt-1" fill="none">
+          <path d="M26 48 C24 35, 36 28, 50 28 C64 28, 76 35, 74 48 C68 53, 32 53, 26 48 Z" fill="#991B1B" />
+          <path d="M18 48 C14 36, 18 22, 28 20 C36 18, 42 26, 48 33" stroke="#F59E0B" stroke-width="3.5" stroke-linecap="round" />
+          <path d="M82 48 C86 36, 82 22, 72 20 C64 18, 58 26, 52 33" stroke="#F59E0B" stroke-width="3.5" stroke-linecap="round" />
+          <path d="M50 28 L50 49" stroke="#F59E0B" stroke-width="3" stroke-linecap="round" />
+          <circle cx="50" cy="38" r="2.2" fill="#FDE68A" />
+          <rect x="20" y="49" width="60" height="8" rx="2.5" fill="#F59E0B" />
+          <circle cx="30" cy="53" r="1.5" fill="#FEF3C7" />
+          <circle cx="40" cy="53" r="1.5" fill="#FEF3C7" />
+          <circle cx="50" cy="53" r="1.8" fill="#FFFFFF" />
+          <circle cx="60" cy="53" r="1.5" fill="#FEF3C7" />
+          <circle cx="70" cy="53" r="1.5" fill="#FEF3C7" />
+          <ellipse cx="50" cy="58" rx="26" ry="2.2" fill="#D97706" />
+          <path d="M50 7 C47 13, 46 18, 50 22 C54 18, 53 13, 50 7 Z" fill="#F59E0B" />
+          <path d="M49 19 C44 15, 40 16, 41 19 C42 22, 47 22, 49 22 Z" fill="#F59E0B" />
+          <path d="M51 19 C56 15, 60 16, 59 19 C58 22, 53 22, 51 22 Z" fill="#F59E0B" />
+          <rect x="46.5" y="21.5" width="7" height="2" rx="0.5" fill="#B45309" />
+          <path d="M30 49 L32 44 L34 49 Z" fill="#F59E0B" />
+          <path d="M66 49 L68 44 L70 49 Z" fill="#F59E0B" />
+        </svg>
+        <h1 class="font-serif text-lg tracking-wider navy-gradient-text font-bold uppercase leading-none">Ride2gether</h1>
       </div>
+      <p class="text-[9px] tracking-[0.2em] text-slate-500 uppercase mt-1">Private Concierge & Mobility</p>
+    </div>
     
-    <!-- 右側上下對調 + 中線垂直居中對齊 -->
     <div class="flex flex-col items-center justify-center space-y-1.5">
-      <!-- 上排：綠燈 + VIP ACTIVE -->
       <div class="flex items-center space-x-1.5">
         <span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.6)]"></span>
         <span id="txt-status-online" class="text-[10px] text-slate-500 font-semibold tracking-wider whitespace-nowrap uppercase">VIP Active</span>
       </div>
-      <!-- 下排：雙語切換膠囊 -->
       <div onclick="toggleLang()" class="cursor-pointer bg-slate-100 p-0.5 rounded-full border border-slate-300 flex items-center shadow-inner select-none">
         <span id="pill-en" class="px-2.5 py-0.5 text-[11px] font-bold rounded-full transition-all whitespace-nowrap bg-royal text-white shadow-sm">EN</span>
         <span id="pill-zh" class="px-2.5 py-0.5 text-[11px] font-medium rounded-full transition-all whitespace-nowrap text-slate-600">繁中</span>
@@ -179,8 +168,8 @@
     <!-- Step 1: 服務場景分類 -->
     <section class="space-y-3">
       <label id="lbl-step1" class="block text-xs font-semibold uppercase tracking-widest text-white">
-  01. Select Service Category
-</label>
+        01. Select Service Category
+      </label>
 
       <!-- Segmented Control -->
       <div class="grid grid-cols-2 p-1 bg-slate-200/70 border border-slate-200 rounded-xl">
@@ -225,7 +214,7 @@
           <div id="badge-RIDE_CAR" class="text-xs text-slate-600 font-semibold font-mono pt-2 border-t border-slate-100 w-full block">From ₱70</div>
         </div>
 
-        <!-- SUV / 6-Seater -->
+        <!-- SUV -->
         <div onclick="selectService('RIDE_SUV')" id="card-RIDE_SUV"
              class="service-card cursor-pointer p-3 rounded-2xl bg-white border border-slate-200 hover:border-royal transition-all duration-300 flex flex-col items-center text-center justify-between h-44 shadow-sm">
           <div class="flex flex-col items-center w-full">
@@ -240,7 +229,7 @@
 
       </div>
 
-      <!-- Concierge 服務卡片 (2 欄、大圖標、文字全置中) -->
+      <!-- Concierge 服務卡片 (2 欄等寬、大圖標、文字全置中) -->
       <div id="grid-concierge" class="grid grid-cols-2 gap-3 hidden">
         
         <!-- Express -->
@@ -270,6 +259,7 @@
         </div>
 
       </div>
+    </section>
 
     <!-- Step 2: 貴賓與行程細節輸入 -->
     <section class="space-y-4 bg-white border border-slate-200/90 rounded-2xl p-5 shadow-sm">
@@ -303,14 +293,6 @@
           <input type="text" id="dropoffLoc" placeholder="Destination Name or Address"
                  class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-navy-900 placeholder-slate-400 focus:outline-none focus:border-royal focus:bg-white transition-colors">
         </div>
-        <!-- 即時地圖預覽容器 -->
-        <div id="mapPreviewContainer" class="mt-4 mb-2 hidden transition-all duration-300">
-          <div class="flex items-center justify-between mb-1.5 px-1">
-            <span class="text-xs font-semibold tracking-wider text-slate-400 uppercase">Route Preview</span>
-            <span id="routeDistanceBadge" class="text-xs font-mono bg-sky-950 text-sky-400 border border-sky-800 px-2 py-0.5 rounded-full hidden">0 km</span>
-          </div>
-          <div id="map" class="w-full h-48 rounded-xl border border-slate-700 overflow-hidden shadow-inner bg-slate-900"></div>
-        </div>
       </div>
 
       <!-- 管家跑腿路線 (Concierge) -->
@@ -337,24 +319,32 @@
         </div>
       </div>
 
-      <!-- 預估行車距離與車程時間卡（由 Google Maps 自動填入，鎖定防竄改） -->
-    <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between shadow-sm">
-      <div class="flex items-center space-x-2">
-        <div class="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-sm">
-          🛣️
+      <!-- 共用即時地圖預覽容器 (Mobility 與 Concierge 雙模式共用) -->
+      <div id="mapPreviewContainer" class="mt-4 mb-2 hidden transition-all duration-300">
+        <div class="flex items-center justify-between mb-1.5 px-1">
+          <span class="text-xs font-semibold tracking-wider text-slate-400 uppercase">Route Preview</span>
+          <span id="routeDistanceBadge" class="text-xs font-mono bg-sky-950 text-sky-400 border border-sky-800 px-2 py-0.5 rounded-full hidden">0 km</span>
         </div>
-        <div>
-          <div id="lbl-distance" class="text-[10px] font-bold tracking-wider text-slate-400 uppercase">ESTIMATED ROUTE</div>
-          <div id="distVal" class="text-sm font-black text-slate-800">-- km</div>
+        <div id="map" class="w-full h-48 rounded-xl border border-slate-700 overflow-hidden shadow-inner bg-slate-900"></div>
+      </div>
+
+      <!-- 預估行車距離與車程時間卡 -->
+      <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between shadow-sm">
+        <div class="flex items-center space-x-2">
+          <div class="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-sm">
+            🛣️
+          </div>
+          <div>
+            <div id="lbl-distance" class="text-[10px] font-bold tracking-wider text-slate-400 uppercase">ESTIMATED ROUTE</div>
+            <div id="distVal" class="text-sm font-black text-slate-800">-- km</div>
+          </div>
+        </div>
+        <div class="text-right">
+          <div class="text-[10px] font-bold tracking-wider text-slate-400 uppercase">TRIP TIME</div>
+          <div id="durationVal" class="text-sm font-black text-blue-600">-- mins</div>
         </div>
       </div>
-      <div class="text-right">
-        <div class="text-[10px] font-bold tracking-wider text-slate-400 uppercase">TRIP TIME</div>
-        <div id="durationVal" class="text-sm font-black text-blue-600">-- mins</div>
-      </div>
-    </div>
-    <!-- 隱藏原生 input，保留 id="distance" 確保 calculateEstimate() 能直接正常計算車資 -->
-    <input type="hidden" id="distance" value="0">
+      <input type="hidden" id="distance" value="0">
 
       <!-- 加速小費 -->
       <div>
@@ -397,7 +387,7 @@
     </button>
   </main>
 
-  <!-- 派單狀態 Modal (白底俐落質感) -->
+  <!-- 派單狀態 Modal -->
   <div id="dispatchModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-md flex flex-col items-center justify-center p-6 hidden">
     
     <!-- 雷達掃描區 -->
@@ -469,7 +459,7 @@
       });
     }
 
-    // --- 2. 雙語字典系統 (預設英文 EN) ---
+    // --- 2. 雙語字典系統 ---
     let currentLang = localStorage.getItem('r2g_lang') || 'en';
 
     const I18N = {
@@ -480,11 +470,11 @@
         tabMobility: "Mobility",
         tabConcierge: "Concierge",
         motoTitle: "Moto Express",
-        motoSub: "Fast Urban Transit",
+        motoSub: "Fast Transit",
         carTitle: "Executive Sedan",
+        carSub: "4-Seater Luxury",
         suvTitle: "Premium SUV",
         suvSub: "6-7 Seater / MPV",
-        carSub: "Air-con Luxury Ride",
         expTitle: "Instant Parcel",
         expSub: "Direct Document Delivery",
         pabTitle: "Pabili Concierge",
@@ -504,7 +494,7 @@
         items: "Purchase Items & Instructions",
         itemsPh: "e.g. 2x Hot Latte, Sugar-free / Fragile item",
         itemcost: "Estimated Goods Cost (PHP)",
-        distance: "Estimated Distance",
+        distance: "ESTIMATED ROUTE",
         tipTitle: "Priority Tip",
         tipSub: "100% to driver",
         tipCustomPh: "Custom Tip",
@@ -532,11 +522,11 @@
         tabMobility: "專屬出行 (Mobility)",
         tabConcierge: "禮賓管家 (Concierge)",
         motoTitle: "尊榮機車",
-        motoSub: "城市極速通勤",
+        motoSub: "極速城市通行",
         carTitle: "商務轎車",
-        carSub: "冷氣商務座駕",
+        carSub: "4人座冷氣商務",
         suvTitle: "尊榮休旅",
-        suvSub: "6-7 人座豪華休旅",
+        suvSub: "6-7人座豪華休旅",
         expTitle: "極速快遞",
         expSub: "專人文件貴重品直送",
         pabTitle: "尊榮代購",
@@ -545,7 +535,7 @@
         custName: "貴賓稱呼",
         custNamePh: "例如：黃先生",
         custPhone: "聯絡電話",
-        pickup: "上車地點",        
+        pickup: "上車地點",
         pickupPh: "輸入飯店、大樓或精確地址",
         dropoff: "下車目的地",
         dropoffPh: "輸入抵達地點",
@@ -585,69 +575,71 @@
       const dict = I18N[lang];
 
       const setText = (id, val) => {
-    const el = document.getElementById(id);
-    if (el && val !== undefined) el.innerText = val;
-  };
+        const el = document.getElementById(id);
+        if (el && val !== undefined) el.innerText = val;
+      };
+
       const pillEn = document.getElementById('pill-en');
       const pillZh = document.getElementById('pill-zh');
       if (lang === 'en') {
-        pillEn.className = "px-3 py-1 text-xs font-bold rounded-full transition-all whitespace-nowrap bg-royal text-white shadow-sm";
-        pillZh.className = "px-3 py-1 text-xs font-medium rounded-full transition-all whitespace-nowrap text-slate-600";
+        pillEn.className = "px-2.5 py-0.5 text-[11px] font-bold rounded-full transition-all whitespace-nowrap bg-royal text-white shadow-sm";
+        pillZh.className = "px-2.5 py-0.5 text-[11px] font-medium rounded-full transition-all whitespace-nowrap text-slate-600";
       } else {
-        pillZh.className = "px-3 py-1 text-xs font-bold rounded-full transition-all whitespace-nowrap bg-royal text-white shadow-sm";
-        pillEn.className = "px-3 py-1 text-xs font-medium rounded-full transition-all whitespace-nowrap text-slate-600";
+        pillZh.className = "px-2.5 py-0.5 text-[11px] font-bold rounded-full transition-all whitespace-nowrap bg-royal text-white shadow-sm";
+        pillEn.className = "px-2.5 py-0.5 text-[11px] font-medium rounded-full transition-all whitespace-nowrap text-slate-600";
       }
-      document.getElementById('txt-status-online').innerText = dict.statusOnline;
-      document.getElementById('lbl-step1').innerText = dict.step1;
-      document.getElementById('txt-tab-mobility').innerText = dict.tabMobility;
-      document.getElementById('txt-tab-concierge').innerText = dict.tabConcierge;
 
-      document.getElementById('txt-card-moto-title').innerText = dict.motoTitle;
-      document.getElementById('txt-card-moto-sub').innerText = dict.motoSub;
-      document.getElementById('txt-card-car-title').innerText = dict.carTitle;
-      document.getElementById('txt-card-car-sub').innerText = dict.carSub;
-      document.getElementById('txt-card-exp-title').innerText = dict.expTitle;
-      document.getElementById('txt-card-exp-sub').innerText = dict.expSub;
-      document.getElementById('txt-card-pab-title').innerText = dict.pabTitle;
-      document.getElementById('txt-card-pab-sub').innerText = dict.pabSub;
-      document.getElementById('txt-card-suv-title').innerText = dict.suvTitle;
-      document.getElementById('txt-card-suv-sub').innerText = dict.suvSub;
+      setText('txt-status-online', dict.statusOnline);
+      setText('lbl-step1', dict.step1);
+      setText('txt-tab-mobility', dict.tabMobility);
+      setText('txt-tab-concierge', dict.tabConcierge);
 
-      document.getElementById('lbl-step2').innerText = dict.step2;
-      document.getElementById('lbl-cust-name').innerText = dict.custName;
+      setText('txt-card-moto-title', dict.motoTitle);
+      setText('txt-card-moto-sub', dict.motoSub);
+      setText('txt-card-car-title', dict.carTitle);
+      setText('txt-card-car-sub', dict.carSub);
+      setText('txt-card-suv-title', dict.suvTitle);
+      setText('txt-card-suv-sub', dict.suvSub);
+      setText('txt-card-exp-title', dict.expTitle);
+      setText('txt-card-exp-sub', dict.expSub);
+      setText('txt-card-pab-title', dict.pabTitle);
+      setText('txt-card-pab-sub', dict.pabSub);
+
+      setText('lbl-step2', dict.step2);
+      setText('lbl-cust-name', dict.custName);
       document.getElementById('custName').placeholder = dict.custNamePh;
-      document.getElementById('lbl-cust-phone').innerText = dict.custPhone;
-      document.getElementById('lbl-pickup').innerText = dict.pickup;
+      setText('lbl-cust-phone', dict.custPhone);
+      setText('lbl-pickup', dict.pickup);
       document.getElementById('pickupLoc').placeholder = dict.pickupPh;
-      document.getElementById('lbl-dropoff').innerText = dict.dropoff;
+      setText('lbl-dropoff', dict.dropoff);
       document.getElementById('dropoffLoc').placeholder = dict.dropoffPh;
 
-      document.getElementById('lbl-store').innerText = dict.store;
+      setText('lbl-store', dict.store);
       document.getElementById('conciergePickup').placeholder = dict.storePh;
-      document.getElementById('lbl-delivery').innerText = dict.delivery;
+      setText('lbl-delivery', dict.delivery);
       document.getElementById('conciergeDropoff').placeholder = dict.deliveryPh;
-      document.getElementById('lbl-items').innerText = dict.items;
+      setText('lbl-items', dict.items);
       document.getElementById('itemList').placeholder = dict.itemsPh;
-      document.getElementById('lbl-itemcost').innerText = dict.itemcost;
-      setText('lbl-distance', dict.distance || 'ESTIMATED ROUTE');
+      setText('lbl-itemcost', dict.itemcost);
+      setText('lbl-distance', dict.distance);
 
-      document.getElementById('lbl-tip-title').innerText = dict.tipTitle;
-      document.getElementById('lbl-tip-sub').innerText = dict.tipSub;
+      setText('lbl-tip-title', dict.tipTitle);
+      setText('lbl-tip-sub', dict.tipSub);
       document.getElementById('priorityTip').placeholder = dict.tipCustomPh;
-      document.getElementById('lbl-total-estimate').innerText = dict.totalEst;
-      document.getElementById('lbl-driver-payout').innerText = dict.driverPayout;
-      document.getElementById('txt-btn-request').innerText = dict.btnRequest;
+      setText('lbl-total-estimate', dict.totalEst);
+      setText('lbl-driver-payout', dict.driverPayout);
+      setText('txt-btn-request', dict.btnRequest);
 
-      document.getElementById('txt-modal-dispatching').innerText = dict.modalDispatching;
-      document.getElementById('txt-modal-connecting').innerText = dict.modalConnecting;
-      document.getElementById('txt-modal-orderid-prefix').innerText = dict.modalOrderPrefix;
-      document.getElementById('btnCancelOrder').innerText = dict.btnCancel;
-      document.getElementById('txt-matched-badge').innerText = dict.matchedBadge;
-      document.getElementById('driverContact').innerText = dict.driverHeading;
-      document.getElementById('lbl-matched-pay').innerText = dict.matchedPay;
-      document.getElementById('lbl-matched-service').innerText = dict.matchedService;
-      document.getElementById('lbl-matched-plate').innerText = dict.matchedPlate;
-      document.getElementById('btnDoneOrder').innerText = dict.btnDone;
+      setText('txt-modal-dispatching', dict.modalDispatching);
+      setText('txt-modal-connecting', dict.modalConnecting);
+      setText('txt-modal-orderid-prefix', dict.modalOrderPrefix);
+      setText('btnCancelOrder', dict.btnCancel);
+      setText('txt-matched-badge', dict.matchedBadge);
+      setText('driverContact', dict.driverHeading);
+      setText('lbl-matched-pay', dict.matchedPay);
+      setText('lbl-matched-service', dict.matchedService);
+      setText('lbl-matched-plate', dict.matchedPlate);
+      setText('btnDoneOrder', dict.btnDone);
 
       updateCardBadges();
       calculateEstimate();
@@ -674,7 +666,7 @@
 
     const GAS_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbxuT2lHTit53Ezz1eAzKwgIkSM7OVwzQMbGkA-TvYGVerxsNKnZgy5kDz-aVJkB2lJZ/exec";
 
-    // --- 4. 全域變數與動態費率核心 ---
+    // --- 4. 全域變數與動態費率 ---
     let currentCategory = 'mobility';
     let currentService = 'RIDE_MOTO';
     let unsubscribeOrder = null;
@@ -683,18 +675,22 @@
     let RATES = {
       RIDE_MOTO: { base: 40, baseKm: 2, perKm: 10, commType: 'PERCENT', commVal: 0.15, nameEn: 'Moto Express', nameZh: '尊榮機車' },
       RIDE_CAR:  { base: 70, baseKm: 2, perKm: 18, commType: 'PERCENT', commVal: 0.20, nameEn: 'Executive Sedan', nameZh: '商務轎車' },
-      RIDE_SUV:  { base: 120, baseKm: 2, perKm: 25, commType: 'PERCENT', commVal: 0.20, nameEn: 'Premium SUV (6-Seater)', nameZh: '尊榮休旅 (6人座)' },
+      RIDE_SUV:  { base: 120, baseKm: 2, perKm: 25, commType: 'PERCENT', commVal: 0.20, nameEn: 'Premium SUV', nameZh: '尊榮休旅' },
       EXPRESS:   { base: 50, baseKm: 2, perKm: 12, commType: 'FIXED',   commVal: 15,   nameEn: 'Instant Parcel', nameZh: '極速快遞' },
       PABILI:    { base: 60, baseKm: 2, perKm: 11, commType: 'FIXED',   commVal: 10,   nameEn: 'Pabili Concierge', nameZh: '尊榮代購' }
     };
 
     function updateCardBadges() {
       const prefix = currentLang === 'en' ? 'From' : '起步';
-      document.getElementById('badge-RIDE_MOTO').innerText = `${prefix} ₱${RATES.RIDE_MOTO.base}`;
-      document.getElementById('badge-RIDE_CAR').innerText  = `${prefix} ₱${RATES.RIDE_CAR.base}`;
-      document.getElementById('badge-RIDE_SUV').innerText  = `${prefix} ₱${RATES.RIDE_SUV.base}`;
-      document.getElementById('badge-EXPRESS').innerText   = `${prefix} ₱${RATES.EXPRESS.base}`;
-      document.getElementById('badge-PABILI').innerText    = `${prefix} ₱${RATES.PABILI.base}`;
+      const setBadge = (id, base) => {
+        const el = document.getElementById(id);
+        if (el) el.innerText = `${prefix} ₱${base}`;
+      };
+      setBadge('badge-RIDE_MOTO', RATES.RIDE_MOTO.base);
+      setBadge('badge-RIDE_CAR', RATES.RIDE_CAR.base);
+      setBadge('badge-RIDE_SUV', RATES.RIDE_SUV.base);
+      setBadge('badge-EXPRESS', RATES.EXPRESS.base);
+      setBadge('badge-PABILI', RATES.PABILI.base);
     }
 
     function switchCategory(cat) {
@@ -714,6 +710,7 @@
         fieldsMobility.classList.remove('hidden');
         fieldsConcierge.classList.add('hidden');
         selectService('RIDE_MOTO');
+        syncCategoryCoords('mobility');
       } else {
         tabConcierge.className = "py-2.5 rounded-lg text-xs font-semibold tracking-wider flex items-center justify-center space-x-2 transition-all duration-300 bg-white text-royal shadow-sm";
         tabMobility.className = "py-2.5 rounded-lg text-xs font-semibold tracking-wider flex items-center justify-center space-x-2 transition-all duration-300 text-slate-600 hover:text-navy-900";
@@ -722,6 +719,7 @@
         fieldsConcierge.classList.remove('hidden');
         fieldsMobility.classList.add('hidden');
         selectService('EXPRESS');
+        syncCategoryCoords('concierge');
       }
     }
 
@@ -778,12 +776,12 @@
     }
 
     function calculateEstimate() {
-      const dist = parseFloat(document.getElementById('distance').value);
+      const dist = parseFloat(document.getElementById('distance').value) || 0;
       document.getElementById('distVal').innerText = `${dist.toFixed(1)} km`;
 
       const itemCost = (currentService === 'PABILI') ? (parseFloat(document.getElementById('itemCost').value) || 0) : 0;
       const tip = parseFloat(document.getElementById('priorityTip').value) || 0;
-      const rule = RATES[currentService];
+      const rule = RATES[currentService] || RATES.RIDE_MOTO;
 
       const extraKm = Math.max(0, dist - rule.baseKm);
       const surgeMultiplier = rule.surgeMultiplier || 1;
@@ -800,7 +798,7 @@
       document.getElementById('estPayout').innerText = `${prefix} ₱${driverPayout.toFixed(2)}`;
     }
 
-    // --- 5. 提交下單與 Firestore 毫秒級即時監聽 ---
+    // --- 5. 提交下單與 Firestore 監聽 ---
     async function requestOrder() {
       const dict = I18N[currentLang];
       const custName = document.getElementById('custName').value.trim();
@@ -829,12 +827,11 @@
         }
       }
 
-      const dist = parseFloat(document.getElementById('distance').value);
+      const dist = parseFloat(document.getElementById('distance').value) || 0;
       const itemCost = (currentService === 'PABILI') ? (parseFloat(document.getElementById('itemCost').value) || 0) : 0;
       const tip = parseFloat(document.getElementById('priorityTip').value) || 0;
       const finalPrice = parseFloat(document.getElementById('estTotal').innerText);
 
-      // 展開派單雷達
       document.getElementById('dispatchModal').classList.remove('hidden');
       document.getElementById('radarSection').classList.remove('hidden');
       document.getElementById('matchedCard').classList.add('hidden');
@@ -893,7 +890,7 @@
         if (!doc.exists) return;
         const data = doc.data();
 
-        if (data.status === 'MATCHED' || data.status === 'ACCEPTED' || data.status === 'ARRIVED' || data.status === 'IN_TRANSIT' || data.status === 'COMPLETED') {
+        if (['MATCHED', 'ACCEPTED', 'ARRIVED', 'IN_TRANSIT', 'COMPLETED'].includes(data.status)) {
           showMatchedDriver(data);
           updateTripStatusUI(data.status);
         }
@@ -906,13 +903,9 @@
       document.getElementById('radarSection').classList.add('hidden');
       document.getElementById('matchedCard').classList.remove('hidden');
 
-      // 1. 司機姓名
       const driverNameEl = document.getElementById('driverName');
-      if (driverNameEl) {
-        driverNameEl.innerText = data.driverName || 'Executive Chauffeur';
-      }
+      if (driverNameEl) driverNameEl.innerText = data.driverName || 'Executive Chauffeur';
 
-      // 2. 官方標準 Logo 多通道通訊按鈕群
       const driverContactEl = document.getElementById('driverContact');
       if (driverContactEl) {
         const phone = data.driverPhone || '+639171234567';
@@ -924,37 +917,21 @@
           <div id="chauffeurContactSection" class="mt-3 pt-3 border-t border-slate-100">
             <div class="text-[11px] font-semibold tracking-wider uppercase text-slate-400 mb-2">Direct Chauffeur Contact</div>
             <div class="grid grid-cols-2 gap-2">
-              
-              <!-- Direct Phone Call -->
               <a href="tel:${phone}" class="flex items-center justify-center py-2.5 px-3 bg-slate-900 hover:bg-black text-white text-xs font-semibold rounded-xl shadow-sm transition-all active:scale-95">
-                <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M20 15.5c-1.2 0-2.4-.2-3.6-.6-.3-.1-.7 0-1 .2l-2.2 2.2c-2.8-1.4-5.1-3.8-6.6-6.6l2.2-2.2c.3-.3.4-.7.2-1-.4-1.1-.6-2.3-.6-3.5 0-.6-.4-1-1-1H4c-.6 0-1 .4-1 1 0 9.4 7.6 17 17 17 .6 0 1-.4 1-1v-3.5c0-.6-.4-1-1-1z"/>
-                </svg>
+                <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24"><path d="M20 15.5c-1.2 0-2.4-.2-3.6-.6-.3-.1-.7 0-1 .2l-2.2 2.2c-2.8-1.4-5.1-3.8-6.6-6.6l2.2-2.2c.3-.3.4-.7.2-1-.4-1.1-.6-2.3-.6-3.5 0-.6-.4-1-1-1H4c-.6 0-1 .4-1 1 0 9.4 7.6 17 17 17 .6 0 1-.4 1-1v-3.5c0-.6-.4-1-1-1z"/></svg>
                 Call
               </a>
-
-              <!-- WhatsApp -->
               <a href="https://wa.me/${wa}" target="_blank" class="flex items-center justify-center py-2.5 px-3 bg-[#25D366] hover:bg-[#20ba5a] text-white text-xs font-semibold rounded-xl shadow-sm transition-all active:scale-95">
-                <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/>
-                </svg>
+                <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>
                 WhatsApp
               </a>
-
-              <!-- Viber -->
               <a href="viber://chat?number=${viberNum}" class="flex items-center justify-center py-2.5 px-3 bg-[#7360F2] hover:bg-[#624ee8] text-white text-xs font-semibold rounded-xl shadow-sm transition-all active:scale-95">
-                <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M11.398 0C4.877 0 .195 4.316.008 10.372c-.12 3.864 1.776 7.428 4.968 9.24v2.964c0 .648.648 1.068 1.2.78l3.192-1.656c.672.108 1.368.168 2.076.168 6.516 0 12.36-4.308 12.552-10.368C24.191 5.436 18.96 0 11.398 0zm6.192 14.196c-.252.696-1.224 1.344-1.992 1.488-.528.096-1.224.168-3.552-.804-2.964-1.236-4.884-4.224-5.028-4.416-.144-.192-1.188-1.584-1.188-3.024 0-1.44.756-2.148 1.02-2.436.264-.288.588-.36.78-.36.204 0 .396.012.564.024.18.012.42-.072.66.504.252.612.852 2.088.924 2.244.072.156.12.336.024.528-.096.204-.144.324-.288.504-.144.18-.312.396-.444.528-.156.144-.312.312-.132.624.18.312.804 1.32 1.728 2.136 1.188 1.056 2.184 1.38 2.496 1.536.312.144.492.12.672-.084.18-.204.78-.912.984-1.224.204-.312.42-.264.696-.156.288.096 1.8.852 2.112 1.008.312.156.516.228.588.36.072.144.072.828-.18 1.524z"/>
-                </svg>
+                <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24"><path d="M11.398 0C4.877 0 .195 4.316.008 10.372c-.12 3.864 1.776 7.428 4.968 9.24v2.964c0 .648.648 1.068 1.2.78l3.192-1.656c.672.108 1.368.168 2.076.168 6.516 0 12.36-4.308 12.552-10.368C24.191 5.436 18.96 0 11.398 0zm6.192 14.196c-.252.696-1.224 1.344-1.992 1.488-.528.096-1.224.168-3.552-.804-2.964-1.236-4.884-4.224-5.028-4.416-.144-.192-1.188-1.584-1.188-3.024 0-1.44.756-2.148 1.02-2.436.264-.288.588-.36.78-.36.204 0 .396.012.564.024.18.012.42-.072.66.504.252.612.852 2.088.924 2.244.072.156.12.336.024.528-.096.204-.144.324-.288.504-.144.18-.312.396-.444.528-.156.144-.312.312-.132.624.18.312.804 1.32 1.728 2.136 1.188 1.056 2.184 1.38 2.496 1.536.312.144.492.12.672-.084.18-.204.78-.912.984-1.224.204-.312.42-.264.696-.156.288.096 1.8.852 2.112 1.008.312.156.516.228.588.36.072.144.072.828-.18 1.524z"/></svg>
                 Viber
               </a>
-
-              <!-- Telegram -->
               ${tgUsername ? `
                 <a href="https://t.me/${tgUsername}" target="_blank" class="flex items-center justify-center py-2.5 px-3 bg-[#229ED9] hover:bg-[#1f8fc4] text-white text-xs font-semibold rounded-xl shadow-sm transition-all active:scale-95">
-                  <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.121l-6.871 4.326-2.962-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.832.922z"/>
-                  </svg>
+                  <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.121l-6.871 4.326-2.962-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.832.922z"/></svg>
                   Telegram
                 </a>
               ` : `
@@ -962,26 +939,20 @@
                   <span class="mr-1.5 text-sm">⏱️</span> ~8-12 mins
                 </div>
               `}
-
             </div>
           </div>
         `;
-
         driverContactEl.innerHTML = buttonsHtml;
       }
 
-      // 3. 車牌與車型等級
       const driverPlateEl = document.getElementById('driverPlate');
       if (driverPlateEl) {
         const vehicleInfo = [data.driverPlate, data.driverModel].filter(Boolean).join(' • ') || 'VIP Fleet';
         driverPlateEl.innerText = vehicleInfo;
       }
 
-      // 4. 費用與服務項目
       const cardPayEl = document.getElementById('cardPay');
-      if (cardPayEl) {
-        cardPayEl.innerText = `₱${parseFloat(data.totalPay || 0).toFixed(2)}`;
-      }
+      if (cardPayEl) cardPayEl.innerText = `₱${parseFloat(data.totalPay || 0).toFixed(2)}`;
 
       const cardServiceEl = document.getElementById('cardService');
       if (cardServiceEl) {
@@ -990,7 +961,6 @@
       }
     }
 
-    // 動態更新乘客端卡片上的行程狀態標籤
     function updateTripStatusUI(status) {
       const badge = document.getElementById('txt-matched-badge');
       if (!badge) return;
@@ -1002,19 +972,17 @@
         badge.innerText = 'TRIP IN PROGRESS';
         badge.className = 'text-[10px] tracking-widest font-semibold uppercase text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full border border-blue-200 inline-block';
       } else if (status === 'COMPLETED') {
-    badge.innerText = 'TRIP COMPLETED';
-    badge.className = 'text-[10px] tracking-widest font-semibold uppercase text-slate-600 bg-slate-100 px-2.5 py-1 rounded-full border border-slate-300 inline-block';
-    
-    // 行程結束時隱藏司機聯絡按鈕
-    const contactSec = document.getElementById('chauffeurContactSection');
-    if (contactSec) contactSec.style.display = 'none';
-  } else {
+        badge.innerText = 'TRIP COMPLETED';
+        badge.className = 'text-[10px] tracking-widest font-semibold uppercase text-slate-600 bg-slate-100 px-2.5 py-1 rounded-full border border-slate-300 inline-block';
+        const contactSec = document.getElementById('chauffeurContactSection');
+        if (contactSec) contactSec.style.display = 'none';
+      } else {
         badge.innerText = 'MATCHED PRIVATE CHAUFFEUR';
         badge.className = 'text-[10px] tracking-widest text-royal uppercase font-semibold inline-block';
       }
     }
 
-    // --- 6. 取消訂單與重設處理 ---
+    // --- 6. 取消訂單與重設 ---
     async function cancelAndReset() {
       if (typeof unsubscribeOrder === 'function') {
         unsubscribeOrder();
@@ -1032,7 +1000,6 @@
 
       if (targetOrderId && targetOrderId !== 'Generating...') {
         try {
-          console.log('Cancelling order on backend:', targetOrderId);
           await fetch(GAS_WEBHOOK_URL, {
             method: 'POST',
             mode: 'no-cors',
@@ -1042,7 +1009,6 @@
               orderId: targetOrderId
             })
           });
-          console.log(`Order ${targetOrderId} cancellation notified.`);
         } catch (err) {
           console.error('Failed to notify cancellation:', err);
         }
@@ -1051,7 +1017,7 @@
       currentOrderId = null;
     }
 
-    // --- 7. 完成行程 / Done 關閉卡片 ---
+    // --- 7. 完成行程 ---
     function finishTripAndReset() {
       if (typeof unsubscribeOrder === 'function') {
         unsubscribeOrder();
@@ -1088,285 +1054,330 @@
       }
     }
 
-    // 初始化載入
-    setLanguage(currentLang);
-    fetchLatestRates();
-    // 初始化 Google 地點自動補全
+    // --- 9. 全域地圖、座標與導航連動核心 ---
+    let mapInstance = null;
+    let pickupMarker = null;
+    let dropoffMarker = null;
+    let geocoderInstance = null;
+    let directionsService = null;
+    let directionsRenderer = null;
 
-// 全域地圖、標記、解析器與導航路線服務
-let mapInstance = null;
-let pickupMarker = null;
-let dropoffMarker = null;
-let geocoderInstance = null;
-let directionsService = null;
-let directionsRenderer = null;
+    let mobilityPickupCoord = null;
+    let mobilityDropoffCoord = null;
+    let conciergePickupCoord = null;
+    let conciergeDropoffCoord = null;
 
-let pickupCoord = null;
-let dropoffCoord = null;
+    const PERSON_PIN_ICON = {
+      url: "data:image/svg+xml;charset=UTF-8," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="30" height="34" viewBox="0 0 30 34"><filter id="soft-shadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="1.2" stdDeviation="1.2" flood-color="#000" flood-opacity="0.22"/></filter><g filter="url(#soft-shadow)"><path d="M5 21 C5 15.5 9.5 13.5 15 13.5 C20.5 13.5 25 15.5 25 21 C25 24 18.5 26 18.5 26 L15 31.5 L11.5 26 C11.5 26 5 24 5 21 Z" fill="#2563eb" stroke="#ffffff" stroke-width="0.6" stroke-linejoin="round"/><circle cx="15" cy="7.5" r="4.8" fill="#2563eb" stroke="#ffffff" stroke-width="0.6"/></g></svg>'),
+      scaledSize: new google.maps.Size(26, 30),
+      anchor: new google.maps.Point(13, 30)
+    };
 
-// 1. 上車點：純藍填滿 + 0.6px 極細白邊乘客小人 (26x30)
-const PERSON_PIN_ICON = {
-  url: "data:image/svg+xml;charset=UTF-8," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="30" height="34" viewBox="0 0 30 34"><filter id="soft-shadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="1.2" stdDeviation="1.2" flood-color="#000" flood-opacity="0.22"/></filter><g filter="url(#soft-shadow)"><path d="M5 21 C5 15.5 9.5 13.5 15 13.5 C20.5 13.5 25 15.5 25 21 C25 24 18.5 26 18.5 26 L15 31.5 L11.5 26 C11.5 26 5 24 5 21 Z" fill="#2563eb" stroke="#ffffff" stroke-width="0.6" stroke-linejoin="round"/><circle cx="15" cy="7.5" r="4.8" fill="#2563eb" stroke="#ffffff" stroke-width="0.6"/></g></svg>'),
-  scaledSize: new google.maps.Size(26, 30),
-  anchor: new google.maps.Point(13, 30)
-};
+    const DESTINATION_FLAG_ICON = {
+      url: "data:image/svg+xml;charset=UTF-8," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="24" height="28" viewBox="0 0 24 28"><filter id="flag-shadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="1.2" stdDeviation="1.2" flood-color="#000" flood-opacity="0.25"/></filter><g filter="url(#flag-shadow)"><line x1="6" y1="3" x2="6" y2="25" stroke="#0f172a" stroke-width="2" stroke-linecap="round"/><circle cx="6" cy="25" r="1.5" fill="#0f172a"/><path d="M6 4 L19 8.5 L6 13 Z" fill="#0f172a" stroke="#ffffff" stroke-width="0.6" stroke-linejoin="round"/><circle cx="6" cy="3" r="1.5" fill="#38bdf8"/></g></svg>'),
+      scaledSize: new google.maps.Size(20, 24),
+      anchor: new google.maps.Point(5, 24)
+    };
 
-// 2. 目的地：極簡黑曜石 終點旗幟 (微縮版 20x24)
-const DESTINATION_FLAG_ICON = {
-  url: "data:image/svg+xml;charset=UTF-8," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="24" height="28" viewBox="0 0 24 28"><filter id="flag-shadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="1.2" stdDeviation="1.2" flood-color="#000" flood-opacity="0.25"/></filter><g filter="url(#flag-shadow)"><line x1="6" y1="3" x2="6" y2="25" stroke="#0f172a" stroke-width="2" stroke-linecap="round"/><circle cx="6" cy="25" r="1.5" fill="#0f172a"/><path d="M6 4 L19 8.5 L6 13 Z" fill="#0f172a" stroke="#ffffff" stroke-width="0.6" stroke-linejoin="round"/><circle cx="6" cy="3" r="1.5" fill="#38bdf8"/></g></svg>'),
-  scaledSize: new google.maps.Size(20, 24),
-  anchor: new google.maps.Point(5, 24)
-};
+    function addLocateMeControl(map) {
+      const controlDiv = document.createElement("div");
+      controlDiv.style.margin = "12px";
+      
+      const controlBtn = document.createElement("button");
+      controlBtn.type = "button";
+      controlBtn.title = "重新定位到我目前位置";
+      controlBtn.style.backgroundColor = "#ffffff";
+      controlBtn.style.border = "none";
+      controlBtn.style.outline = "none";
+      controlBtn.style.width = "40px";
+      controlBtn.style.height = "40px";
+      controlBtn.style.borderRadius = "50%";
+      controlBtn.style.boxShadow = "0 2px 6px rgba(0,0,0,0.25)";
+      controlBtn.style.cursor = "pointer";
+      controlBtn.style.display = "flex";
+      controlBtn.style.alignItems = "center";
+      controlBtn.style.justifyContent = "center";
+      controlBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="7"/><polyline points="12 2 12 5"/><polyline points="12 19 12 22"/><polyline points="2 12 5 12"/><polyline points="19 12 22 12"/></svg>';
 
-// GPS 重新定位我懸浮按鈕功能
-function addLocateMeControl(map) {
-  const controlDiv = document.createElement("div");
-  controlDiv.style.margin = "12px";
-  
-  const controlBtn = document.createElement("button");
-  controlBtn.type = "button";
-  controlBtn.title = "重新定位到我目前位置";
-  controlBtn.style.backgroundColor = "#ffffff";
-  controlBtn.style.border = "none";
-  controlBtn.style.outline = "none";
-  controlBtn.style.width = "40px";
-  controlBtn.style.height = "40px";
-  controlBtn.style.borderRadius = "50%";
-  controlBtn.style.boxShadow = "0 2px 6px rgba(0,0,0,0.25)";
-  controlBtn.style.cursor = "pointer";
-  controlBtn.style.display = "flex";
-  controlBtn.style.alignItems = "center";
-  controlBtn.style.justifyContent = "center";
-  controlBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="7"/><polyline points="12 2 12 5"/><polyline points="12 19 12 22"/><polyline points="2 12 5 12"/><polyline points="19 12 22 12"/></svg>';
+      controlBtn.addEventListener("click", () => {
+        if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition((position) => {
+            const userPos = {
+              lat: position.coords.latitude,
+              lng: position.coords.longitude
+            };
 
-  controlBtn.addEventListener("click", () => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition((position) => {
-        const userPos = {
-          lat: position.coords.latitude,
-          lng: position.coords.longitude
-        };
-        pickupCoord = userPos;
-        map.panTo(userPos);
-        map.setZoom(16);
+            const isMobility = currentCategory === 'mobility';
+            if (isMobility) {
+              mobilityPickupCoord = userPos;
+            } else {
+              conciergePickupCoord = userPos;
+            }
 
-        if (pickupMarker) {
-          pickupMarker.setPosition(userPos);
-        } else {
-          pickupMarker = new google.maps.Marker({
-            position: userPos,
-            map: map,
-            draggable: true,
-            icon: PERSON_PIN_ICON
+            map.panTo(userPos);
+            map.setZoom(16);
+
+            if (pickupMarker) {
+              pickupMarker.setPosition(userPos);
+            } else {
+              pickupMarker = new google.maps.Marker({
+                position: userPos,
+                map: map,
+                draggable: true,
+                icon: PERSON_PIN_ICON
+              });
+            }
+
+            const pInput = isMobility ? document.getElementById("pickupLoc") : document.getElementById("conciergePickup");
+            if (pInput && geocoderInstance) {
+              geocoderInstance.geocode({ location: userPos }, (res, status) => {
+                if (status === "OK" && res[0]) pInput.value = res[0].formatted_address;
+              });
+            }
+
+            const curDropoff = isMobility ? mobilityDropoffCoord : conciergeDropoffCoord;
+            if (curDropoff) {
+              calculateAndDisplayRoute(false);
+            }
           });
         }
-
-        const pInput = document.getElementById("pickupLoc") || document.getElementById("conciergePickup");
-        if (pInput && geocoderInstance) {
-          geocoderInstance.geocode({ location: userPos }, (res, status) => {
-            if (status === "OK" && res[0]) pInput.value = res[0].formatted_address;
-          });
-        }
-
-        if (pickupCoord && dropoffCoord) {
-          calculateAndDisplayRoute(false);
-        }
       });
+
+      controlDiv.appendChild(controlBtn);
+      map.controls[google.maps.ControlPosition.RIGHT_BOTTOM].push(controlDiv);
     }
-  });
 
-  controlDiv.appendChild(controlBtn);
-  map.controls[google.maps.ControlPosition.RIGHT_BOTTOM].push(controlDiv);
-}
+    function getOrCreateMap(latLng) {
+      const mapContainer = document.getElementById("mapPreviewContainer");
+      if (!mapContainer) return null;
+      mapContainer.classList.remove("hidden");
 
-function initAutocomplete() {
-  const options = {
-    componentRestrictions: { country: "ph" },
-    fields: ["formatted_address", "geometry", "name"]
-  };
+      if (!mapInstance && window.google && window.google.maps) {
+        mapInstance = new google.maps.Map(document.getElementById("map"), {
+          center: latLng,
+          zoom: 15,
+          disableDefaultUI: true,
+          zoomControl: true
+        });
 
-  const pickupInput = document.getElementById("pickupLoc");
-  const dropoffInput = document.getElementById("dropoffLoc");
-  const cPickupInput = document.getElementById("conciergePickup");
-  const cDropoffInput = document.getElementById("conciergeDropoff");
-  const mapContainer = document.getElementById("mapPreviewContainer");
-
-  [pickupInput, dropoffInput, cPickupInput, cDropoffInput].forEach(input => {
-    if (input) {
-      input.addEventListener("focus", () => {
-        setTimeout(() => {
-          input.scrollIntoView({ behavior: "smooth", block: "center" });
-        }, 300);
-      });
-    }
-  });
-
-  if (window.google && window.google.maps) {
-    if (!geocoderInstance) geocoderInstance = new google.maps.Geocoder();
-    if (!directionsService) directionsService = new google.maps.DirectionsService();
-  }
-
-  function getOrCreateMap(latLng) {
-    if (!mapContainer) return null;
-    mapContainer.classList.remove("hidden");
-
-    if (!mapInstance && window.google && window.google.maps) {
-      mapInstance = new google.maps.Map(document.getElementById("map"), {
-        center: latLng,
-        zoom: 15,
-        disableDefaultUI: true,
-        zoomControl: true
-      });
-
-      directionsRenderer = new google.maps.DirectionsRenderer({
-        map: mapInstance,
-        suppressMarkers: true,
-        preserveViewport: true, // 保持視角，禁止放手時暴力縮小跳遠
-        polylineOptions: {
-          strokeColor: "#2563eb",
-          strokeWeight: 5,
-          strokeOpacity: 0.85
-        }
-      });
-
-      addLocateMeControl(mapInstance);
-    }
-    return mapInstance;
-  }
-
-  // 自動導航路徑與車程更新
-  function calculateAndDisplayRoute(shouldFit = true) {
-    if (!pickupCoord || !dropoffCoord || !directionsService || !directionsRenderer) return;
-
-    directionsService.route(
-      {
-        origin: pickupCoord,
-        destination: dropoffCoord,
-        travelMode: google.maps.TravelMode.DRIVING
-      },
-      (response, status) => {
-        if (status === "OK") {
-          directionsRenderer.setDirections(response);
-
-          if (shouldFit && mapInstance) {
-            const bounds = new google.maps.LatLngBounds();
-            bounds.extend(pickupCoord);
-            bounds.extend(dropoffCoord);
-            mapInstance.fitBounds(bounds, { top: 40, bottom: 40, left: 40, right: 40 });
+        directionsRenderer = new google.maps.DirectionsRenderer({
+          map: mapInstance,
+          suppressMarkers: true,
+          preserveViewport: true,
+          polylineOptions: {
+            strokeColor: "#2563eb",
+            strokeWeight: 5,
+            strokeOpacity: 0.85
           }
+        });
 
-          const leg = response.routes[0]?.legs[0];
-          if (leg) {
-            const distanceInKm = (leg.distance.value / 1000).toFixed(1);
-            const durationText = leg.duration.text; // 例如 "18 mins"
+        addLocateMeControl(mapInstance);
+      }
+      return mapInstance;
+    }
 
-            const hiddenDistInput = document.getElementById("distance");
-            const distValText = document.getElementById("distVal");
-            const durationValText = document.getElementById("durationVal");
+    function calculateAndDisplayRoute(shouldFit = true) {
+      const isMobility = currentCategory === 'mobility';
+      const curPickup = isMobility ? mobilityPickupCoord : conciergePickupCoord;
+      const curDropoff = isMobility ? mobilityDropoffCoord : conciergeDropoffCoord;
 
-            if (hiddenDistInput) hiddenDistInput.value = distanceInKm;
-            if (distValText) distValText.innerText = `${distanceInKm} km`;
-            if (durationValText) durationValText.innerText = durationText;
+      if (!curPickup || !curDropoff || !directionsService || !directionsRenderer) return;
 
-            // 觸發重新估價
-            if (typeof calculateEstimate === "function") {
+      directionsService.route(
+        {
+          origin: curPickup,
+          destination: curDropoff,
+          travelMode: google.maps.TravelMode.DRIVING
+        },
+        (response, status) => {
+          if (status === "OK") {
+            directionsRenderer.setDirections(response);
+
+            if (shouldFit && mapInstance) {
+              const bounds = new google.maps.LatLngBounds();
+              bounds.extend(curPickup);
+              bounds.extend(curDropoff);
+              mapInstance.fitBounds(bounds, { top: 40, bottom: 40, left: 40, right: 40 });
+            }
+
+            const leg = response.routes[0]?.legs[0];
+            if (leg) {
+              const distanceInKm = (leg.distance.value / 1000).toFixed(1);
+              const durationText = leg.duration.text;
+
+              const hiddenDistInput = document.getElementById("distance");
+              const distValText = document.getElementById("distVal");
+              const durationValText = document.getElementById("durationVal");
+
+              if (hiddenDistInput) hiddenDistInput.value = distanceInKm;
+              if (distValText) distValText.innerText = `${distanceInKm} km`;
+              if (durationValText) durationValText.innerText = durationText;
+
               calculateEstimate();
-            } else if (typeof calculatePrice === "function") {
-              calculatePrice();
             }
           }
         }
-      }
-    );
-  }
-
-  // 拖曳標記結束（保持當前視角微調，不縮遠）
-  function handleMarkerDrag(marker, input, type) {
-    if (!geocoderInstance) return;
-    const pos = marker.getPosition();
-
-    if (type === "pickup") {
-      pickupCoord = pos;
-    } else {
-      dropoffCoord = pos;
+      );
     }
 
-    geocoderInstance.geocode({ location: pos }, (results, status) => {
-      if (status === "OK" && results[0]) {
-        input.value = results[0].formatted_address;
-      }
-      if (pickupCoord && dropoffCoord) {
-        calculateAndDisplayRoute(false); // false: 不強制縮小全景，維持當前微調街景
-      }
-    });
-  }
+    function syncCategoryCoords(cat) {
+      const isMobility = (cat === 'mobility');
+      const curPickup = isMobility ? mobilityPickupCoord : conciergePickupCoord;
+      const curDropoff = isMobility ? mobilityDropoffCoord : conciergeDropoffCoord;
 
-  const bindAutocomplete = (input, type) => {
-    if (!input || !window.google || !window.google.maps || !window.google.maps.places) return;
-
-    const auto = new google.maps.places.Autocomplete(input, options);
-
-    google.maps.event.addDomListener(input, "keydown", (e) => {
-      if (e.keyCode === 13) e.preventDefault();
-    });
-
-    auto.addListener("place_changed", () => {
-      const place = auto.getPlace();
-      if (!place || !place.geometry || !place.geometry.location) return;
-
-      input.value = place.name ? `${place.name}, ${place.formatted_address}` : place.formatted_address;
-      const pos = place.geometry.location;
-      const map = getOrCreateMap(pos);
-
-      if (type === "pickup") {
-        pickupCoord = pos;
-        if (pickupMarker) pickupMarker.setMap(null);
-        pickupMarker = new google.maps.Marker({
-          position: pos,
-          map: map,
-          draggable: true,
-          icon: PERSON_PIN_ICON,
-          title: "可拖曳微調上車點"
-        });
-
-        pickupMarker.addListener("dragend", () => {
-          handleMarkerDrag(pickupMarker, input, "pickup");
-        });
-
-        if (!dropoffCoord) map.panTo(pos);
-      } else if (type === "dropoff") {
-        dropoffCoord = pos;
-        if (dropoffMarker) dropoffMarker.setMap(null);
-        dropoffMarker = new google.maps.Marker({
-          position: pos,
-          map: map,
-          draggable: true,
-          icon: DESTINATION_FLAG_ICON,
-          title: "可拖曳微調目的地"
-        });
-
-        dropoffMarker.addListener("dragend", () => {
-          handleMarkerDrag(dropoffMarker, input, "dropoff");
-        });
-
-        if (!pickupCoord) map.panTo(pos);
+      if (pickupMarker) {
+        if (curPickup) {
+          pickupMarker.setPosition(curPickup);
+          pickupMarker.setMap(mapInstance);
+        } else {
+          pickupMarker.setMap(null);
+        }
       }
 
-      if (pickupCoord && dropoffCoord) {
-        calculateAndDisplayRoute(true); // 首次兩點成立時，自動縮放收錄全景
+      if (dropoffMarker) {
+        if (curDropoff) {
+          dropoffMarker.setPosition(curDropoff);
+          dropoffMarker.setMap(mapInstance);
+        } else {
+          dropoffMarker.setMap(null);
+        }
       }
-    });
-  };
 
-  bindAutocomplete(pickupInput, "pickup");
-  bindAutocomplete(dropoffInput, "dropoff");
-  bindAutocomplete(cPickupInput, "pickup");
-  bindAutocomplete(cDropoffInput, "dropoff");
-}
+      if (curPickup && curDropoff) {
+        calculateAndDisplayRoute(true);
+      } else {
+        if (directionsRenderer) directionsRenderer.set('directions', null);
+        document.getElementById("distance").value = "0";
+        document.getElementById("distVal").innerText = "-- km";
+        document.getElementById("durationVal").innerText = "-- mins";
+        calculateEstimate();
+      }
+    }
 
-window.addEventListener("DOMContentLoaded", initAutocomplete);
-window.addEventListener("load", initAutocomplete);
-    
+    function handleMarkerDrag(marker, input, fieldType, catType) {
+      if (!geocoderInstance) return;
+      const pos = marker.getPosition();
+
+      if (catType === 'mobility') {
+        if (fieldType === 'pickup') mobilityPickupCoord = pos;
+        else mobilityDropoffCoord = pos;
+      } else {
+        if (fieldType === 'pickup') conciergePickupCoord = pos;
+        else conciergeDropoffCoord = pos;
+      }
+
+      geocoderInstance.geocode({ location: pos }, (results, status) => {
+        if (status === "OK" && results[0]) {
+          input.value = results[0].formatted_address;
+        }
+        calculateAndDisplayRoute(false);
+      });
+    }
+
+    function initAutocomplete() {
+      const options = {
+        componentRestrictions: { country: "ph" },
+        fields: ["formatted_address", "geometry", "name"]
+      };
+
+      const pickupInput = document.getElementById("pickupLoc");
+      const dropoffInput = document.getElementById("dropoffLoc");
+      const cPickupInput = document.getElementById("conciergePickup");
+      const cDropoffInput = document.getElementById("conciergeDropoff");
+
+      [pickupInput, dropoffInput, cPickupInput, cDropoffInput].forEach(input => {
+        if (input) {
+          input.addEventListener("focus", () => {
+            setTimeout(() => {
+              input.scrollIntoView({ behavior: "smooth", block: "center" });
+            }, 300);
+          });
+        }
+      });
+
+      if (window.google && window.google.maps) {
+        if (!geocoderInstance) geocoderInstance = new google.maps.Geocoder();
+        if (!directionsService) directionsService = new google.maps.DirectionsService();
+      }
+
+      const bindAutocomplete = (input, fieldType, catType) => {
+        if (!input || !window.google || !window.google.maps || !window.google.maps.places) return;
+
+        const auto = new google.maps.places.Autocomplete(input, options);
+
+        google.maps.event.addDomListener(input, "keydown", (e) => {
+          if (e.keyCode === 13) e.preventDefault();
+        });
+
+        auto.addListener("place_changed", () => {
+          const place = auto.getPlace();
+          if (!place || !place.geometry || !place.geometry.location) return;
+
+          input.value = place.name ? `${place.name}, ${place.formatted_address}` : place.formatted_address;
+          const pos = place.geometry.location;
+          const map = getOrCreateMap(pos);
+
+          if (catType === 'mobility') {
+            if (fieldType === 'pickup') mobilityPickupCoord = pos;
+            else mobilityDropoffCoord = pos;
+          } else {
+            if (fieldType === 'pickup') conciergePickupCoord = pos;
+            else conciergeDropoffCoord = pos;
+          }
+
+          if (fieldType === "pickup") {
+            if (pickupMarker) pickupMarker.setMap(null);
+            pickupMarker = new google.maps.Marker({
+              position: pos,
+              map: map,
+              draggable: true,
+              icon: PERSON_PIN_ICON,
+              title: "可拖曳微調起點"
+            });
+
+            pickupMarker.addListener("dragend", () => {
+              handleMarkerDrag(pickupMarker, input, fieldType, catType);
+            });
+
+            const curDropoff = (catType === 'mobility') ? mobilityDropoffCoord : conciergeDropoffCoord;
+            if (!curDropoff) map.panTo(pos);
+          } else if (fieldType === "dropoff") {
+            if (dropoffMarker) dropoffMarker.setMap(null);
+            dropoffMarker = new google.maps.Marker({
+              position: pos,
+              map: map,
+              draggable: true,
+              icon: DESTINATION_FLAG_ICON,
+              title: "可拖曳微調終點"
+            });
+
+            dropoffMarker.addListener("dragend", () => {
+              handleMarkerDrag(dropoffMarker, input, fieldType, catType);
+            });
+
+            const curPickup = (catType === 'mobility') ? mobilityPickupCoord : conciergePickupCoord;
+            if (!curPickup) map.panTo(pos);
+          }
+
+          const curPickup = (catType === 'mobility') ? mobilityPickupCoord : conciergePickupCoord;
+          const curDropoff = (catType === 'mobility') ? mobilityDropoffCoord : conciergeDropoffCoord;
+          if (curPickup && curDropoff) {
+            calculateAndDisplayRoute(true);
+          }
+        });
+      };
+
+      bindAutocomplete(pickupInput, "pickup", "mobility");
+      bindAutocomplete(dropoffInput, "dropoff", "mobility");
+      bindAutocomplete(cPickupInput, "pickup", "concierge");
+      bindAutocomplete(cDropoffInput, "dropoff", "concierge");
+    }
+
+    // 初始化載入
+    setLanguage(currentLang);
+    fetchLatestRates();
+    window.addEventListener("DOMContentLoaded", initAutocomplete);
+    window.addEventListener("load", initAutocomplete);
   </script>
 </body>
 </html>
