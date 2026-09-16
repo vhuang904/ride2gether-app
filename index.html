@@ -1683,8 +1683,20 @@
       const mapContainer = document.getElementById('mapPreviewContainer');
       if (mapContainer) {
         mapContainer.classList.remove('hidden');
-        mapContainer.classList.add('h-screen', 'rounded-none');
+        mapContainer.classList.remove('mt-3');
+        mapContainer.style.height = 'calc(100vh - 80px)';
       }
+
+      // 確保地圖物件已建立並觸發重繪
+      const defaultCenter = { lat: 7.0512, lng: 125.5684 };
+      const map = getOrCreateMap(defaultCenter);
+      setTimeout(() => {
+        if (window.google && map) {
+          google.maps.event.trigger(map, 'resize');
+          map.setCenter(defaultCenter);
+          map.setZoom(16);
+        }
+      }, 300);
 
       // 即時監聽該筆被追蹤的訂單
       db.collection("ride_orders").doc(trackOrderId).onSnapshot(doc => {
