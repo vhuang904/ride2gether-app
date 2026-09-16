@@ -1693,7 +1693,7 @@
     let dispatchTimer = null;
     let dispatchStartTime = null;
     let dispatchStage = 1; // 1: 第一個3分鐘, 2: 第二個3分鐘
-    const STAGE_DURATION_MS = 5 * 1000; // 5秒
+    const STAGE_DURATION_MS = 180 * 1000; // 180秒
 
     function startDispatchTimeoutChecker() {
       if (dispatchTimer) clearInterval(dispatchTimer);
