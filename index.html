@@ -340,19 +340,7 @@
             <button type="button" onclick="lockCurrentPin(false)" class="w-12 h-7 rounded-lg bg-rose-600 hover:bg-rose-700 active:scale-95 text-white flex items-center justify-center font-black text-sm shadow transition">
               ✕
             </button>
-          </div>
-            
-            <!-- 中間：純粹 Confirm -->
-            <span id="bubblePinTitle" class="text-xs font-bold text-slate-100 tracking-wider uppercase px-1">
-              Confirm
-            </span>
-
-            <!-- 右邊：紅色大按鈕 -->
-            <button type="button" onclick="lockCurrentPin(false)" class="w-12 h-9 rounded-xl bg-rose-600 hover:bg-rose-700 active:scale-95 text-white flex items-center justify-center font-black text-base shadow-md transition">
-              ✕
-            </button>
-          </div>
-        </div>
+          </div>                       
       </div>
 
       <!-- 預估行車距離與車程時間卡 -->
@@ -585,6 +573,11 @@
         </div>
       </div>
 
+      <!-- 行程即時安全分享按鈕 -->
+      <button type="button" onclick="shareLiveTripStatus()" class="w-full py-2.5 rounded-xl bg-blue-50 hover:bg-blue-100 border border-blue-200 text-royal text-xs font-bold flex items-center justify-center space-x-1.5 transition active:scale-95 shadow-sm">
+        <span>🔗</span>
+        <span>SHARE TRIP STATUS (LIVE TRACKING)</span>
+      </button>
       <button onclick="finishTripAndReset()" class="w-full py-3 rounded-xl bg-navy-900 hover:bg-royal text-white text-xs font-semibold tracking-wider transition">
         Done
       </button>
@@ -1605,6 +1598,7 @@
         if (!doc.exists) return;
         const data = doc.data();
 
+        if (data.driverLat && data.driverLng) updateDriverLocationOnMap(data.driverLat, data.driverLng);
         if (['MATCHED', 'ACCEPTED', 'ARRIVED', 'IN_TRANSIT', 'COMPLETED'].includes(data.status)) {
           showMatchedDriver(data);
           updateTripStatusUI(data.status);
@@ -1612,6 +1606,102 @@
       }, err => console.warn("Realtime listener error:", err));
     }
 
+    // --- 司機即時動態追蹤 (小藍人 Marker) ---
+    let driverMarker = null;
+
+    function updateDriverLocationOnMap(lat, lng) {
+      if (!lat || !lng) return;
+      const driverPos = { lat: parseFloat(lat), lng: parseFloat(lng) };
+      const map = mapInstance || (typeof getOrCreateMap === 'function' ? getOrCreateMap(driverPos) : null);
+      if (!map) return;
+
+      if (!driverMarker) {
+        driverMarker = new google.maps.Marker({
+          position: driverPos,
+          map: map,
+          title: "Chauffeur Live Location",
+          zIndex: 999,
+          icon: PERSON_PIN_ICON // 使用與上車點一致的經典小藍人
+        });
+      } else {
+        driverMarker.setPosition(driverPos);
+      }
+    }
+
+    function removeDriverMarker() {
+      if (driverMarker) {
+        driverMarker.setMap(null);
+        driverMarker = null;
+      }
+    }
+
+    // --- 一鍵分享即時行程 (Native Share / Clipboard) ---
+    async function shareLiveTripStatus() {
+      const orderIdSpan = document.getElementById('modalOrderId');
+      const orderId = currentOrderId || (orderIdSpan ? orderIdSpan.innerText.trim() : '');
+      if (!orderId || orderId === 'Generating...') {
+        alert("Trip details are not ready yet.");
+        return;
+      }
+
+      const shareUrl = `${window.location.origin}${window.location.pathname}?track=${orderId}`;
+      const shareData = {
+        title: 'Ride2gether Safe Trip Tracking',
+        text: `I am riding with Ride2gether! Track my trip in real-time:`,
+        url: shareUrl
+      };
+
+      if (navigator.share) {
+        try {
+          await navigator.share(shareData);
+        } catch (err) {
+          console.log('Share dismissed:', err);
+        }
+      } else {
+        navigator.clipboard.writeText(shareUrl).then(() => {
+          alert("✅ Tracking link copied to clipboard!\nShare it with your contacts to track your trip live.");
+        }).catch(() => {
+          prompt("Copy this live tracking link:", shareUrl);
+        });
+      }
+    }
+
+    // --- 訪客唯讀追蹤模式 (免登入查看親友行程) ---
+    function checkViewerTrackingMode() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const trackOrderId = urlParams.get('track');
+      if (!trackOrderId || !db) return;
+
+      // 隱藏下單輸入與會員入口
+      const mainEl = document.querySelector('main');
+      if (mainEl) {
+        const sections = mainEl.querySelectorAll('section, button#btnSubmit');
+        sections.forEach(s => s.classList.add('hidden'));
+      }
+
+      // 強制展開地圖容器
+      const mapContainer = document.getElementById('mapPreviewContainer');
+      if (mapContainer) {
+        mapContainer.classList.remove('hidden');
+        mapContainer.classList.add('h-screen', 'rounded-none');
+      }
+
+      // 即時監聽該筆被追蹤的訂單
+      db.collection("ride_orders").doc(trackOrderId).onSnapshot(doc => {
+        if (!doc.exists) {
+          alert("Trip not found or has concluded.");
+          return;
+        }
+        const data = doc.data();
+        if (data.driverLat && data.driverLng) {
+          updateDriverLocationOnMap(data.driverLat, data.driverLng);
+          if (mapInstance) {
+            mapInstance.panTo({ lat: parseFloat(data.driverLat), lng: parseFloat(data.driverLng) });
+          }
+        }
+      });
+    }
+    
     function showMatchedDriver(data) {
       stopDispatchTimer();
       document.getElementById('radarSection').classList.add('hidden');
@@ -1766,6 +1856,7 @@
     
     async function cancelAndReset() {
       stopDispatchTimer();
+      removeDriverMarker();
       if (typeof unsubscribeOrder === 'function') {
         unsubscribeOrder();
         unsubscribeOrder = null;
@@ -1794,6 +1885,7 @@
     }
 
     function finishTripAndReset() {
+      removeDriverMarker();
       if (typeof unsubscribeOrder === 'function') {
         unsubscribeOrder();
         unsubscribeOrder = null;
@@ -1832,6 +1924,7 @@
     fetchLatestRates();
     window.addEventListener("DOMContentLoaded", initAutocomplete);
     window.addEventListener("load", initAutocomplete);
+    window.addEventListener("DOMContentLoaded", checkViewerTrackingMode);
   </script>
 </body>
 </html>
