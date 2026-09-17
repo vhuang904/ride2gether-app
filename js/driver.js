@@ -14,6 +14,8 @@ try {
 const dismissedOrderIds = new Set(storedDismissedOrderIds);
 const observedOrderStatuses = new Map();
 const ORDER_STALE_AFTER_MS = 5 * 60 * 1000;
+const ACTIVE_TRIP_STATUSES = new Set(["accepted", "arrived", "in_progress"]);
+let activeTrip = null;
 let noticeTimer = null;
 
 function escapeHtml(value) {
@@ -66,6 +68,63 @@ function showDriverNotice(message) {
   noticeTimer = setTimeout(() => notice.classList.add("hidden"), 5000);
 }
 
+function clearActiveTrip() {
+  activeTrip = null;
+  document.getElementById("activeTripContainer").classList.add("hidden");
+}
+
+function renderActiveTrip(order) {
+  activeTrip = order;
+  const container = document.getElementById("activeTripContainer");
+  const status = String(order.status || "").toLowerCase();
+  const action = document.getElementById("activeTripAction");
+  document.getElementById("activeTripStatus").textContent = status.replace("_", " ");
+  document.getElementById("activeTripPickup").textContent = order.pickup || order.origin || "Not provided";
+  document.getElementById("activeTripDropoff").textContent = order.dropoff || order.destination || "Not provided";
+  document.getElementById("activeTripVehicle").textContent = order.vehicleType || order.serviceName || "Standard ride";
+  document.getElementById("activeTripFare").textContent = formatFare(order.estimatedFare ?? order.fare ?? order.totalPay);
+  action.disabled = false;
+  action.textContent = status === "accepted"
+    ? "Arrived at Pickup"
+    : status === "arrived"
+      ? "Start Trip"
+      : "Complete Trip";
+  container.classList.remove("hidden");
+}
+
+async function advanceActiveTrip() {
+  if (!activeTrip) return;
+  const currentStatus = String(activeTrip.status || "").toLowerCase();
+  const nextStatus = currentStatus === "accepted"
+    ? "arrived"
+    : currentStatus === "arrived"
+      ? "in_progress"
+      : currentStatus === "in_progress"
+        ? "completed"
+        : null;
+  if (!nextStatus) return;
+
+  const action = document.getElementById("activeTripAction");
+  action.disabled = true;
+  action.textContent = "Updating...";
+  try {
+    await db.collection(DRIVER_ORDERS_COLLECTION).doc(activeTrip.id).set({
+      status: nextStatus,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      ...(nextStatus === "completed" ? { completedAt: firebase.firestore.FieldValue.serverTimestamp() } : {})
+    }, { merge: true });
+    if (nextStatus === "completed") {
+      clearActiveTrip();
+      showDriverNotice("Trip completed. Ready for the next order.");
+    }
+  } catch (error) {
+    console.error("[Driver] Unable to advance trip:", error);
+    action.disabled = false;
+    action.textContent = "Try again";
+    showDriverNotice("Unable to update trip status.");
+  }
+}
+
 function renderOrders(snapshot) {
   const container = document.getElementById("ordersContainer");
   const count = document.getElementById("orderCount");
@@ -73,6 +132,7 @@ function renderOrders(snapshot) {
 
   container.innerHTML = "";
 
+  let snapshotActiveTrip = null;
   snapshot.forEach((doc) => {
     const order = doc.data();
     const status = String(order.status || "").toLowerCase();
@@ -83,6 +143,15 @@ function renderOrders(snapshot) {
       pendingClaims.delete(doc.id);
     }
     observedOrderStatuses.set(doc.id, status);
+    const belongsToDriver = order.driverId === DRIVER_ID || order.driverName === DRIVER_NAME;
+    if (belongsToDriver && ACTIVE_TRIP_STATUSES.has(status)) {
+      snapshotActiveTrip = { id: doc.id, ...order };
+    } else if (belongsToDriver && status === "cancelled" && activeTrip?.id === doc.id) {
+      clearActiveTrip();
+      showDriverNotice("Passenger cancelled the active trip.");
+    } else if (belongsToDriver && status === "completed" && activeTrip?.id === doc.id) {
+      clearActiveTrip();
+    }
     if (status === "pending" && !dismissedOrderIds.has(doc.id) && !isStaleOrder(createdAtMillis)) {
       pendingOrders.push({
         id: doc.id,
@@ -91,6 +160,8 @@ function renderOrders(snapshot) {
       });
     }
   });
+  if (snapshotActiveTrip) renderActiveTrip(snapshotActiveTrip);
+  else if (activeTrip && !snapshot.docs.some((doc) => doc.id === activeTrip.id)) clearActiveTrip();
   pendingOrders.sort((a, b) => b.createdAtMillis - a.createdAtMillis);
 
   count.textContent = `${pendingOrders.length} pending`;
@@ -228,6 +299,7 @@ document.getElementById("ordersContainer").addEventListener("click", (event) => 
   if (button) claimOrder(button.dataset.orderId, button);
 });
 
+document.getElementById("activeTripAction").addEventListener("click", advanceActiveTrip);
 document.getElementById("clearAllOrders").addEventListener("click", clearAllOrders);
 
 listenForPendingOrders();
