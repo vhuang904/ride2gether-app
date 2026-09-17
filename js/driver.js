@@ -55,6 +55,12 @@ function isStaleOrder(createdAtMillis) {
   return createdAtMillis != null && Date.now() - createdAtMillis > ORDER_STALE_AFTER_MS;
 }
 
+// 防呆：嚴禁對非法 orderId（空值、非字串、或佔位字串 'Generating...'）
+// 發起 Firestore doc()/onSnapshot 請求，避免觸發 400 Bad Request 並掐斷 WebChannel。
+function isValidOrderId(orderId) {
+  return typeof orderId === "string" && orderId.trim().length > 0 && orderId.trim() !== "Generating...";
+}
+
 function persistDismissedOrderIds() {
   localStorage.setItem(DISMISSED_ORDERS_KEY, JSON.stringify([...dismissedOrderIds]));
 }
@@ -94,6 +100,10 @@ function renderActiveTrip(order) {
 
 async function advanceActiveTrip() {
   if (!activeTrip) return;
+  if (!isValidOrderId(activeTrip.id)) {
+    console.warn("[Driver] Skipping trip advance: invalid activeTrip.id.", activeTrip.id);
+    return;
+  }
   const currentStatus = String(activeTrip.status || "").toLowerCase();
   const nextStatus = currentStatus === "accepted"
     ? "arrived"
@@ -134,6 +144,10 @@ function renderOrders(snapshot) {
 
   let snapshotActiveTrip = null;
   snapshot.forEach((doc) => {
+    if (!isValidOrderId(doc.id)) {
+      console.warn("[Driver] Skipping snapshot doc with invalid id.", doc.id);
+      return;
+    }
     const order = doc.data();
     const status = String(order.status || "").toLowerCase();
     const createdAtMillis = getCreatedAtMillis(order.createdAt);
@@ -208,7 +222,11 @@ function renderOrders(snapshot) {
 }
 
 async function claimOrder(orderId, button) {
-  if (!orderId || pendingClaims.has(orderId)) return;
+  if (!isValidOrderId(orderId)) {
+    console.warn("[Driver] Ignoring claim request: invalid orderId.", orderId);
+    return;
+  }
+  if (pendingClaims.has(orderId)) return;
   pendingClaims.add(orderId);
   button.disabled = true;
   button.textContent = "Processing...";
@@ -232,7 +250,10 @@ async function claimOrder(orderId, button) {
 }
 
 async function dismissOrder(orderId) {
-  if (!orderId) return;
+  if (!isValidOrderId(orderId)) {
+    console.warn("[Driver] Ignoring dismiss request: invalid orderId.", orderId);
+    return;
+  }
   dismissedOrderIds.add(orderId);
   persistDismissedOrderIds();
   renderOrders(lastOrderSnapshot);
@@ -292,11 +313,23 @@ function listenForPendingOrders() {
 document.getElementById("ordersContainer").addEventListener("click", (event) => {
   const dismissButton = event.target.closest(".dismiss-order");
   if (dismissButton) {
-    dismissOrder(dismissButton.dataset.orderId);
+    const dismissOrderId = dismissButton.dataset.orderId;
+    if (!isValidOrderId(dismissOrderId)) {
+      console.warn("[Driver] Ignoring dismiss click: invalid orderId in dataset.", dismissOrderId);
+      return;
+    }
+    dismissOrder(dismissOrderId);
     return;
   }
   const button = event.target.closest(".claim-order");
-  if (button) claimOrder(button.dataset.orderId, button);
+  if (button) {
+    const claimOrderId = button.dataset.orderId;
+    if (!isValidOrderId(claimOrderId)) {
+      console.warn("[Driver] Ignoring claim click: invalid orderId in dataset.", claimOrderId);
+      return;
+    }
+    claimOrder(claimOrderId, button);
+  }
 });
 
 document.getElementById("activeTripAction").addEventListener("click", advanceActiveTrip);

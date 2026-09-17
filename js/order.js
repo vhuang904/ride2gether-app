@@ -127,7 +127,18 @@ function clearOrderValidationError() {
   banner.classList.add('hidden');
 }
 
+// 防呆：orderId 為空、非字串或仍為 'Generating...' 佔位字串時，
+// 嚴禁向 Firestore 發起 doc()/onSnapshot 請求，避免觸發 400 Bad Request。
+function isValidOrderId(orderId) {
+  return typeof orderId === 'string' && orderId.trim().length > 0 && orderId.trim() !== 'Generating...';
+}
+
 function subscribeToOrder(orderId) {
+  if (!isValidOrderId(orderId)) {
+    console.warn('[Passenger] Skipping subscribeToOrder: invalid orderId.', orderId);
+    return;
+  }
+
   if (unsubscribeOrder) unsubscribeOrder();
 
   unsubscribeOrder = db.collection("orders").doc(orderId).onSnapshot(doc => {
