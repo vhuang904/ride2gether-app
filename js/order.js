@@ -739,19 +739,39 @@ function restoreBookingHomeView() {
 
 async function cancelAndReset() {
   const orderIdSpan = document.getElementById('modalOrderId');
-  const targetOrderId = String(currentOrderId || (orderIdSpan ? orderIdSpan.innerText.trim() : '')).trim();
-  console.log('[Passenger] Cancel requested for order:', targetOrderId || '(missing orderId)');
+  const rawOrderId = String(currentOrderId || (orderIdSpan ? orderIdSpan.innerText.trim() : '')).trim();
+  const targetOrderId = (rawOrderId && rawOrderId !== 'Generating...') ? rawOrderId : '';
+  console.log('[Passenger] Cancel requested for order:', targetOrderId || '(no valid orderId - forcing local reset only)');
 
+  // 【無條件優先】不論 orderId 是否合法、Firestore 是否可用，
+  // 一律先停止計時器、清除本機暫存並還原介面，避免卡在派單等待卡片。
   stopDispatchTimer();
   removeDriverMarker();
-  localStorage.removeItem('r2g_active_order_id'); // 清空本地記憶
+  localStorage.removeItem('r2g_active_order_id');
 
   if (typeof unsubscribeOrder === 'function') {
-    unsubscribeOrder();
+    try {
+      unsubscribeOrder();
+    } catch (err) {
+      console.error('[Passenger] Failed to unsubscribe order listener:', err);
+    }
     unsubscribeOrder = null;
   }
 
-  if (targetOrderId && targetOrderId !== 'Generating...' && db) {
+  restoreBookingHomeView();
+  currentOrderId = null;
+
+  // 只有在確實取得合法 orderId 時，才嘗試向 Firestore / GAS 送出取消請求。
+  // 'Generating...' 屬於佔位字串，代表尚未取得真實訂單 ID，直接略過遠端請求。
+  if (!targetOrderId) {
+    console.warn('[Passenger] Cancellation skipped remote write: no valid orderId available.', {
+      orderId: rawOrderId,
+      hasDb: Boolean(db)
+    });
+    return;
+  }
+
+  if (db) {
     try {
       const orderRef = db.collection("orders").doc(targetOrderId);
       await orderRef.set({
@@ -768,27 +788,19 @@ async function cancelAndReset() {
       });
     }
   } else {
-    console.error('[Passenger] Cancellation skipped: no valid orderId or Firestore instance.', {
-      orderId: targetOrderId,
-      hasDb: Boolean(db)
+    console.error('[Passenger] Cancellation Firestore write skipped: no db instance.', { orderId: targetOrderId });
+  }
+
+  try {
+    await fetch(GAS_WEBHOOK_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'CANCEL_ORDER', orderId: targetOrderId })
     });
+  } catch (err) {
+    console.error('Failed to cancel:', err);
   }
-
-  restoreBookingHomeView();
-
-  if (targetOrderId && targetOrderId !== 'Generating...') {
-    try {
-      await fetch(GAS_WEBHOOK_URL, {
-        method: 'POST',
-        mode: 'no-cors',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'CANCEL_ORDER', orderId: targetOrderId })
-      });
-    } catch (err) {
-      console.error('Failed to cancel:', err);
-    }
-  }
-  currentOrderId = null;
 }
 
 function finishTripAndReset() {
