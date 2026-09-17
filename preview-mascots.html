@@ -1,50 +1,57 @@
-<!-- 專屬司機 (管家) SVG: 36px/48px 通用 -->
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" class="w-10 h-10 drop-shadow-md">
+<!-- 專屬司機管家 (純白機長禮賓帽 + 同模子 MSN 骨架) -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" class="w-12 h-12 drop-shadow-md">
   <defs>
-    <!-- 背景光暈 -->
-    <radialGradient id="bgGradChauffeur" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" stop-color="#1E293B"/>
+    <!-- 司機身軀：午夜深藍漸層 (不與客人的天藍撞色) -->
+    <radialGradient id="chauffeurBodyGrad" cx="50%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#334155"/>
       <stop offset="100%" stop-color="#0F172A"/>
     </radialGradient>
-    <!-- 膚色漸層 -->
-    <linearGradient id="faceGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#FFDFC4"/>
-      <stop offset="100%" stop-color="#F0B58D"/>
+
+    <!-- 司機頭部：深色立體球體 -->
+    <radialGradient id="chauffeurHeadGrad" cx="35%" cy="35%" r="65%">
+      <stop offset="0%" stop-color="#475569"/>
+      <stop offset="60%" stop-color="#1E293B"/>
+      <stop offset="100%" stop-color="#0F172A"/>
+    </radialGradient>
+
+    <!-- 白色帽冠漸層 (硬挺立體白) -->
+    <linearGradient id="whiteCapTop" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="70%" stop-color="#F1F5F9"/>
+      <stop offset="100%" stop-color="#CBD5E1"/>
     </linearGradient>
-    <!-- 金色邊飾漸層 -->
-    <linearGradient id="goldCapGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#F6D365"/>
-      <stop offset="50%" stop-color="#FDA085"/>
-      <stop offset="100%" stop-color="#F6D365"/>
+
+    <!-- 金色飾帶與徽章 -->
+    <linearGradient id="goldBraid" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#FCD34D"/>
+      <stop offset="50%" stop-color="#F59E0B"/>
+      <stop offset="100%" stop-color="#FCD34D"/>
     </linearGradient>
   </defs>
 
-  <!-- 圓形底盤 -->
-  <circle cx="50" cy="50" r="47" fill="url(#bgGradChauffeur)" stroke="#334155" stroke-width="2"/>
+  <!-- 1. 身體 (與男女客相同曲線模子) -->
+  <path d="M 22 86 C 22 68, 33 64, 50 64 C 67 64, 78 68, 78 86 Z" fill="url(#chauffeurBodyGrad)"/>
+  <!-- 領口小細節：純白襯衫領三角 -->
+  <polygon points="46,64 54,64 50,70" fill="#FFFFFF"/>
 
-  <!-- 身體 / 西裝肩線 (白襯衫 + 領結) -->
-  <path d="M22 84 C22 66, 32 62, 50 62 C68 62, 78 66, 78 84 Z" fill="#FFFFFF"/>
-  <path d="M30 84 C30 68, 38 65, 50 65 C62 65, 70 68, 70 84 Z" fill="#0F172A"/>
-  <!-- 香檳金領結 -->
-  <polygon points="45,67 55,67 50,71" fill="url(#goldCapGrad)"/>
-  <polygon points="45,71 55,71 50,67" fill="url(#goldCapGrad)"/>
-  <circle cx="50" cy="69" r="1.5" fill="#FFFFFF"/>
+  <!-- 2. 頭部 (與男女客相同半徑 MSN 圓球，無多餘五官) -->
+  <circle cx="50" cy="46" r="16" fill="url(#chauffeurHeadGrad)"/>
 
-  <!-- 臉部 (親和輪廓) -->
-  <circle cx="50" cy="46" r="15" fill="url(#faceGrad)"/>
-  <!-- 眼睛與親切微笑 -->
-  <circle cx="45" cy="46" r="1.8" fill="#334155"/>
-  <circle cx="55" cy="46" r="1.8" fill="#334155"/>
-  <path d="M47 52 Q50 55 53 52" stroke="#B45309" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+  <!-- 3. 機長/禮賓白大蓋帽 (對照 Sample 細節) -->
+  <!-- 白色帽冠大頂 (上寬微展) -->
+  <path d="M 33 39 C 32 23, 68 23, 67 39 Z" fill="url(#whiteCapTop)"/>
+  
+  <!-- 黑色帽帶基座圈 -->
+  <path d="M 34 39 Q 50 42 66 39 L 66 43 Q 50 46 34 43 Z" fill="#0F172A"/>
+  
+  <!-- 雙層金色飾帶 (Gold Braided Cord) -->
+  <path d="M 34 40 Q 50 43 66 40" stroke="url(#goldBraid)" stroke-width="1.2" fill="none"/>
+  <path d="M 34 42 Q 50 45 66 42" stroke="url(#goldBraid)" stroke-width="1.2" fill="none"/>
+  
+  <!-- 金色中央展翅機長/禮賓徽章 -->
+  <circle cx="50" cy="35" r="3" fill="url(#goldBraid)"/>
+  <path d="M 44 36 Q 50 34 56 36 Q 50 36.5 44 36 Z" fill="url(#goldBraid)"/>
 
-  <!-- 禮賓大盤帽 (Chauffeur Cap) -->
-  <!-- 帽冠主體 -->
-  <path d="M33 38 C32 26, 68 26, 67 38 Z" fill="#1E293B"/>
-  <path d="M34 32 C38 27, 62 27, 66 32" stroke="#334155" stroke-width="1.5" fill="none"/>
-  <!-- 金色帽箍飾帶 -->
-  <path d="M32 38 Q50 41 68 38 L68 40 Q50 43 32 40 Z" fill="url(#goldCapGrad)"/>
-  <!-- 帽徽小金圓章 -->
-  <circle cx="50" cy="37" r="2.5" fill="#FDE047"/>
-  <!-- 黑色漆皮立體帽簷 -->
-  <path d="M30 40 Q50 46 70 40 Q50 42 30 40 Z" fill="#090D16"/>
+  <!-- 黑色亮面大帽簷 -->
+  <path d="M 31 43 Q 50 48 69 43 C 67 46, 59 48, 50 48 C 41 48, 33 46, 31 43 Z" fill="#020617"/>
 </svg>
