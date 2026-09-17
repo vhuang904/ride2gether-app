@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 120" width="100%" height="100%">
   <defs>
-    <!-- 男客針身：皇家深藍金屬光澤 -->
+    <!-- 男客針身：皇家深藍金屬光澤 --> 
     <linearGradient id="vmPinGrad" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#1E40AF"/>
       <stop offset="50%" stop-color="#0F172A"/>
