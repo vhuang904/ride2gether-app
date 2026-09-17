@@ -236,11 +236,19 @@ function prepareNativeTripView() {
 
   const mapContainer = document.getElementById('mapPreviewContainer');
   if (mapContainer) {
-    mapContainer.classList.remove('hidden');
-    mapContainer.classList.remove('mt-3');
-    // 縮小地圖高度上限，避免與下方合一後的行程卡片之間出現大片空白斷層。
-    mapContainer.style.height = 'min(48vh, 360px)';
-    if (mapInstance && window.google) google.maps.event.trigger(mapInstance, 'resize');
+    // Concierge（Instant Parcel / Pabili）全程去地圖化：無論表單階段或
+    // Layer 2 追蹤狀態（searching/accepted/in_progress/completed），
+    // 大地圖容器一律強制隱藏，維持純文字/狀態履約介面。
+    const isConciergeTrip = (lastTripData?.category === 'concierge');
+    if (isConciergeTrip) {
+      mapContainer.classList.add('hidden');
+    } else {
+      mapContainer.classList.remove('hidden');
+      mapContainer.classList.remove('mt-3');
+      // 縮小地圖高度上限，避免與下方合一後的行程卡片之間出現大片空白斷層。
+      mapContainer.style.height = 'min(48vh, 360px)';
+      if (mapInstance && window.google) google.maps.event.trigger(mapInstance, 'resize');
+    }
   }
   // 起訖點一旦鎖定進入派單/追蹤流程，地圖上絕不可殘留「Confirm Yes/No」拖曳確認彈窗，
   // 亦不需再顯示「Adjusting pin...」拖曳提示（起終點已固定，不再開放調整）。
@@ -495,6 +503,10 @@ let driverMarker = null;
 let driverAnimFrame = null;
 
 function updateDriverLocationOnMap(lat, lng) {
+  // Concierge 訂單全程去地圖化：跑腿員/司機即時位置更新一律提前返回，
+  // 絕不因收到座標而意外觸發 getOrCreateMap() 建立大地圖。
+  if (lastTripData?.category === 'concierge') return;
+
   const toLat = parseFloat(lat);
   const toLng = parseFloat(lng);
   if (isNaN(toLat) || isNaN(toLng)) return;

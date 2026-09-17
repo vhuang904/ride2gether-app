@@ -52,11 +52,22 @@ function updateHeaderProfileUI() {
   document.getElementById('prefPhone').value = currentUserProfile.phone || "";
   document.getElementById('prefHome').value = (currentUserProfile.home && currentUserProfile.home.address) ? currentUserProfile.home.address : "";
   updateTitleButtonsUI();
+  syncConciergePickupPinIcon();
+}
+
+// 依乘客性別設定，同步 Concierge 表單起點膠囊左側的男/女專屬 Pin 圖示，
+// 與主地圖乘客起點 Marker（getPickupPinIcon）維持一致的系統視覺調性。
+function syncConciergePickupPinIcon() {
+  const iconEl = document.getElementById('conciergePickupPinIcon');
+  if (!iconEl) return;
+  const isFemale = currentUserProfile.gender === 'female';
+  iconEl.src = isFemale ? './assets/icons/mascot-vip-female.svg' : './assets/icons/mascot-vip-male.svg';
 }
 
 function setGuestTitle(gender) {
   currentUserProfile.gender = gender;
   updateTitleButtonsUI();
+  syncConciergePickupPinIcon();
   if (pickupMarker) {
     pickupMarker.setIcon(getPickupPinIcon());
   }
