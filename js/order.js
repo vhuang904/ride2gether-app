@@ -1,5 +1,6 @@
 // --- 6. 叫車下單與 Firestore 連線 ---
 async function requestOrder() {
+  const submitBtn = document.getElementById('btnSubmit');
   let from = "", to = "", notes = "";
   if (currentCategory === 'mobility') {
     from = document.getElementById('pickupLoc').value.trim();
@@ -24,12 +25,26 @@ async function requestOrder() {
   const dist = parseFloat(document.getElementById('distance').value) || 0;
   const itemCost = (currentService === 'PABILI') ? (parseFloat(document.getElementById('itemCost').value) || 0) : 0;
   const tip = parseFloat(document.getElementById('priorityTip').value) || 0;
-  const finalPrice = parseFloat(document.getElementById('estTotal').innerText);
+  const finalPrice = parseFloat(document.getElementById('estTotal').innerText) || 0;
+  const serviceRate = RATES[currentService];
+
+  if (!serviceRate) {
+    console.error("Order dispatch blocked: missing service rate.", currentService);
+    alert("Unable to calculate this service fare. Please select the service again.");
+    return;
+  }
+
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.classList.add('opacity-60', 'pointer-events-none');
+  }
 
   document.getElementById('dispatchModal').classList.remove('hidden');
   document.getElementById('radarSection').classList.remove('hidden');
   document.getElementById('matchedCard').classList.add('hidden');
   document.getElementById('modalOrderId').innerText = 'Generating...';
+  document.getElementById('dispatchStatusText').innerText = 'Connecting to exclusive fleet in real-time...';
+  document.getElementById('dispatchStatusText').className = 'text-xs text-slate-500 mt-1';
 
   const orderId = 'OD-' + Math.floor(100000 + Math.random() * 900000);
   currentOrderId = orderId;
@@ -47,7 +62,7 @@ async function requestOrder() {
     customerInfo: `${custName} (${custPhone})`,
     category: currentCategory,
     serviceId: currentService,
-    serviceName: RATES[currentService].nameEn,
+    serviceName: serviceRate.nameEn,
     origin: from,
     destination: to,
     distance: dist,
@@ -57,7 +72,7 @@ async function requestOrder() {
     totalPay: finalPrice,
     pickup: from,
     dropoff: to,
-    vehicleType: RATES[currentService].nameEn,
+    vehicleType: serviceRate.nameEn,
     estimatedFare: finalPrice,
     status: 'pending',
     createdAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -75,8 +90,15 @@ async function requestOrder() {
     }).catch(e => console.warn('Background sync:', e));
   } catch (err) {
     console.error("Order dispatch failed:", err);
-    alert("Connection error. Please try again.");
-    cancelAndReset();
+    const statusText = document.getElementById('dispatchStatusText');
+    if (statusText) {
+      statusText.innerText = `Unable to send order: ${err.message || 'connection error'}`;
+      statusText.className = 'text-xs text-rose-600 mt-1';
+    }
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.classList.remove('opacity-60', 'pointer-events-none');
+    }
   }
 }
 
@@ -400,7 +422,7 @@ function startDispatchTimeoutChecker() {
           const docSnap = await db.collection("orders").doc(currentOrderId).get();
           if (docSnap.exists) {
             const data = docSnap.data();
-            const matchedStatuses = ['MATCHED', 'ACCEPTED', 'ARRIVED', 'IN_TRANSIT', 'COMPLETED'];
+            const matchedStatuses = ['accepted', 'MATCHED', 'ACCEPTED', 'ARRIVED', 'IN_TRANSIT', 'COMPLETED'];
             if (matchedStatuses.includes(data.status)) {
               stopDispatchTimer();
               showMatchedDriver(data);
@@ -469,6 +491,11 @@ async function cancelAndReset() {
   document.getElementById('radarSection').classList.remove('hidden');
   document.getElementById('matchedCard').classList.add('hidden');
   document.getElementById('mascotCapsule')?.classList.add('hidden');
+  const submitBtn = document.getElementById('btnSubmit');
+  if (submitBtn) {
+    submitBtn.disabled = false;
+    submitBtn.classList.remove('opacity-60', 'pointer-events-none');
+  }
 
   if (targetOrderId && targetOrderId !== 'Generating...') {
     try {
@@ -497,6 +524,11 @@ function finishTripAndReset() {
   document.getElementById('radarSection').classList.remove('hidden');
   document.getElementById('matchedCard').classList.add('hidden');
   document.getElementById('mascotCapsule')?.classList.add('hidden');
+  const submitBtn = document.getElementById('btnSubmit');
+  if (submitBtn) {
+    submitBtn.disabled = false;
+    submitBtn.classList.remove('opacity-60', 'pointer-events-none');
+  }
   currentOrderId = null;
 }
 
