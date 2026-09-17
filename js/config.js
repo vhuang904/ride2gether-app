@@ -1,5 +1,5 @@
 // --- 1. SERVICE WORKER 版本控管 ---
-const APP_VERSION = 'ride2gether-cache-v7.24';
+const APP_VERSION = 'ride2gether-cache-v7.25';
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
@@ -26,4 +26,4 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
-const GAS_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbxuT2lHTit53Ezz1eAzKwgIkSM7OVwzQMbGkA-TvYGVerxsNKnZgy5kDz-aVJkB2lJZ/exec";
+const GAS_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbztGtoktd6gONnXu5XQ_hvV9-sNy4VwPvwznQD3vZDopnaLC2Iv6VD7KB6s8cBiTr6k/exec";

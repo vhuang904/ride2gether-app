@@ -247,6 +247,16 @@ async function claimOrder(orderId, button) {
       acceptedAt: firebase.firestore.FieldValue.serverTimestamp()
     });
     button.textContent = "Order accepted";
+
+    // 防呆通知 GAS/Telegram：接單成功後才觸發，失敗絕不阻擋原本的 Firestore 派單流程。
+    if (typeof GAS_WEBHOOK_URL !== 'undefined' && GAS_WEBHOOK_URL) {
+      fetch(GAS_WEBHOOK_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'CLAIM_ORDER', orderId, driverName: DRIVER_NAME })
+      }).catch(err => console.warn('[Driver] GAS claim notify failed:', err));
+    }
   } catch (error) {
     console.error("Unable to accept order:", error);
     button.disabled = false;
