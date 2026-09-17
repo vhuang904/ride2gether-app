@@ -1370,7 +1370,6 @@
       if (isConfirmed) {
         if (marker) {
           marker.setDraggable(false);
-          // 確認位置時，同步更新對應的座標變數與逆地理編碼文字
           const newPos = marker.getPosition();
           if (currentEditingMarkerType === 'pickup') {
             if (isMobility) mobilityPickupCoord = newPos; else conciergePickupCoord = newPos;
@@ -1386,17 +1385,25 @@
           badge.className = "text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200";
         }
 
-        // 檢查起終點座標，齊全時即刻重繪路線並更新里程與計價
-        const curPickup = isMobility ? mobilityPickupCoord : conciergePickupCoord;
-        const curDropoff = isMobility ? mobilityDropoffCoord : conciergeDropoffCoord;
+        // 強制抓取目前最新的起點與終點座標（包含 Marker 實體座標）
+        const pCoord = isMobility ? (mobilityPickupCoord || (pickupMarker ? pickupMarker.getPosition() : null)) 
+                                  : (conciergePickupCoord || (pickupMarker ? pickupMarker.getPosition() : null));
+        const dCoord = isMobility ? (mobilityDropoffCoord || (dropoffMarker ? dropoffMarker.getPosition() : null)) 
+                                  : (conciergeDropoffCoord || (dropoffMarker ? dropoffMarker.getPosition() : null));
 
-        if (curPickup && curDropoff) {
+        if (pCoord && dCoord) {
+          if (isMobility) {
+            mobilityPickupCoord = pCoord;
+            mobilityDropoffCoord = dCoord;
+          } else {
+            conciergePickupCoord = pCoord;
+            conciergeDropoffCoord = dCoord;
+          }
           calculateAndDisplayRoute(true);
         } else {
           calculateEstimate();
         }
       } else {
-        // 點擊 ✕ 取消時：保持圖釘在畫面上且維持可自由拖曳調整
         if (marker) marker.setDraggable(true);
         if (badge) {
           badge.innerText = "Drag pin to adjust";
@@ -1404,7 +1411,7 @@
         }
       }
     }
-
+    
     function clearLocationInput(inputId, fieldType, catType) {
       const el = document.getElementById(inputId);
       if (el) el.value = '';
