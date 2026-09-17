@@ -213,10 +213,14 @@ function prepareNativeTripView() {
     const setupSection = sections[1];
     if (isActiveTripMinimized) {
       // Layer 2 已最小化為懸浮氣泡：讓 Layer 1（分類選擇／價格儀表板）
-      // 保持顯示並可自由操作，Layer 2 大容器整個維持隱藏。
+      // 保持顯示並可自由操作。注意：#fields-concierge、#fields-mobility 等
+      // 表單欄位實體上就位在 #step2Panel（setupSection）內部，因此該容器
+      // 本身「不可整段隱藏」，否則子元件無論如何 remove('hidden') 都無效
+      // （祖先仍為 hidden，CSS 階層會蓋掉子層）。只隱藏容器內屬於 Layer 2
+      // 行程追蹤專用的區塊（地圖、行程資訊卡、最小化鈕本身，見下方）。
       if (sections[0]) sections[0].classList.remove('hidden');
       if (sections[2]) sections[2].classList.remove('hidden');
-      if (setupSection) setupSection.classList.add('hidden');
+      if (setupSection) setupSection.classList.remove('hidden');
     } else {
       if (sections[0]) sections[0].classList.add('hidden');
       if (sections[2]) sections[2].classList.add('hidden');
@@ -241,18 +245,24 @@ function prepareNativeTripView() {
 
   const mapContainer = document.getElementById('mapPreviewContainer');
   if (mapContainer) {
-    // Concierge（Instant Parcel / Pabili）全程去地圖化：無論表單階段或
-    // Layer 2 追蹤狀態（searching/accepted/in_progress/completed），
-    // 大地圖容器一律強制隱藏，維持純文字/狀態履約介面。
-    const isConciergeTrip = (lastTripData?.category === 'concierge');
-    if (isConciergeTrip) {
+    if (isActiveTripMinimized) {
+      // 最小化氣泡狀態下，#step2Panel 讓位給純文字管家表單，
+      // 行程地圖（無論 Mobility 或 Concierge）一律強制隱藏。
       mapContainer.classList.add('hidden');
     } else {
-      mapContainer.classList.remove('hidden');
-      mapContainer.classList.remove('mt-3');
-      // 縮小地圖高度上限，避免與下方合一後的行程卡片之間出現大片空白斷層。
-      mapContainer.style.height = 'min(48vh, 360px)';
-      if (mapInstance && window.google) google.maps.event.trigger(mapInstance, 'resize');
+      // Concierge（Instant Parcel / Pabili）全程去地圖化：無論表單階段或
+      // Layer 2 追蹤狀態（searching/accepted/in_progress/completed），
+      // 大地圖容器一律強制隱藏，維持純文字/狀態履約介面。
+      const isConciergeTrip = (lastTripData?.category === 'concierge');
+      if (isConciergeTrip) {
+        mapContainer.classList.add('hidden');
+      } else {
+        mapContainer.classList.remove('hidden');
+        mapContainer.classList.remove('mt-3');
+        // 縮小地圖高度上限，避免與下方合一後的行程卡片之間出現大片空白斷層。
+        mapContainer.style.height = 'min(48vh, 360px)';
+        if (mapInstance && window.google) google.maps.event.trigger(mapInstance, 'resize');
+      }
     }
   }
   // 起訖點一旦鎖定進入派單/追蹤流程，地圖上絕不可殘留「Confirm Yes/No」拖曳確認彈窗，
@@ -270,13 +280,22 @@ function prepareNativeTripView() {
   document.getElementById('mascotCapsule')?.classList.add('hidden');
   // 整併需求：行程進行期間隱藏「小費區塊」，讓合一後的行程卡片取代其視覺空間。
   document.getElementById('priorityTipSection')?.classList.add('hidden');
-  // Layer 2 全域最小化鈕：僅在行程進行中顯示，位於 #step2Panel 容器最右上角。
+  // Layer 2 全域最小化鈕與行程資訊卡：僅在「未最小化」的行程追蹤畫面顯示，
+  // 最小化氣泡狀態下必須隱藏，讓 #step2Panel 內只剩下管家表單可見。
   const minimizeBtn = document.getElementById('btnMinimizeTrip');
+  const bottomCard = document.getElementById('activeTripPanel');
+  if (isActiveTripMinimized) {
+    if (minimizeBtn) {
+      minimizeBtn.classList.add('hidden');
+      minimizeBtn.classList.remove('flex');
+    }
+    if (bottomCard) bottomCard.classList.add('hidden');
+    return;
+  }
   if (minimizeBtn) {
     minimizeBtn.classList.remove('hidden');
     minimizeBtn.classList.add('flex');
   }
-  const bottomCard = document.getElementById('activeTripPanel');
   if (bottomCard) {
     bottomCard.classList.remove('hidden');
     bottomCard.style.display = '';
@@ -463,10 +482,11 @@ function hideActiveTripFloatingBubble() {
 // 完全恢復自由，司機資訊持續在背景（Firestore 監聽）更新，乘客可隨時點擊氣泡還原完整視窗。
 function minimizeActiveTrip() {
   isActiveTripMinimized = true;
-  // 整個 Layer 2 大容器（#step2Panel，內含地圖與行程資訊卡）一併隱藏，
-  // 而非只隱藏底下的資訊卡，確保地圖也隨之收起、不殘留佔位空白。
-  const panel = document.getElementById('step2Panel');
-  if (panel) panel.classList.add('hidden');
+  // #step2Panel 本身「不可整段隱藏」：Concierge/Mobility 表單欄位就實體位於
+  // 此容器內部，一旦祖先帶上 hidden，子元件無論如何解除 hidden 都不會顯示。
+  // 改由 prepareNativeTripView() 依 isActiveTripMinimized 只隱藏容器內屬於
+  // Layer 2 行程追蹤專用的區塊（地圖／行程卡／最小化鈕），保留容器本身可視。
+  prepareNativeTripView();
   // 露出原本的主應用程式畫面（分類選擇區、價格儀表板），讓乘客可自由操作。
   setLayer1Visible(true);
 
@@ -497,8 +517,10 @@ function restoreActiveTripFromBubble() {
     document.getElementById(id)?.classList.add('hidden');
   });
 
-  const panel = document.getElementById('step2Panel');
-  if (panel) panel.classList.remove('hidden');
+  // #step2Panel 本身維持可視（不再整段隱藏/顯示）；重新交由
+  // prepareNativeTripView() 依 isActiveTripMinimized === false 還原地圖、
+  // 行程資訊卡與最小化鈕等 Layer 2 專屬區塊。
+  prepareNativeTripView();
 
   // 修復：最小化期間 switchCategory('concierge') 曾透過 syncCategoryCoords()
   // 將乘客起點圖釘 setMap(null)。還原時強制歸位為 Mobility，重新同步座標
