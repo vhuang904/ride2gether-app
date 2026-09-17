@@ -119,14 +119,141 @@ function subscribeToOrder(orderId) {
       return;
     }
     if (['accepted', 'matched', 'arrived', 'in_progress', 'completed'].includes(status)) {
-      showMatchedDriver(data);
+      renderNativeTripView(status, data);
       updateTripStatusUI(status, data);
+      if (status === 'completed' && typeof unsubscribeOrder === 'function') {
+        unsubscribeOrder();
+        unsubscribeOrder = null;
+      }
     }
   }, err => {
     console.error("Realtime listener error:", err);
     const statusText = document.getElementById('dispatchStatusText');
     if (statusText) statusText.innerText = `Live order update failed: ${err.message || 'connection error'}`;
   });
+}
+
+function prepareNativeTripView() {
+  const mainEl = document.querySelector('main');
+  if (mainEl) {
+    const sections = mainEl.querySelectorAll('section');
+    const setupSection = sections[1];
+    if (sections[0]) sections[0].classList.add('hidden');
+    if (sections[2]) sections[2].classList.add('hidden');
+    if (setupSection) setupSection.classList.remove('hidden');
+    const gridMobility = document.getElementById('grid-mobility');
+    const gridConcierge = document.getElementById('grid-concierge');
+    const fieldsMobility = document.getElementById('fields-mobility');
+    const fieldsConcierge = document.getElementById('fields-concierge');
+    const savedPlaces = document.getElementById('mainSavedPlacesChips');
+    [gridMobility, gridConcierge, fieldsMobility, fieldsConcierge, savedPlaces].forEach(element => {
+      if (element) element.classList.add('hidden');
+    });
+    const submitBtn = document.getElementById('btnSubmit');
+    if (submitBtn) submitBtn.classList.add('hidden');
+  }
+
+  const mapContainer = document.getElementById('mapPreviewContainer');
+  if (mapContainer) {
+    mapContainer.classList.remove('hidden');
+    mapContainer.classList.remove('mt-3');
+    mapContainer.style.height = 'calc(100vh - 150px)';
+    if (mapInstance && window.google) google.maps.event.trigger(mapInstance, 'resize');
+  }
+  document.getElementById('dispatchModal')?.classList.add('hidden');
+  document.getElementById('mascotCapsule')?.classList.add('hidden');
+  document.getElementById('activeTripBottomCard')?.classList.remove('hidden');
+}
+
+function getOrderCoordinate(value) {
+  if (!value) return null;
+  if (typeof value.lat === 'function' && typeof value.lng === 'function') return value;
+  if (typeof value.lat === 'number' && typeof value.lng === 'number') return value;
+  return null;
+}
+
+function renderNativeTripRoute(status, data) {
+  if (!['accepted', 'matched', 'arrived', 'in_progress'].includes(status)) return;
+  if (!directionsService || !directionsRenderer || !mapInstance) return;
+  const driverPosition = data.driverLat && data.driverLng
+    ? { lat: Number(data.driverLat), lng: Number(data.driverLng) }
+    : null;
+  const destination = status === 'in_progress'
+    ? getOrderCoordinate(mobilityDropoffCoord || conciergeDropoffCoord)
+    : getOrderCoordinate(mobilityPickupCoord || conciergePickupCoord);
+  const fallbackOrigin = status === 'in_progress'
+    ? getOrderCoordinate(mobilityPickupCoord || conciergePickupCoord)
+    : getOrderCoordinate(mobilityPickupCoord || conciergePickupCoord);
+  const origin = driverPosition || fallbackOrigin;
+
+  if (!origin || !destination) return;
+  directionsService.route({
+    origin,
+    destination,
+    travelMode: google.maps.TravelMode.DRIVING
+  }, (response, routeStatus) => {
+    if (routeStatus !== 'OK') return;
+    directionsRenderer.setDirections(response);
+    const bounds = new google.maps.LatLngBounds();
+    bounds.extend(origin);
+    bounds.extend(destination);
+    mapInstance.fitBounds(bounds, { top: 80, bottom: 180, left: 40, right: 40 });
+  });
+}
+
+function renderNativeTripView(status, data) {
+  prepareNativeTripView();
+  const card = document.getElementById('activeTripBottomCard');
+  const title = document.getElementById('activeTripTitle');
+  const state = document.getElementById('activeTripStateLabel');
+  const driver = document.getElementById('activeTripDriver');
+  const eta = document.getElementById('activeTripEta');
+  const vehicle = document.getElementById('activeTripVehicle');
+  const plate = document.getElementById('activeTripPlate');
+  const shareSlot = document.getElementById('activeTripShareSlot');
+  const completionSlot = document.getElementById('activeTripCompletionSlot');
+  const total = Number(data.totalPay || data.estimatedFare || 0).toFixed(2);
+
+  state.textContent = status === 'completed' ? 'Trip Completed' : 'Active Trip';
+  title.textContent = status === 'accepted' || status === 'matched'
+    ? 'Driver accepted your trip'
+    : status === 'arrived'
+      ? 'Driver has arrived'
+      : status === 'in_progress'
+        ? 'Heading to destination'
+        : 'Trip Completed';
+  driver.textContent = status === 'accepted' || status === 'matched'
+    ? 'Your chauffeur is on the way to the pick-up point.'
+    : status === 'arrived'
+      ? 'Your chauffeur has arrived. Please proceed to pickup.'
+      : status === 'in_progress'
+        ? 'Your trip is in progress.'
+        : `Final fare: ₱${total}`;
+  eta.textContent = status === 'accepted' || status === 'matched' ? 'ETA updating' : status === 'arrived' ? 'Arrived' : status === 'in_progress' ? 'On route' : 'Complete';
+  vehicle.textContent = data.driverModel || data.vehicleType || data.serviceName || 'Private Fleet';
+  plate.textContent = data.driverPlate || 'Private Fleet';
+  shareSlot.innerHTML = '';
+  completionSlot.innerHTML = '';
+  shareSlot.classList.toggle('hidden', status !== 'in_progress');
+  completionSlot.classList.toggle('hidden', status !== 'completed');
+
+  if (status === 'in_progress') {
+    shareSlot.innerHTML = `
+      <button type="button" onclick="shareLiveTripStatus()" class="w-full rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-xs font-bold text-blue-700 transition hover:bg-blue-100">
+        Share Trip
+      </button>`;
+  }
+  if (status === 'completed') {
+    completionSlot.innerHTML = `
+      <div class="rounded-xl border border-blue-100 bg-blue-50 p-3 text-center">
+        <p class="text-xs font-semibold text-blue-700">Trip completed · ₱${total}</p>
+        <button type="button" onclick="finishTripAndReset()" class="mt-2 w-full rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-bold text-white transition hover:bg-blue-700">
+          Done
+        </button>
+      </div>`;
+  }
+  card.classList.remove('hidden');
+  renderNativeTripRoute(status, data);
 }
 
 function showDriverNoticeToPassenger(message) {
@@ -579,6 +706,28 @@ function finishTripAndReset() {
   document.getElementById('radarSection').classList.remove('hidden');
   document.getElementById('matchedCard').classList.add('hidden');
   document.getElementById('mascotCapsule')?.classList.add('hidden');
+  document.getElementById('activeTripBottomCard')?.classList.add('hidden');
+  if (directionsRenderer) directionsRenderer.set('directions', null);
+  const mapContainer = document.getElementById('mapPreviewContainer');
+  if (mapContainer) {
+    mapContainer.style.height = '';
+    mapContainer.classList.add('mt-3');
+  }
+  const mainEl = document.querySelector('main');
+  if (mainEl) {
+    const sections = mainEl.querySelectorAll('section');
+    if (sections[0]) sections[0].classList.remove('hidden');
+    if (sections[2]) sections[2].classList.remove('hidden');
+    const gridMobility = document.getElementById('grid-mobility');
+    const gridConcierge = document.getElementById('grid-concierge');
+    const fieldsMobility = document.getElementById('fields-mobility');
+    const fieldsConcierge = document.getElementById('fields-concierge');
+    const savedPlaces = document.getElementById('mainSavedPlacesChips');
+    [gridMobility, gridConcierge, fieldsMobility, fieldsConcierge, savedPlaces].forEach(element => {
+      if (element) element.classList.remove('hidden');
+    });
+    switchCategory(currentCategory);
+  }
   const submitBtn = document.getElementById('btnSubmit');
   if (submitBtn) {
     submitBtn.disabled = false;
