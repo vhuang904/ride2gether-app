@@ -2,6 +2,10 @@ const DRIVER_ORDERS_COLLECTION = "orders";
 const DRIVER_ID = "DRV-001";
 const DRIVER_NAME = "BigV904";
 const DRIVER_VEHICLE = "Executive Sedan";
+const DRIVER_PLATE = "NBB 2024";
+const DRIVER_PHONE = "+639171234567";
+// 'male' | 'female'：決定乘客端 Layer 2 懸浮氣泡展示的司機頭像圖示。
+const DRIVER_GENDER = "male";
 const pendingClaims = new Set();
 const DISMISSED_ORDERS_KEY = "ride2gether_driver_dismissed_orders";
 let storedDismissedOrderIds = [];
@@ -237,6 +241,9 @@ async function claimOrder(orderId, button) {
       driverId: DRIVER_ID,
       driverName: DRIVER_NAME,
       driverVehicle: DRIVER_VEHICLE,
+      driverPlate: DRIVER_PLATE,
+      driverPhone: DRIVER_PHONE,
+      driverGender: DRIVER_GENDER,
       acceptedAt: firebase.firestore.FieldValue.serverTimestamp()
     });
     button.textContent = "Order accepted";

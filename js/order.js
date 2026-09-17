@@ -200,6 +200,12 @@ function renderPendingOrderView(orderId) {
   card.style.display = '';
 }
 
+// Layer 2（行程專屬視窗）最小化狀態：最小化後 Layer 1 主畫面完全恢復自由操作，
+// 僅在螢幕邊緣保留一顆懸浮氣泡；lastTripStatus/lastTripData 供還原與氣泡頭像更新使用。
+let isActiveTripMinimized = false;
+let lastTripStatus = null;
+let lastTripData = null;
+
 function prepareNativeTripView() {
   const mainEl = document.querySelector('main');
   if (mainEl) {
@@ -279,11 +285,16 @@ function renderNativeTripRoute(status, data) {
 
 function renderNativeTripView(status, data) {
   prepareNativeTripView();
+  lastTripStatus = status;
+  lastTripData = data;
 
   // Stage 2/3 (接單中/抵達/行程進行中)：主地圖鎖定為展示模式，禁止乘客拖曳；
   // Stage 4 (completed)：解鎖手勢，準備讓乘客確認後平滑回到待命視角。
   if (status === 'completed') {
     unlockMainMapGestures();
+    // 行程結束需要乘客明確確認才能重置，強制還原 Layer 2 完整視窗，
+    // 避免結算卡被懸浮氣泡遮蔽而永遠無法確認完成。
+    isActiveTripMinimized = false;
   } else {
     lockMainMapGestures();
   }
@@ -291,11 +302,13 @@ function renderNativeTripView(status, data) {
   const card = document.getElementById('activeTripBottomCard');
   const title = document.getElementById('activeTripTitle');
   const state = document.getElementById('activeTripStateLabel');
+  const driverNameEl = document.getElementById('activeTripDriverName');
   const driver = document.getElementById('activeTripDriver');
   const eta = document.getElementById('activeTripEta');
   const vehicle = document.getElementById('activeTripVehicle');
   const plate = document.getElementById('activeTripPlate');
   const shareSlot = document.getElementById('activeTripShareSlot');
+  const conciergeSlot = document.getElementById('activeTripConciergeSlot');
   const completionSlot = document.getElementById('activeTripCompletionSlot');
   const total = Number(data.totalPay || data.estimatedFare || 0).toFixed(2);
 
@@ -307,6 +320,9 @@ function renderNativeTripView(status, data) {
       : status === 'in_progress'
         ? 'Heading to destination'
         : 'Trip Completed';
+  // 司機姓名／車型／車牌一律使用真實資料，嚴禁出現 "--" 或空白；
+  // 尚未取得真實資料前，改以有意義的預設文字（而非佔位符號）呈現。
+  if (driverNameEl) driverNameEl.textContent = data.driverName ? `Chauffeur: ${data.driverName}` : 'Chauffeur: Assigned Fleet Partner';
   driver.textContent = status === 'accepted' || status === 'matched'
     ? 'Your chauffeur is on the way to the pick-up point.'
     : status === 'arrived'
@@ -315,8 +331,8 @@ function renderNativeTripView(status, data) {
         ? 'Your trip is in progress.'
         : `Final fare: ₱${total}`;
   eta.textContent = status === 'accepted' || status === 'matched' ? 'ETA updating' : status === 'arrived' ? 'Arrived' : status === 'in_progress' ? 'On route' : 'Complete';
-  vehicle.textContent = data.driverModel || data.vehicleType || data.serviceName || 'Private Fleet';
-  plate.textContent = data.driverPlate || 'Private Fleet';
+  vehicle.textContent = data.driverVehicle || data.driverModel || data.vehicleType || data.serviceName || 'Executive Fleet';
+  plate.textContent = data.driverPlate || 'Plate Pending';
   shareSlot.innerHTML = '';
   document.getElementById('activeTripPendingSlot')?.classList.add('hidden');
   completionSlot.innerHTML = '';
@@ -331,6 +347,8 @@ function renderNativeTripView(status, data) {
       </button>`;
     shareSlot.querySelector('#btnShareTrip')?.addEventListener('click', shareLiveTripStatus);
   }
+  // 🛎️ VIP Concierge：在行程進行期間（非 completed）常駐快捷聯繫入口。
+  renderConciergeQuickActions(conciergeSlot, status, data);
   // Stage 4/5：結算卡片，Done 按鈕先跳出二次確認彈窗，避免誤觸直接結束行程。
   if (status === 'completed') {
     completionSlot.innerHTML = `
@@ -342,8 +360,91 @@ function renderNativeTripView(status, data) {
       </div>`;
     completionSlot.querySelector('#btnTripDone')?.addEventListener('click', openTripEndConfirmDialog);
   }
-  card.classList.remove('hidden');
+
+  // 依 Layer 2 最小化狀態決定顯示視窗本體或懸浮氣泡，維持 Layer 1 手勢自由。
+  if (isActiveTripMinimized) {
+    card.classList.add('hidden');
+    card.style.display = 'none';
+    showActiveTripFloatingBubble(data);
+  } else {
+    card.classList.remove('hidden');
+    card.style.display = '';
+    hideActiveTripFloatingBubble();
+  }
   renderNativeTripRoute(status, data);
+}
+
+// 🛎️ VIP Concierge：行程進行期間（accepted/arrived/in_progress）常駐的
+// WhatsApp／撥號快捷聯繫入口；行程結束（completed）不再顯示聯繫按鈕。
+function renderConciergeQuickActions(slot, status, data) {
+  if (!slot) return;
+  slot.innerHTML = '';
+  if (status === 'completed') return;
+  const phone = String(data.driverPhone || '').trim();
+  if (!phone) return;
+  const wa = phone.replace(/[^0-9]/g, '');
+  slot.innerHTML = `
+    <div class="grid grid-cols-2 gap-2">
+      <a href="https://wa.me/${wa}" target="_blank" rel="noopener" class="flex items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700 transition hover:bg-emerald-100 active:scale-95">
+        <span>🛎️</span><span>VIP Concierge</span>
+      </a>
+      <a href="tel:${phone}" class="flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-600 transition hover:bg-slate-100 active:scale-95">
+        <span>📞</span><span>Call Driver</span>
+      </a>
+    </div>`;
+}
+
+// 依司機性別展示對應懸浮氣泡頭像；無資料時退回通用管家圖示。
+function updateFloatingBubbleAvatar(data) {
+  const img = document.getElementById('floatingBubbleAvatar');
+  if (!img) return;
+  const gender = String((data && data.driverGender) || '').toLowerCase();
+  img.src = gender === 'female'
+    ? './assets/icons/mascot-vip-female.svg'
+    : gender === 'male'
+      ? './assets/icons/mascot-vip-male.svg'
+      : './assets/icons/mascot-chauffeur.svg';
+}
+
+function showActiveTripFloatingBubble(data) {
+  updateFloatingBubbleAvatar(data || lastTripData || {});
+  const bubble = document.getElementById('activeTripFloatingBubble');
+  if (!bubble) return;
+  bubble.classList.remove('hidden');
+  bubble.classList.add('flex');
+}
+
+function hideActiveTripFloatingBubble() {
+  const bubble = document.getElementById('activeTripFloatingBubble');
+  if (!bubble) return;
+  bubble.classList.add('hidden');
+  bubble.classList.remove('flex');
+}
+
+// Layer 2 → 懸浮氣泡：最小化後 Layer 1 主畫面（表單、地圖手勢）完全恢復自由，
+// 司機資訊持續在背景（Firestore 監聽）更新，乘客可隨時點擊氣泡還原完整視窗。
+function minimizeActiveTrip() {
+  isActiveTripMinimized = true;
+  const card = document.getElementById('activeTripBottomCard');
+  if (card) {
+    card.classList.add('hidden');
+    card.style.display = 'none';
+  }
+  if (typeof unlockMainMapGestures === 'function') unlockMainMapGestures();
+  showActiveTripFloatingBubble(lastTripData);
+}
+
+function restoreActiveTripFromBubble() {
+  isActiveTripMinimized = false;
+  hideActiveTripFloatingBubble();
+  const card = document.getElementById('activeTripBottomCard');
+  if (card) {
+    card.classList.remove('hidden');
+    card.style.display = '';
+  }
+  if (lastTripStatus && lastTripStatus !== 'completed' && typeof lockMainMapGestures === 'function') {
+    lockMainMapGestures();
+  }
 }
 
 function showDriverNoticeToPassenger(message) {
@@ -633,6 +734,12 @@ function restoreBookingHomeView() {
     activeTripBottomCard.classList.add('hidden');
     activeTripBottomCard.style.display = 'none';
   }
+  // Stage 6 徹底重置：連同 Layer 2 懸浮氣泡一併銷毀，並清除最小化狀態暫存，
+  // 避免下一趟行程開始時殘留上一趟的司機資料或最小化偏好。
+  hideActiveTripFloatingBubble();
+  isActiveTripMinimized = false;
+  lastTripStatus = null;
+  lastTripData = null;
   // 重置懸浮卡片內的訂單狀態文字，避免下次顯示前殘留舊資訊。
   const dispatchStatusText = document.getElementById('dispatchStatusText');
   if (dispatchStatusText) dispatchStatusText.textContent = 'Connecting to exclusive fleet in real-time...';
@@ -845,3 +952,7 @@ window.addEventListener("DOMContentLoaded", safeInvoke(function () {
     resetAppToIdle();
   });
 }, "wireTripEndConfirmDialog"));
+window.addEventListener("DOMContentLoaded", safeInvoke(function () {
+  document.getElementById('btnMinimizeActiveTrip')?.addEventListener('click', minimizeActiveTrip);
+  document.getElementById('activeTripFloatingBubble')?.addEventListener('click', restoreActiveTripFromBubble);
+}, "wireActiveTripMinimizeControls"));

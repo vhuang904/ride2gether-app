@@ -446,11 +446,15 @@
     </div>
   </div>
 
-  <section id="activeTripBottomCard" class="fixed bottom-4 left-4 right-4 z-40 hidden max-w-md mx-auto rounded-2xl border border-slate-100 bg-white p-5 shadow-xl" aria-live="polite">
+  <section id="activeTripBottomCard" class="fixed bottom-4 left-4 right-4 z-40 hidden max-w-md mx-auto rounded-2xl border border-slate-100 bg-white p-5 pt-9 shadow-xl relative" aria-live="polite">
+    <button type="button" id="btnMinimizeActiveTrip" aria-label="Minimize trip panel" class="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-500 transition hover:bg-slate-100 active:scale-95">
+      <span class="text-xs font-bold leading-none">✕</span>
+    </button>
     <div class="flex items-start justify-between gap-3">
       <div>
         <p id="activeTripStateLabel" class="text-[10px] font-bold uppercase tracking-[0.2em] text-blue-600">Active Trip</p>
         <h3 id="activeTripTitle" class="mt-1 text-lg font-bold text-slate-900">Driver accepted your trip</h3>
+        <p id="activeTripDriverName" class="mt-0.5 text-xs font-semibold text-slate-500">Chauffeur: Assigned Fleet Partner</p>
       </div>
       <span id="activeTripEta" class="rounded-full border border-blue-100 bg-blue-50 px-2.5 py-1 text-[11px] font-semibold text-blue-700">ETA updating</span>
     </div>
@@ -465,10 +469,19 @@
         <strong id="activeTripPlate" class="mt-1 block text-slate-900">--</strong>
       </div>
     </div>
+    <div id="activeTripConciergeSlot" class="mt-3"></div>
     <div id="activeTripShareSlot" class="mt-3 hidden"></div>
     <div id="activeTripPendingSlot" class="mt-3 hidden"></div>
     <div id="activeTripCompletionSlot" class="mt-3 hidden"></div>
   </section>
+
+  <!-- Layer 2 最小化後的螢幕邊緣懸浮氣泡：點擊即可無縫還原完整行程視窗，
+       Layer 1 主畫面（表單、地圖）在氣泡顯示期間完全自由不受遮擋。 -->
+  <button type="button" id="activeTripFloatingBubble" aria-label="Restore active trip panel" class="fixed bottom-24 right-4 z-40 hidden h-16 w-16 items-center justify-center rounded-full border-2 border-blue-200 bg-white shadow-2xl ring-4 ring-blue-50 transition active:scale-95">
+    <img id="floatingBubbleAvatar" src="./assets/icons/mascot-chauffeur.svg" class="h-10 w-10" alt="Driver" />
+    <span class="absolute -top-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-white bg-blue-600"></span>
+  </button>
+
 
   <!-- Stage 5 二次確認彈窗：僅在乘客主動點擊 Done 時才短暫出現，防止誤觸結束行程。 -->
   <div id="tripEndConfirmDialog" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/40 px-6">
