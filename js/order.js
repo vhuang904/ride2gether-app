@@ -1,12 +1,13 @@
 // --- 6. 叫車下單與 Firestore 連線 ---
 async function requestOrder() {
   const submitBtn = document.getElementById('btnSubmit');
+  clearOrderValidationError();
   let from = "", to = "", notes = "";
   if (currentCategory === 'mobility') {
     from = document.getElementById('pickupLoc')?.value.trim() || "";
     to = document.getElementById('dropoffLoc')?.value.trim() || "";
     if (!from || !to) {
-      alert("Please specify both Pick-up and Drop-off locations.");
+      showOrderValidationError("請先輸入起訖點 (Please specify both Pick-up and Drop-off locations).");
       return;
     }
   } else {
@@ -14,14 +15,17 @@ async function requestOrder() {
     to = document.getElementById('conciergeDropoff')?.value.trim() || "";
     notes = document.getElementById('itemList')?.value.trim() || "";
     if (!from || !to) {
-      alert("Please specify both Store/Pickup and Delivery locations.");
+      showOrderValidationError("請先輸入起訖點 (Please specify both Store/Pickup and Delivery locations).");
       return;
     }
   }
 
-  if (!db || typeof firebase === "undefined" || !firebase.firestore) {
-    showOrderCreationError("The booking service is still loading. Please try again in a moment.");
-    console.error("[Passenger] Order dispatch blocked: Firestore is unavailable.");
+  if (typeof db === "undefined" || !db || typeof firebase === "undefined" || !firebase.firestore) {
+    showOrderValidationError("The booking service is still loading. Please try again in a moment.");
+    console.error("[Passenger] Order dispatch blocked: Firestore is unavailable.", {
+      hasDb: typeof db !== "undefined" && Boolean(db),
+      hasFirebase: typeof firebase !== "undefined"
+    });
     return;
   }
 
@@ -36,7 +40,7 @@ async function requestOrder() {
 
   if (!serviceRate) {
     console.error("Order dispatch blocked: missing service rate.", currentService);
-    alert("Unable to calculate this service fare. Please select the service again.");
+    showOrderValidationError("Unable to calculate this service fare. Please select the service again.");
     return;
   }
 
@@ -103,32 +107,24 @@ async function requestOrder() {
       error: err
     });
     localStorage.removeItem('r2g_active_order_id');
-    currentOrderId = null;
     stopDispatchTimer();
-    showOrderCreationError(`Unable to send order${err?.code ? ` (${err.code})` : ""}. Please try again.`);
-    if (submitBtn) {
-      submitBtn.disabled = false;
-      submitBtn.classList.remove('opacity-60', 'pointer-events-none');
-    }
+    finishTripAndReset();
+    showOrderValidationError(`建立訂單失敗，請稍後再試 (Unable to send order${err?.code ? ` · ${err.code}` : ""}).`);
   }
+}
 
-  function showOrderCreationError(message) {
-    const card = document.getElementById('activeTripBottomCard');
-    const state = document.getElementById('activeTripStateLabel');
-    const title = document.getElementById('activeTripTitle');
-    const driver = document.getElementById('activeTripDriver');
-    const eta = document.getElementById('activeTripEta');
-    const pendingSlot = document.getElementById('activeTripPendingSlot');
-    if (state) state.textContent = 'Request not sent';
-    if (title) title.textContent = 'We could not create your order';
-    if (driver) driver.textContent = message;
-    if (eta) eta.textContent = 'Try again';
-    if (pendingSlot) {
-      pendingSlot.innerHTML = '<button type="button" onclick="finishTripAndReset()" class="w-full rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-blue-700">Return to booking</button>';
-      pendingSlot.classList.remove('hidden');
-    }
-    if (card) card.classList.remove('hidden');
-  }
+function showOrderValidationError(message) {
+  const banner = document.getElementById('orderValidationError');
+  if (!banner) return;
+  banner.textContent = message;
+  banner.classList.remove('hidden');
+}
+
+function clearOrderValidationError() {
+  const banner = document.getElementById('orderValidationError');
+  if (!banner) return;
+  banner.textContent = '';
+  banner.classList.add('hidden');
 }
 
 function subscribeToOrder(orderId) {
