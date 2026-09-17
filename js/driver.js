@@ -3,7 +3,9 @@ const DRIVER_ID = "DRV-001";
 const DRIVER_NAME = "BigV904";
 const DRIVER_VEHICLE = "Executive Sedan";
 const pendingClaims = new Set();
+const dismissedOrderIds = new Set();
 const observedOrderStatuses = new Map();
+const ORDER_STALE_AFTER_MS = 30 * 60 * 1000;
 let noticeTimer = null;
 
 function escapeHtml(value) {
@@ -27,15 +29,20 @@ function formatCreatedAt(value) {
 }
 
 function getCreatedAtMillis(value) {
+  if (value == null) return null;
   if (value && typeof value.toMillis === "function") return value.toMillis();
   if (value && typeof value.toDate === "function") return value.toDate().getTime();
   const millis = new Date(value || 0).getTime();
-  return Number.isNaN(millis) ? 0 : millis;
+  return Number.isNaN(millis) ? null : millis;
 }
 
 function formatFare(value) {
   const fare = Number(value);
   return Number.isFinite(fare) ? `₱${fare.toFixed(2)}` : "Fare pending";
+}
+
+function isStaleOrder(createdAtMillis) {
+  return createdAtMillis != null && Date.now() - createdAtMillis > ORDER_STALE_AFTER_MS;
 }
 
 function showDriverNotice(message) {
@@ -57,17 +64,18 @@ function renderOrders(snapshot) {
   snapshot.forEach((doc) => {
     const order = doc.data();
     const status = String(order.status || "").toLowerCase();
+    const createdAtMillis = getCreatedAtMillis(order.createdAt);
     const previousStatus = observedOrderStatuses.get(doc.id);
     if (status === "cancelled" && previousStatus === "pending") {
       showDriverNotice("Passenger cancelled this trip.");
       pendingClaims.delete(doc.id);
     }
     observedOrderStatuses.set(doc.id, status);
-    if (status === "pending") {
+    if (status === "pending" && !dismissedOrderIds.has(doc.id) && !isStaleOrder(createdAtMillis)) {
       pendingOrders.push({
         id: doc.id,
         ...order,
-        createdAtMillis: getCreatedAtMillis(order.createdAt)
+        createdAtMillis
       });
     }
   });
@@ -89,7 +97,10 @@ function renderOrders(snapshot) {
           <p class="font-mono text-xs font-semibold text-blue-600">${displayValue(order.id)}</p>
           <h3 class="mt-1 text-base font-bold text-slate-900">${displayValue(order.vehicleType || order.serviceName || order.vehicle, "Standard ride")}</h3>
         </div>
-        <p class="text-lg font-bold text-slate-900">${formatFare(order.estimatedFare ?? order.fare ?? order.totalPay)}</p>
+        <div class="flex items-start gap-2">
+          <p class="text-lg font-bold text-slate-900">${formatFare(order.estimatedFare ?? order.fare ?? order.totalPay)}</p>
+          <button type="button" data-order-id="${escapeHtml(order.id)}" class="dismiss-order rounded-lg bg-slate-100 px-2 py-1 text-xs font-bold text-slate-600 transition hover:bg-slate-200" aria-label="Dismiss order">×</button>
+        </div>
       </div>
       <dl class="mt-4 space-y-3 border-t border-slate-100 pt-4 text-sm">
         <div class="flex gap-3">
@@ -137,6 +148,30 @@ async function claimOrder(orderId, button) {
   }
 }
 
+async function dismissOrder(orderId) {
+  if (!orderId) return;
+  dismissedOrderIds.add(orderId);
+  renderOrders(lastOrderSnapshot);
+  showDriverNotice("Order dismissed from this panel.");
+
+  try {
+    await db.collection(DRIVER_ORDERS_COLLECTION).doc(orderId).set({
+      status: "closed",
+      closedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      closedBy: DRIVER_ID
+    }, { merge: true });
+  } catch (error) {
+    console.error("[Driver] Unable to close dismissed order:", {
+      orderId,
+      code: error.code || "unknown",
+      message: error.message || "unknown",
+      error
+    });
+  }
+}
+
+let lastOrderSnapshot = null;
+
 function listenForPendingOrders() {
   document.getElementById("driverStatus").textContent = "Connecting to pending orders...";
   console.log(`[Driver] Listening to ${DRIVER_ORDERS_COLLECTION} without composite index query.`);
@@ -144,6 +179,7 @@ function listenForPendingOrders() {
   db.collection(DRIVER_ORDERS_COLLECTION).onSnapshot(
     (snapshot) => {
       console.log(`[Driver] Order snapshot received: ${snapshot.size} documents.`);
+      lastOrderSnapshot = snapshot;
       renderOrders(snapshot);
       document.getElementById("driverStatus").textContent = "Connected. Listening for new pending orders.";
     },
@@ -155,6 +191,11 @@ function listenForPendingOrders() {
 }
 
 document.getElementById("ordersContainer").addEventListener("click", (event) => {
+  const dismissButton = event.target.closest(".dismiss-order");
+  if (dismissButton) {
+    dismissOrder(dismissButton.dataset.orderId);
+    return;
+  }
   const button = event.target.closest(".claim-order");
   if (button) claimOrder(button.dataset.orderId, button);
 });

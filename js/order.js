@@ -499,6 +499,8 @@ async function cancelAndReset() {
     } catch (err) {
       console.error('[Passenger] Cancellation write failed:', {
         orderId: targetOrderId,
+        code: err.code || 'unknown',
+        message: err.message || 'unknown',
         error: err
       });
     }
