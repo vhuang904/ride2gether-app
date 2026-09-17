@@ -1381,6 +1381,16 @@
       }
     }
 
+    function reverseGeocode(pos, targetInputId) {
+      if (!geocoderInstance) return;
+      geocoderInstance.geocode({ location: pos }, (res, status) => {
+        if (status === "OK" && res[0]) {
+          const el = document.getElementById(targetInputId);
+          if (el) el.value = res[0].formatted_address;
+        }
+      });
+    }
+    
     function lockCurrentPin(isConfirmed) {
       const bubble = document.getElementById('pinActionBubble');
       const badge = document.getElementById('pinLockStatusBadge');
