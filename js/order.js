@@ -230,9 +230,12 @@ function prepareNativeTripView() {
   if (mapContainer) {
     mapContainer.classList.remove('hidden');
     mapContainer.classList.remove('mt-3');
-    mapContainer.style.height = 'calc(100vh - 150px)';
+    // 縮小地圖高度上限，避免與下方合一後的行程卡片之間出現大片空白斷層。
+    mapContainer.style.height = 'min(48vh, 360px)';
     if (mapInstance && window.google) google.maps.event.trigger(mapInstance, 'resize');
   }
+  // 行程進行期間「預估路程/時間」卡片已失去意義，隱藏以緊貼地圖與行程卡片。
+  document.getElementById('estimatedRouteCard')?.classList.add('hidden');
   const legacyModal = document.getElementById('dispatchModal');
   if (legacyModal) {
     legacyModal.classList.add('hidden');
@@ -757,6 +760,7 @@ function restoreBookingHomeView() {
     mapContainer.style.height = '';
     mapContainer.classList.add('mt-3');
   }
+  document.getElementById('estimatedRouteCard')?.classList.remove('hidden');
   const mainEl = document.querySelector('main');
   if (mainEl) {
     const sections = mainEl.querySelectorAll('section');
@@ -956,6 +960,6 @@ window.addEventListener("DOMContentLoaded", safeInvoke(function () {
   });
 }, "wireTripEndConfirmDialog"));
 window.addEventListener("DOMContentLoaded", safeInvoke(function () {
-  document.getElementById('btnMinimizeActiveTrip')?.addEventListener('click', minimizeActiveTrip);
+  document.getElementById('btnMinimizeTrip')?.addEventListener('click', minimizeActiveTrip);
   document.getElementById('tripFloatingBubble')?.addEventListener('click', restoreActiveTripFromBubble);
 }, "wireActiveTripMinimizeControls"));

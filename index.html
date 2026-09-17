@@ -253,7 +253,7 @@
       </div>
 
       <!-- 預估行車距離與車程時間卡 -->
-      <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between shadow-sm">
+      <div id="estimatedRouteCard" class="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between shadow-sm">
         <div class="flex items-center space-x-2">
           <div class="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-sm">
             🛣️
@@ -289,8 +289,8 @@
       <!-- 行程進行中：整併呈現於同一張上方容器內，避免與獨立浮動卡片視覺割裂。
            小費區塊於行程開始時隱藏，此區塊接手同一位置。 -->
       <div id="activeTripPanel" class="hidden relative mt-1 rounded-2xl border border-blue-100 bg-blue-50/40 p-4" aria-live="polite">
-        <button type="button" id="btnMinimizeActiveTrip" aria-label="Minimize trip panel" class="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-100 active:scale-95">
-          <span class="text-xs font-bold leading-none">✕</span>
+        <button type="button" id="btnMinimizeTrip" aria-label="Minimize trip panel" class="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:bg-slate-100 active:scale-95">
+          <span class="text-sm font-bold leading-none">✕</span>
         </button>
         <div class="flex items-start justify-between gap-3 pr-8">
           <div>
