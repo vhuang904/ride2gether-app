@@ -637,7 +637,7 @@
 
   <script>
     // --- 1. SERVICE WORKER 版本控管 ---
-    const APP_VERSION = 'ride2gether-cache-v7.6';
+    const APP_VERSION = 'ride2gether-cache-v7.7';
 
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
@@ -1380,11 +1380,12 @@
           calculateAndDisplayRoute(true);
         }
       } else {
-        clearLocationInput(
-          (currentEditingMarkerType === 'pickup') ? (isMobility ? 'pickupLoc' : 'conciergePickup') : (isMobility ? 'dropoffLoc' : 'conciergeDropoff'),
-          currentEditingMarkerType,
-          currentCategory
-        );
+        // 點擊 ✕ 取消時：只關閉提示氣泡，保持圖釘在畫面上且仍可自由拖曳調整
+        if (marker) marker.setDraggable(true);
+        if (badge) {
+          badge.innerText = "Drag pin to adjust";
+          badge.className = "text-[11px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200";
+        }
       }
     }
 
