@@ -3,29 +3,35 @@ async function requestOrder() {
   const submitBtn = document.getElementById('btnSubmit');
   let from = "", to = "", notes = "";
   if (currentCategory === 'mobility') {
-    from = document.getElementById('pickupLoc').value.trim();
-    to = document.getElementById('dropoffLoc').value.trim();
+    from = document.getElementById('pickupLoc')?.value.trim() || "";
+    to = document.getElementById('dropoffLoc')?.value.trim() || "";
     if (!from || !to) {
       alert("Please specify both Pick-up and Drop-off locations.");
       return;
     }
   } else {
-    from = document.getElementById('conciergePickup').value.trim();
-    to = document.getElementById('conciergeDropoff').value.trim();
-    notes = document.getElementById('itemList').value.trim();
+    from = document.getElementById('conciergePickup')?.value.trim() || "";
+    to = document.getElementById('conciergeDropoff')?.value.trim() || "";
+    notes = document.getElementById('itemList')?.value.trim() || "";
     if (!from || !to) {
       alert("Please specify both Store/Pickup and Delivery locations.");
       return;
     }
   }
 
-  const custName = currentUserProfile.name || "VIP Guest";
-  const custPhone = currentUserProfile.phone || "0917-000-0000";
+  if (!db || typeof firebase === "undefined" || !firebase.firestore) {
+    showOrderCreationError("The booking service is still loading. Please try again in a moment.");
+    console.error("[Passenger] Order dispatch blocked: Firestore is unavailable.");
+    return;
+  }
 
-  const dist = parseFloat(document.getElementById('distance').value) || 0;
-  const itemCost = (currentService === 'PABILI') ? (parseFloat(document.getElementById('itemCost').value) || 0) : 0;
-  const tip = parseFloat(document.getElementById('priorityTip').value) || 0;
-  const finalPrice = parseFloat(document.getElementById('estTotal').innerText) || 0;
+  const custName = currentUserProfile?.name || "VIP Guest";
+  const custPhone = currentUserProfile?.phone || "0917-000-0000";
+
+  const dist = parseFloat(document.getElementById('distance')?.value) || 0;
+  const itemCost = (currentService === 'PABILI') ? (parseFloat(document.getElementById('itemCost')?.value) || 0) : 0;
+  const tip = parseFloat(document.getElementById('priorityTip')?.value) || 0;
+  const finalPrice = parseFloat(document.getElementById('estTotal')?.innerText) || 0;
   const serviceRate = RATES[currentService];
 
   if (!serviceRate) {
@@ -64,6 +70,7 @@ async function requestOrder() {
     totalPay: finalPrice,
     pickup: from,
     dropoff: to,
+    fare: finalPrice,
     vehicleType: serviceRate.nameEn,
     estimatedFare: finalPrice,
     status: 'pending',
@@ -72,6 +79,14 @@ async function requestOrder() {
 
   try {
     await db.collection("orders").doc(orderId).set(orderData);
+    console.log("[Passenger] Order written to Firestore:", {
+      orderId,
+      collection: "orders",
+      status: orderData.status,
+      pickup: orderData.pickup,
+      destination: orderData.destination,
+      fare: orderData.fare
+    });
     subscribeToOrder(orderId);
 
     fetch(GAS_WEBHOOK_URL, {
@@ -81,16 +96,38 @@ async function requestOrder() {
       body: JSON.stringify({ action: 'NEW_ORDER', ...orderData })
     }).catch(e => console.warn('Background sync:', e));
   } catch (err) {
-    console.error("Order dispatch failed:", err);
-    const statusText = document.getElementById('dispatchStatusText');
-    if (statusText) {
-      statusText.innerText = `Unable to send order: ${err.message || 'connection error'}`;
-      statusText.className = 'text-xs text-rose-600 mt-1';
-    }
+    console.error("[Passenger] Order dispatch failed:", {
+      orderId,
+      code: err?.code || "unknown",
+      message: err?.message || "connection error",
+      error: err
+    });
+    localStorage.removeItem('r2g_active_order_id');
+    currentOrderId = null;
+    stopDispatchTimer();
+    showOrderCreationError(`Unable to send order${err?.code ? ` (${err.code})` : ""}. Please try again.`);
     if (submitBtn) {
       submitBtn.disabled = false;
       submitBtn.classList.remove('opacity-60', 'pointer-events-none');
     }
+  }
+
+  function showOrderCreationError(message) {
+    const card = document.getElementById('activeTripBottomCard');
+    const state = document.getElementById('activeTripStateLabel');
+    const title = document.getElementById('activeTripTitle');
+    const driver = document.getElementById('activeTripDriver');
+    const eta = document.getElementById('activeTripEta');
+    const pendingSlot = document.getElementById('activeTripPendingSlot');
+    if (state) state.textContent = 'Request not sent';
+    if (title) title.textContent = 'We could not create your order';
+    if (driver) driver.textContent = message;
+    if (eta) eta.textContent = 'Try again';
+    if (pendingSlot) {
+      pendingSlot.innerHTML = '<button type="button" onclick="finishTripAndReset()" class="w-full rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-blue-700">Return to booking</button>';
+      pendingSlot.classList.remove('hidden');
+    }
+    if (card) card.classList.remove('hidden');
   }
 }
 
