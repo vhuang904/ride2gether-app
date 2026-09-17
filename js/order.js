@@ -222,16 +222,21 @@ function prepareNativeTripView() {
       if (sections[2]) sections[2].classList.add('hidden');
       if (setupSection) setupSection.classList.remove('hidden');
     }
-    const gridMobility = document.getElementById('grid-mobility');
-    const gridConcierge = document.getElementById('grid-concierge');
-    const fieldsMobility = document.getElementById('fields-mobility');
-    const fieldsConcierge = document.getElementById('fields-concierge');
-    const savedPlaces = document.getElementById('mainSavedPlacesChips');
-    [gridMobility, gridConcierge, fieldsMobility, fieldsConcierge, savedPlaces].forEach(element => {
-      if (element) element.classList.add('hidden');
-    });
-    const submitBtn = document.getElementById('btnSubmit');
-    if (submitBtn) submitBtn.classList.add('hidden');
+    // 每次 Firestore snapshot 更新（司機座標移動、狀態變更）都會重跑此函式；
+    // 若當下正處於最小化氣泡狀態，Concierge 表單本應保持完整可視可操作，
+    // 絕不能被這裡無條件的隱藏邏輯每隔幾秒就打回空殼。
+    if (!isActiveTripMinimized) {
+      const gridMobility = document.getElementById('grid-mobility');
+      const gridConcierge = document.getElementById('grid-concierge');
+      const fieldsMobility = document.getElementById('fields-mobility');
+      const fieldsConcierge = document.getElementById('fields-concierge');
+      const savedPlaces = document.getElementById('mainSavedPlacesChips');
+      [gridMobility, gridConcierge, fieldsMobility, fieldsConcierge, savedPlaces].forEach(element => {
+        if (element) element.classList.add('hidden');
+      });
+      const submitBtn = document.getElementById('btnSubmit');
+      if (submitBtn) submitBtn.classList.add('hidden');
+    }
   }
 
   const mapContainer = document.getElementById('mapPreviewContainer');
