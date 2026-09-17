@@ -196,6 +196,7 @@ function renderPendingOrderView(orderId) {
   shareSlot?.classList.add('hidden');
   completionSlot?.classList.add('hidden');
   card.classList.remove('hidden');
+  card.style.display = '';
 }
 
 function prepareNativeTripView() {
@@ -232,7 +233,11 @@ function prepareNativeTripView() {
     legacyModal.setAttribute('inert', '');
   }
   document.getElementById('mascotCapsule')?.classList.add('hidden');
-  document.getElementById('activeTripBottomCard')?.classList.remove('hidden');
+  const bottomCard = document.getElementById('activeTripBottomCard');
+  if (bottomCard) {
+    bottomCard.classList.remove('hidden');
+    bottomCard.style.display = '';
+  }
 }
 
 function getOrderCoordinate(value) {
@@ -713,11 +718,27 @@ function stopDispatchTimer() {
 // 供 cancelAndReset() 與 finishTripAndReset() 共用，避免取消訂單後
 // 畫面停留在被 prepareNativeTripView() 隱藏的空白狀態。
 function restoreBookingHomeView() {
-  document.getElementById('dispatchModal')?.classList.add('hidden');
-  document.getElementById('radarSection')?.classList.remove('hidden');
+  const dispatchModal = document.getElementById('dispatchModal');
+  if (dispatchModal) {
+    dispatchModal.classList.add('hidden');
+    dispatchModal.style.display = 'none';
+  }
+  const radarSection = document.getElementById('radarSection');
+  if (radarSection) radarSection.classList.remove('hidden');
   document.getElementById('matchedCard')?.classList.add('hidden');
   document.getElementById('mascotCapsule')?.classList.add('hidden');
-  document.getElementById('activeTripBottomCard')?.classList.add('hidden');
+  const activeTripBottomCard = document.getElementById('activeTripBottomCard');
+  if (activeTripBottomCard) {
+    activeTripBottomCard.classList.add('hidden');
+    activeTripBottomCard.style.display = 'none';
+  }
+  // 重置懸浮卡片內的訂單狀態文字，避免下次顯示前殘留舊資訊。
+  const dispatchStatusText = document.getElementById('dispatchStatusText');
+  if (dispatchStatusText) dispatchStatusText.textContent = 'Connecting to exclusive fleet in real-time...';
+  const modalOrderId = document.getElementById('modalOrderId');
+  if (modalOrderId) modalOrderId.textContent = '';
+  const pendingSlot = document.getElementById('activeTripPendingSlot');
+  if (pendingSlot) pendingSlot.innerHTML = '';
   if (typeof directionsRenderer !== 'undefined' && directionsRenderer) {
     directionsRenderer.set('directions', null);
   }
