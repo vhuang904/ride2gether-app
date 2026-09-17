@@ -24,7 +24,16 @@ function updateCardBadges() {
   setBadge('badge-PABILI', RATES.PABILI.base);
 }
 
-function switchCategory(cat) {
+function switchCategory(cat, opts = {}) {
+  // 行程進行中且已最小化為氣泡時，禁止在 Layer1 展開 Mobility 叫車表單/大地圖，
+  // 直接視為「乘客想看行程」，無縫召回 Layer2。skipMinimizeGuard 供
+  // minimizeActiveTrip() 內部自動切至 Concierge 時使用，避免誤觸此守衛。
+  if (!opts.skipMinimizeGuard && typeof isActiveTripMinimized !== 'undefined'
+      && isActiveTripMinimized && cat === 'mobility') {
+    if (typeof restoreActiveTripFromBubble === 'function') restoreActiveTripFromBubble();
+    return;
+  }
+
   currentCategory = cat;
   const tabMobility = document.getElementById('tab-mobility');
   const tabConcierge = document.getElementById('tab-concierge');

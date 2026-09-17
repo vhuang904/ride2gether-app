@@ -464,6 +464,18 @@ function minimizeActiveTrip() {
   if (panel) panel.classList.add('hidden');
   // 露出原本的主應用程式畫面（分類選擇區、價格儀表板），讓乘客可自由操作。
   setLayer1Visible(true);
+
+  // 最小化直通純文字管家頁：Concierge 已全程去地圖化，秒開零黑屏破圖，
+  // 讓乘客在等車/行程中仍可自由操作叫車以外的管家下單。skipMinimizeGuard
+  // 旗標避免觸發 switchCategory() 內針對 Mobility 的最小化召回守衛（見下方）。
+  if (typeof switchCategory === 'function') switchCategory('concierge', { skipMinimizeGuard: true });
+
+  // 修復既有缺陷：prepareNativeTripView() 每次都會無條件隱藏這些 Layer1 表單元件，
+  // 最小化當下需主動補回，否則分類選擇區雖可見卻是空殼、看不到任何管家輸入框。
+  ['grid-concierge', 'fields-concierge', 'mainSavedPlacesChips', 'btnSubmit'].forEach(id => {
+    document.getElementById(id)?.classList.remove('hidden');
+  });
+
   if (typeof unlockMainMapGestures === 'function') unlockMainMapGestures();
   showActiveTripFloatingBubble(lastTripData);
 }
@@ -473,6 +485,13 @@ function restoreActiveTripFromBubble() {
   hideActiveTripFloatingBubble();
   // 收起 Layer 1 主畫面，將 Layer 2 大容器完整彈回全螢幕。
   setLayer1Visible(false);
+
+  // 收回最小化期間為了露出管家表單而解除隱藏的 Layer1 內容，讓下次
+  // prepareNativeTripView() 的既有隱藏邏輯與畫面狀態保持一致，不留殘影。
+  ['grid-concierge', 'fields-concierge', 'mainSavedPlacesChips', 'btnSubmit'].forEach(id => {
+    document.getElementById(id)?.classList.add('hidden');
+  });
+
   const panel = document.getElementById('step2Panel');
   if (panel) panel.classList.remove('hidden');
   if (lastTripStatus && lastTripStatus !== 'completed' && typeof lockMainMapGestures === 'function') {
