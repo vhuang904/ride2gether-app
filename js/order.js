@@ -211,9 +211,17 @@ function prepareNativeTripView() {
   if (mainEl) {
     const sections = mainEl.querySelectorAll('section');
     const setupSection = sections[1];
-    if (sections[0]) sections[0].classList.add('hidden');
-    if (sections[2]) sections[2].classList.add('hidden');
-    if (setupSection) setupSection.classList.remove('hidden');
+    if (isActiveTripMinimized) {
+      // Layer 2 已最小化為懸浮氣泡：讓 Layer 1（分類選擇／價格儀表板）
+      // 保持顯示並可自由操作，Layer 2 大容器整個維持隱藏。
+      if (sections[0]) sections[0].classList.remove('hidden');
+      if (sections[2]) sections[2].classList.remove('hidden');
+      if (setupSection) setupSection.classList.add('hidden');
+    } else {
+      if (sections[0]) sections[0].classList.add('hidden');
+      if (sections[2]) sections[2].classList.add('hidden');
+      if (setupSection) setupSection.classList.remove('hidden');
+    }
     const gridMobility = document.getElementById('grid-mobility');
     const gridConcierge = document.getElementById('grid-concierge');
     const fieldsMobility = document.getElementById('fields-mobility');
@@ -234,6 +242,8 @@ function prepareNativeTripView() {
     mapContainer.style.height = 'min(48vh, 360px)';
     if (mapInstance && window.google) google.maps.event.trigger(mapInstance, 'resize');
   }
+  // 起訖點一旦鎖定進入派單/追蹤流程，地圖上絕不可殘留「Confirm Yes/No」拖曳確認彈窗。
+  if (typeof closePinConfirmBubble === 'function') closePinConfirmBubble();
   // 行程進行期間「預估路程/時間」卡片已失去意義，隱藏以緊貼地圖與行程卡片。
   document.getElementById('estimatedRouteCard')?.classList.add('hidden');
   const legacyModal = document.getElementById('dispatchModal');
@@ -245,6 +255,12 @@ function prepareNativeTripView() {
   document.getElementById('mascotCapsule')?.classList.add('hidden');
   // 整併需求：行程進行期間隱藏「小費區塊」，讓合一後的行程卡片取代其視覺空間。
   document.getElementById('priorityTipSection')?.classList.add('hidden');
+  // Layer 2 全域最小化鈕：僅在行程進行中顯示，位於 #step2Panel 容器最右上角。
+  const minimizeBtn = document.getElementById('btnMinimizeTrip');
+  if (minimizeBtn) {
+    minimizeBtn.classList.remove('hidden');
+    minimizeBtn.classList.add('flex');
+  }
   const bottomCard = document.getElementById('activeTripPanel');
   if (bottomCard) {
     bottomCard.classList.remove('hidden');
@@ -304,7 +320,6 @@ function renderNativeTripView(status, data) {
     lockMainMapGestures();
   }
 
-  const card = document.getElementById('activeTripPanel');
   const title = document.getElementById('activeTripTitle');
   const state = document.getElementById('activeTripStateLabel');
   const driverNameEl = document.getElementById('activeTripDriverName');
@@ -367,13 +382,11 @@ function renderNativeTripView(status, data) {
   }
 
   // 依 Layer 2 最小化狀態決定顯示視窗本體或懸浮氣泡，維持 Layer 1 手勢自由。
+  // 是否最小化為懸浮氣泡：由 minimizeActiveTrip()/restoreActiveTripFromBubble()
+  // 控制整個 Layer 2 容器（#step2Panel）的顯示，此處僅同步氣泡本身。
   if (isActiveTripMinimized) {
-    card.classList.add('hidden');
-    card.style.display = 'none';
     showActiveTripFloatingBubble(data);
   } else {
-    card.classList.remove('hidden');
-    card.style.display = '';
     hideActiveTripFloatingBubble();
   }
   renderNativeTripRoute(status, data);
@@ -426,15 +439,16 @@ function hideActiveTripFloatingBubble() {
   bubble.classList.remove('flex');
 }
 
-// Layer 2 → 懸浮氣泡：最小化後 Layer 1 主畫面（表單、地圖手勢）完全恢復自由，
-// 司機資訊持續在背景（Firestore 監聽）更新，乘客可隨時點擊氣泡還原完整視窗。
+// Layer 2 → 懸浮氣泡：最小化後 Layer 1 主畫面（分類選擇、價格儀表板、地圖手勢）
+// 完全恢復自由，司機資訊持續在背景（Firestore 監聽）更新，乘客可隨時點擊氣泡還原完整視窗。
 function minimizeActiveTrip() {
   isActiveTripMinimized = true;
-  const card = document.getElementById('activeTripPanel');
-  if (card) {
-    card.classList.add('hidden');
-    card.style.display = 'none';
-  }
+  // 整個 Layer 2 大容器（#step2Panel，內含地圖與行程資訊卡）一併隱藏，
+  // 而非只隱藏底下的資訊卡，確保地圖也隨之收起、不殘留佔位空白。
+  const panel = document.getElementById('step2Panel');
+  if (panel) panel.classList.add('hidden');
+  // 露出原本的主應用程式畫面（分類選擇區、價格儀表板），讓乘客可自由操作。
+  setLayer1Visible(true);
   if (typeof unlockMainMapGestures === 'function') unlockMainMapGestures();
   showActiveTripFloatingBubble(lastTripData);
 }
@@ -442,14 +456,23 @@ function minimizeActiveTrip() {
 function restoreActiveTripFromBubble() {
   isActiveTripMinimized = false;
   hideActiveTripFloatingBubble();
-  const card = document.getElementById('activeTripPanel');
-  if (card) {
-    card.classList.remove('hidden');
-    card.style.display = '';
-  }
+  // 收起 Layer 1 主畫面，將 Layer 2 大容器完整彈回全螢幕。
+  setLayer1Visible(false);
+  const panel = document.getElementById('step2Panel');
+  if (panel) panel.classList.remove('hidden');
   if (lastTripStatus && lastTripStatus !== 'completed' && typeof lockMainMapGestures === 'function') {
     lockMainMapGestures();
   }
+}
+
+// 共用：切換 Layer 1（分類選擇 sections[0] 與價格儀表板 sections[2]）的顯示狀態，
+// 供最小化／還原 Layer 2 時呼叫，避免重複撰寫 section 索引邏輯。
+function setLayer1Visible(visible) {
+  const mainEl = document.querySelector('main');
+  if (!mainEl) return;
+  const sections = mainEl.querySelectorAll('section');
+  if (sections[0]) sections[0].classList.toggle('hidden', !visible);
+  if (sections[2]) sections[2].classList.toggle('hidden', !visible);
 }
 
 function showDriverNoticeToPassenger(message) {
@@ -765,6 +788,7 @@ function restoreBookingHomeView() {
   if (mainEl) {
     const sections = mainEl.querySelectorAll('section');
     if (sections[0]) sections[0].classList.remove('hidden');
+    if (sections[1]) sections[1].classList.remove('hidden');
     if (sections[2]) sections[2].classList.remove('hidden');
     const gridMobility = document.getElementById('grid-mobility');
     const gridConcierge = document.getElementById('grid-concierge');
@@ -776,6 +800,12 @@ function restoreBookingHomeView() {
       if (element) element.classList.remove('hidden');
     });
     if (typeof switchCategory === 'function') switchCategory(currentCategory);
+  }
+  // Layer 2 全域最小化鈕：待命狀態下沒有進行中行程，強制隱藏。
+  const minimizeBtn = document.getElementById('btnMinimizeTrip');
+  if (minimizeBtn) {
+    minimizeBtn.classList.add('hidden');
+    minimizeBtn.classList.remove('flex');
   }
   const submitBtn = document.getElementById('btnSubmit');
   if (submitBtn) {

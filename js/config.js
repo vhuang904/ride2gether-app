@@ -1,5 +1,5 @@
 // --- 1. SERVICE WORKER 版本控管 ---
-const APP_VERSION = 'ride2gether-cache-v7.14';
+const APP_VERSION = 'ride2gether-cache-v7.15';
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {

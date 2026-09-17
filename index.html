@@ -163,7 +163,12 @@
     </section>
 
     <!-- Step 2: 路線規劃 (欄位上移、常用地址快速帶入、✖ 一鍵清除) -->
-    <section class="space-y-3 bg-white border border-slate-200/90 rounded-2xl p-4 shadow-sm">
+    <section id="step2Panel" class="relative space-y-3 bg-white border border-slate-200/90 rounded-2xl p-4 shadow-sm">
+      <!-- Layer 2 全域最小化鈕：固定於整個「02. Route & Location」容器最右上角，
+           z-index 最高，僅在行程進行中（prepareNativeTripView）顯示。 -->
+      <button type="button" id="btnMinimizeTrip" aria-label="Minimize trip panel" class="hidden absolute right-3 top-3 z-50 h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-md transition hover:bg-slate-100 active:scale-95">
+        <span class="text-sm font-bold leading-none">✕</span>
+      </button>
       <div class="flex justify-between items-center">
         <label class="block text-xs font-semibold uppercase tracking-widest text-royal">
           02. Route & Location
@@ -287,11 +292,9 @@
       </div>
 
       <!-- 行程進行中：整併呈現於同一張上方容器內，避免與獨立浮動卡片視覺割裂。
-           小費區塊於行程開始時隱藏，此區塊接手同一位置。 -->
+           小費區塊於行程開始時隱藏，此區塊接手同一位置。
+           最小化 ✕ 鈕已上移至 #step2Panel 容器最右上角，此處不再重複放置。 -->
       <div id="activeTripPanel" class="hidden relative mt-1 rounded-2xl border border-blue-100 bg-blue-50/40 p-4" aria-live="polite">
-        <button type="button" id="btnMinimizeTrip" aria-label="Minimize trip panel" class="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:bg-slate-100 active:scale-95">
-          <span class="text-sm font-bold leading-none">✕</span>
-        </button>
         <div class="flex items-start justify-between gap-3 pr-8">
           <div>
             <p id="activeTripStateLabel" class="text-[10px] font-bold uppercase tracking-[0.2em] text-blue-600">Active Trip</p>

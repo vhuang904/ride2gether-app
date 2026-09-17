@@ -138,6 +138,18 @@ function unlockMainMapGestures() {
   if (mapInstance) mapInstance.setOptions({ gestureHandling: 'auto' });
 }
 
+// 行程一旦進入派單/追蹤流程，起訖點即鎖定，地圖上絕不可殘留「Confirm Yes/No」
+// 的拖曳確認彈窗；強制隱藏 pinActionBubble 並將兩枚圖釘設為不可拖曳。
+function closePinConfirmBubble() {
+  const bubble = document.getElementById('pinActionBubble');
+  if (bubble) {
+    bubble.classList.add('hidden');
+    bubble.classList.remove('flex');
+  }
+  if (pickupMarker && typeof pickupMarker.setDraggable === 'function') pickupMarker.setDraggable(false);
+  if (dropoffMarker && typeof dropoffMarker.setDraggable === 'function') dropoffMarker.setDraggable(false);
+}
+
 // 行程結束後，將主地圖視角平滑重設回乘客目前 GPS 定位。
 function recenterMapToUserGps() {
   if (!mapInstance || !navigator.geolocation) return;
