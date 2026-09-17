@@ -113,7 +113,8 @@ function getOrCreateMap(centerLatLng) {
       center: centerLatLng,
       zoom: 16,
       disableDefaultUI: true,
-      zoomControl: true
+      zoomControl: true,
+      gestureHandling: 'auto'
     });
 
     directionsRenderer = new google.maps.DirectionsRenderer({
@@ -126,6 +127,29 @@ function getOrCreateMap(centerLatLng) {
     addContextAwareLocationControl(mapInstance);
   }
   return mapInstance;
+}
+
+// --- 主地圖鎖定展示模式：司機接單後鎖定拖曳手勢，行程結束後解鎖 ---
+function lockMainMapGestures() {
+  if (mapInstance) mapInstance.setOptions({ gestureHandling: 'none' });
+}
+
+function unlockMainMapGestures() {
+  if (mapInstance) mapInstance.setOptions({ gestureHandling: 'auto' });
+}
+
+// 行程結束後，將主地圖視角平滑重設回乘客目前 GPS 定位。
+function recenterMapToUserGps() {
+  if (!mapInstance || !navigator.geolocation) return;
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      const userPos = { lat: position.coords.latitude, lng: position.coords.longitude };
+      mapInstance.panTo(userPos);
+      mapInstance.setZoom(16);
+    },
+    (err) => console.warn("[Passenger] GPS recenter failed:", err),
+    { enableHighAccuracy: true, timeout: 6000 }
+  );
 }
 
 function setPointPosition(pos, fieldType, catType, optAddressText) {
@@ -349,6 +373,41 @@ function clearLocationInput(inputId, fieldType, catType) {
 
   // 延遲解除清空旗標，避免非同步逆編碼回填
   setTimeout(() => { isClearingAddress = false; }, 400);
+}
+
+// 行程徹底重置（resetAppToIdle 的一部分）：清除兩種服務類別的起訖點座標、
+// 地圖 Marker 與導航路線，並將金額/距離顯示欄位歸零。與 clearLocationInput()
+// 不同，此函式不綁定單一輸入框，供整趟行程結束後一次性徹底清空使用。
+function clearAllTripCoordsAndRoute() {
+  mobilityPickupCoord = null;
+  mobilityDropoffCoord = null;
+  conciergePickupCoord = null;
+  conciergeDropoffCoord = null;
+
+  if (pickupMarker) {
+    pickupMarker.setMap(null);
+    pickupMarker = null;
+  }
+  if (dropoffMarker) {
+    dropoffMarker.setMap(null);
+    dropoffMarker = null;
+  }
+  if (directionsRenderer) directionsRenderer.set('directions', null);
+
+  const distanceEl = document.getElementById("distance");
+  const distValEl = document.getElementById("distVal");
+  const durationValEl = document.getElementById("durationVal");
+  if (distanceEl) distanceEl.value = "0";
+  if (distValEl) distValEl.innerText = "-- km";
+  if (durationValEl) durationValEl.innerText = "-- mins";
+
+  const pickupInput = document.getElementById("pickupLoc");
+  const dropoffInput = document.getElementById("dropoffLoc");
+  const cPickupInput = document.getElementById("conciergePickup");
+  const cDropoffInput = document.getElementById("conciergeDropoff");
+  [pickupInput, dropoffInput, cPickupInput, cDropoffInput].forEach(el => { if (el) el.value = ''; });
+
+  if (typeof calculateEstimate === 'function') calculateEstimate();
 }
 
 function calculateAndDisplayRoute(fitRoute = true) {
