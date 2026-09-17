@@ -108,15 +108,33 @@ function subscribeToOrder(orderId) {
   unsubscribeOrder = db.collection("orders").doc(orderId).onSnapshot(doc => {
     if (!doc.exists) return;
     const data = doc.data();
+    const status = String(data.status || "").toLowerCase();
 
     if (data.driverLat && data.driverLng) {
       updateDriverLocationOnMap(data.driverLat, data.driverLng);
     }
-    if (['accepted', 'MATCHED', 'ACCEPTED', 'ARRIVED', 'IN_TRANSIT', 'COMPLETED'].includes(data.status)) {
-      showMatchedDriver(data);
-      updateTripStatusUI(data.status);
+    if (status === 'cancelled') {
+      showDriverNoticeToPassenger("This trip was cancelled.");
+      finishTripAndReset();
+      return;
     }
-  }, err => console.warn("Realtime listener error:", err));
+    if (['accepted', 'matched', 'arrived', 'in_progress', 'completed'].includes(status)) {
+      showMatchedDriver(data);
+      updateTripStatusUI(status, data);
+    }
+  }, err => {
+    console.error("Realtime listener error:", err);
+    const statusText = document.getElementById('dispatchStatusText');
+    if (statusText) statusText.innerText = `Live order update failed: ${err.message || 'connection error'}`;
+  });
+}
+
+function showDriverNoticeToPassenger(message) {
+  const statusText = document.getElementById('dispatchStatusText');
+  if (statusText) {
+    statusText.innerText = message;
+    statusText.className = 'text-xs text-rose-600 mt-1 font-semibold';
+  }
 }
 
 // --- 任務 2：司機即時動態追蹤 (平滑補間動畫 Lerp 1.5s) ---
@@ -270,17 +288,18 @@ function checkViewerTrackingMode() {
 
     // 訪客頂部即時狀態同步徽章
     const statusBadge = document.getElementById('pinLockStatusBadge');
-    if (statusBadge && data.status) {
-      if (data.status === 'MATCHED' || data.status === 'ACCEPTED') {
+    const status = String(data.status || '').toLowerCase();
+    if (statusBadge && status) {
+      if (status === 'matched' || status === 'accepted') {
         statusBadge.innerText = 'Chauffeur En Route 🚗';
         statusBadge.className = 'text-[11px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-royal border border-blue-200';
-      } else if (data.status === 'ARRIVED') {
+      } else if (status === 'arrived') {
         statusBadge.innerText = 'Chauffeur Has Arrived 📍';
         statusBadge.className = 'text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200';
-      } else if (data.status === 'IN_TRANSIT') {
+      } else if (status === 'in_progress') {
         statusBadge.innerText = 'Trip In Progress 🛣️';
         statusBadge.className = 'text-[11px] font-semibold px-2 py-0.5 rounded-full bg-purple-50 text-purple-600 border border-purple-200';
-      } else if (data.status === 'COMPLETED') {
+      } else if (status === 'completed') {
         statusBadge.innerText = 'Trip Completed ✓';
         statusBadge.className = 'text-[11px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-300';
       }
@@ -384,19 +403,30 @@ function showMatchedDriver(data) {
   if (cardServiceEl) cardServiceEl.innerText = data.serviceName || RATES[currentService].nameEn;
 }
 
-function updateTripStatusUI(status) {
+function updateTripStatusUI(status, data = {}) {
   const badge = document.getElementById('txt-matched-badge');
   if (!badge) return;
+  const normalizedStatus = String(status || '').toLowerCase();
+  const driverContact = document.getElementById('driverContact');
+  const doneButton = document.querySelector('#matchedCard button[onclick="finishTripAndReset()"]');
 
-  if (status === 'ARRIVED') {
+  if (normalizedStatus === 'accepted' || normalizedStatus === 'matched') {
+    badge.innerText = 'CHAUFFEUR ACCEPTED';
+    badge.className = 'text-[10px] tracking-widest font-semibold uppercase text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full border border-blue-200 inline-block';
+    if (driverContact) driverContact.innerText = 'Your chauffeur accepted the trip and is heading to the pick-up point.';
+  } else if (normalizedStatus === 'arrived') {
     badge.innerText = 'CHAUFFEUR HAS ARRIVED';
     badge.className = 'text-[10px] tracking-widest font-semibold uppercase text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200 inline-block';
-  } else if (status === 'IN_TRANSIT') {
+    if (driverContact) driverContact.innerText = 'Your chauffeur has arrived at the pick-up point.';
+  } else if (normalizedStatus === 'in_progress') {
     badge.innerText = 'TRIP IN PROGRESS';
     badge.className = 'text-[10px] tracking-widest font-semibold uppercase text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full border border-blue-200 inline-block';
-  } else if (status === 'COMPLETED') {
+    if (driverContact) driverContact.innerText = 'Heading to your destination.';
+  } else if (normalizedStatus === 'completed') {
     badge.innerText = 'TRIP COMPLETED';
     badge.className = 'text-[10px] tracking-widest font-semibold uppercase text-slate-600 bg-slate-100 px-2.5 py-1 rounded-full border border-slate-300 inline-block';
+    if (driverContact) driverContact.innerText = `Trip completed. Total paid: ₱${Number(data.totalPay || data.estimatedFare || 0).toFixed(2)}`;
+    if (doneButton) doneButton.innerText = 'Finish and return to booking';
     const contactSec = document.getElementById('chauffeurContactSection');
     if (contactSec) contactSec.style.display = 'none';
   }
@@ -422,11 +452,12 @@ function startDispatchTimeoutChecker() {
           const docSnap = await db.collection("orders").doc(currentOrderId).get();
           if (docSnap.exists) {
             const data = docSnap.data();
-            const matchedStatuses = ['accepted', 'MATCHED', 'ACCEPTED', 'ARRIVED', 'IN_TRANSIT', 'COMPLETED'];
-            if (matchedStatuses.includes(data.status)) {
+            const matchedStatuses = ['accepted', 'matched', 'arrived', 'in_progress', 'completed'];
+            const status = String(data.status || '').toLowerCase();
+            if (matchedStatuses.includes(status)) {
               stopDispatchTimer();
               showMatchedDriver(data);
-              updateTripStatusUI(data.status);
+              updateTripStatusUI(status, data);
               return;
             }
           }
