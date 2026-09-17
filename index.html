@@ -1393,24 +1393,7 @@
       const el = document.getElementById(inputId);
       if (el) el.value = '';
 
-      if (catType === 'mobility') {
-        if (fieldType === 'pickup') {
-          mobilityPickupCoord = null;
-          if (pickupMarker) pickupMarker.setMap(null);
-        } else {
-          mobilityDropoffCoord = null;
-          if (dropoffMarker) dropoffMarker.setMap(null);
-        }
-      } else {
-        if (fieldType === 'pickup') {
-          conciergePickupCoord = null;
-          if (pickupMarker) pickupMarker.setMap(null);
-        } else {
-          conciergeDropoffCoord = null;
-          if (dropoffMarker) dropoffMarker.setMap(null);
-        }
-      }
-
+      // 路線計算重置，但圖釘保持保留在畫面上供檢視與重新拖曳
       if (directionsRenderer) directionsRenderer.set('directions', null);
       document.getElementById("distance").value = "0";
       document.getElementById("distVal").innerText = "-- km";
@@ -1418,7 +1401,6 @@
       document.getElementById('pinActionBubble').classList.add('hidden');
       calculateEstimate();
     }
-
     function calculateAndDisplayRoute(fitRoute = true) {
       const isMobility = currentCategory === 'mobility';
       const curPickup = isMobility ? mobilityPickupCoord : conciergePickupCoord;
