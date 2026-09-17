@@ -1393,14 +1393,21 @@
       const el = document.getElementById(inputId);
       if (el) el.value = '';
 
-      // 路線計算重置，但圖釘保持保留在畫面上供檢視與重新拖曳
+      // 取得當前對應的圖釘
+      const marker = (fieldType === 'pickup') ? pickupMarker : dropoffMarker;
+      if (marker) {
+        marker.setDraggable(true);
+        showPinBubble(marker, fieldType, catType);
+      }
+
+      // 路線計算重置
       if (directionsRenderer) directionsRenderer.set('directions', null);
       document.getElementById("distance").value = "0";
       document.getElementById("distVal").innerText = "-- km";
       document.getElementById("durationVal").innerText = "-- mins";
-      document.getElementById('pinActionBubble').classList.add('hidden');
       calculateEstimate();
     }
+    
     function calculateAndDisplayRoute(fitRoute = true) {
       const isMobility = currentCategory === 'mobility';
       const curPickup = isMobility ? mobilityPickupCoord : conciergePickupCoord;
