@@ -1320,9 +1320,7 @@
 
       showPinBubble(fieldType === 'pickup' ? pickupMarker : dropoffMarker, fieldType, catType, optAddressText);
     }
-
-    let isClearingAddress = false;
-
+    
     function showPinBubble(marker, fieldType, catType, optAddressText) {
       if (window.isViewerMode) return;
       const bubble = document.getElementById('pinActionBubble');
