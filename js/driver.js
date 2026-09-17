@@ -26,6 +26,18 @@ function formatCreatedAt(value) {
   return date.toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
 }
 
+function getCreatedAtMillis(value) {
+  if (value && typeof value.toMillis === "function") return value.toMillis();
+  if (value && typeof value.toDate === "function") return value.toDate().getTime();
+  const millis = new Date(value || 0).getTime();
+  return Number.isNaN(millis) ? 0 : millis;
+}
+
+function formatFare(value) {
+  const fare = Number(value);
+  return Number.isFinite(fare) ? `₱${fare.toFixed(2)}` : "Fare pending";
+}
+
 function showDriverNotice(message) {
   const notice = document.getElementById("driverNotice");
   if (!notice) return;
@@ -51,15 +63,15 @@ function renderOrders(snapshot) {
       pendingClaims.delete(doc.id);
     }
     observedOrderStatuses.set(doc.id, status);
-    if (order.status === "pending") {
-      pendingOrders.push({ id: doc.id, ...order });
+    if (status === "pending") {
+      pendingOrders.push({
+        id: doc.id,
+        ...order,
+        createdAtMillis: getCreatedAtMillis(order.createdAt)
+      });
     }
   });
-  pendingOrders.sort((left, right) => {
-    const leftTime = left.createdAt?.toMillis?.() || new Date(left.createdAt || 0).getTime();
-    const rightTime = right.createdAt?.toMillis?.() || new Date(right.createdAt || 0).getTime();
-    return rightTime - leftTime;
-  });
+  pendingOrders.sort((a, b) => b.createdAtMillis - a.createdAtMillis);
 
   count.textContent = `${pendingOrders.length} pending`;
   if (!pendingOrders.length) {
@@ -77,7 +89,7 @@ function renderOrders(snapshot) {
           <p class="font-mono text-xs font-semibold text-blue-600">${displayValue(order.id)}</p>
           <h3 class="mt-1 text-base font-bold text-slate-900">${displayValue(order.vehicleType || order.serviceName || order.vehicle, "Standard ride")}</h3>
         </div>
-        <p class="text-lg font-bold text-slate-900">${displayValue(order.estimatedFare || order.fare || order.totalPay, "Fare pending")}</p>
+        <p class="text-lg font-bold text-slate-900">${formatFare(order.estimatedFare ?? order.fare ?? order.totalPay)}</p>
       </div>
       <dl class="mt-4 space-y-3 border-t border-slate-100 pt-4 text-sm">
         <div class="flex gap-3">
