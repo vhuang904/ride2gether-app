@@ -42,7 +42,12 @@
       <div class="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p class="text-xs font-semibold uppercase tracking-wider text-slate-600">Available orders</p>
-          <h2 class="mt-1 text-2xl font-bold text-slate-900">Ready for pickup</h2>
+          <div class="flex flex-wrap items-center gap-3">
+            <h2 class="mt-1 text-2xl font-bold text-slate-900">Ready for pickup</h2>
+            <button id="clearAllOrders" type="button" class="rounded-xl bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-200">
+              Clear All
+            </button>
+          </div>
         </div>
         <span id="orderCount" class="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600">0 pending</span>
       </div>

@@ -3,9 +3,17 @@ const DRIVER_ID = "DRV-001";
 const DRIVER_NAME = "BigV904";
 const DRIVER_VEHICLE = "Executive Sedan";
 const pendingClaims = new Set();
-const dismissedOrderIds = new Set();
+const DISMISSED_ORDERS_KEY = "ride2gether_driver_dismissed_orders";
+let storedDismissedOrderIds = [];
+try {
+  const parsedDismissedOrderIds = JSON.parse(localStorage.getItem(DISMISSED_ORDERS_KEY) || "[]");
+  storedDismissedOrderIds = Array.isArray(parsedDismissedOrderIds) ? parsedDismissedOrderIds : [];
+} catch (error) {
+  console.warn("[Driver] Ignoring invalid dismissed order cache:", error);
+}
+const dismissedOrderIds = new Set(storedDismissedOrderIds);
 const observedOrderStatuses = new Map();
-const ORDER_STALE_AFTER_MS = 30 * 60 * 1000;
+const ORDER_STALE_AFTER_MS = 5 * 60 * 1000;
 let noticeTimer = null;
 
 function escapeHtml(value) {
@@ -43,6 +51,10 @@ function formatFare(value) {
 
 function isStaleOrder(createdAtMillis) {
   return createdAtMillis != null && Date.now() - createdAtMillis > ORDER_STALE_AFTER_MS;
+}
+
+function persistDismissedOrderIds() {
+  localStorage.setItem(DISMISSED_ORDERS_KEY, JSON.stringify([...dismissedOrderIds]));
 }
 
 function showDriverNotice(message) {
@@ -151,6 +163,7 @@ async function claimOrder(orderId, button) {
 async function dismissOrder(orderId) {
   if (!orderId) return;
   dismissedOrderIds.add(orderId);
+  persistDismissedOrderIds();
   renderOrders(lastOrderSnapshot);
   showDriverNotice("Order dismissed from this panel.");
 
@@ -171,6 +184,21 @@ async function dismissOrder(orderId) {
 }
 
 let lastOrderSnapshot = null;
+
+function clearAllOrders() {
+  if (!lastOrderSnapshot) return;
+  lastOrderSnapshot.forEach((doc) => {
+    const order = doc.data();
+    const status = String(order.status || "").toLowerCase();
+    const createdAtMillis = getCreatedAtMillis(order.createdAt);
+    if (status === "pending" && !isStaleOrder(createdAtMillis)) {
+      dismissedOrderIds.add(doc.id);
+    }
+  });
+  persistDismissedOrderIds();
+  renderOrders(lastOrderSnapshot);
+  showDriverNotice("All visible orders dismissed.");
+}
 
 function listenForPendingOrders() {
   document.getElementById("driverStatus").textContent = "Connecting to pending orders...";
@@ -199,5 +227,7 @@ document.getElementById("ordersContainer").addEventListener("click", (event) => 
   const button = event.target.closest(".claim-order");
   if (button) claimOrder(button.dataset.orderId, button);
 });
+
+document.getElementById("clearAllOrders").addEventListener("click", clearAllOrders);
 
 listenForPendingOrders();

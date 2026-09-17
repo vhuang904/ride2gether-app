@@ -2,10 +2,15 @@
 // RIDE2GETHER Service Worker
 // ==========================================
 
-const CACHE_NAME = 'ride2gether-cache-v7.7';
+const CACHE_NAME = 'ride2gether-cache-v7.8';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
+  './driver.html',
+  './css/custom.css',
+  './js/config.js',
+  './js/driver.js',
+  './js/tailwind-config.js',
   './manifest.json',
   './icon.svg',
   './assets/icons/mascot-chauffeur.svg',
@@ -27,7 +32,7 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
-// 啟動階段：清除舊版本的快取 (淘汰 v6.1 與更早的舊快取)
+// 啟動階段：清除所有非目前版本的快取
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
