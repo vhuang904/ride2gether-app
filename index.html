@@ -793,7 +793,7 @@
       targetInput.value = placeObj.address;
 
       if (placeObj.lat && placeObj.lng) {
-        ({ lat: placeObj.lat, lng: placeObj.lng }, targetField, currentCategory, placeObj.address);
+        setPointPosition({ lat: placeObj.lat, lng: placeObj.lng }, targetField, currentCategory, placeObj.address);
       } else {
         geocodeAndFocus(placeObj.address, targetField, currentCategory);
       }
@@ -1243,7 +1243,7 @@
               }
 
               if (!curPickup) {
-                (userPos, 'pickup', currentCategory);
+                setPointPosition(userPos, 'pickup', currentCategory);
               } else {
                 map.panTo(userPos);
                 map.setZoom(16);
@@ -1549,7 +1549,7 @@
 
           const addressText = place.name ? `${place.name}, ${place.formatted_address}` : place.formatted_address;
           input.value = addressText;
-          (place.geometry.location, fieldType, catType, addressText);
+          setPointPosition(place.geometry.location, fieldType, catType, addressText);
         });
       };
 
