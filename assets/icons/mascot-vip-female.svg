@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100%" height="100%">
+  <defs>
+    <!-- VIP 女客頭部：公主粉球體漸層 -->
+    <radialGradient id="vfHead" cx="35%" cy="35%" r="65%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="60%" stop-color="#FBCFE8"/>
+      <stop offset="100%" stop-color="#F472B6"/>
+    </radialGradient>
+    <!-- VIP 女客身軀 -->
+    <radialGradient id="vfBody" cx="50%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#F472B6"/>
+      <stop offset="100%" stop-color="#DB2777"/>
+    </radialGradient>
+
+    <!-- R2G 特色紅絨漸層 -->
+    <linearGradient id="r2gVelvetRed" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#B91C1C"/>
+      <stop offset="50%" stop-color="#881337"/>
+      <stop offset="100%" stop-color="#4C0519"/>
+    </linearGradient>
+    <!-- R2G 金拱漸層 -->
+    <linearGradient id="r2gGold" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FDE047"/>
+      <stop offset="50%" stop-color="#F59E0B"/>
+      <stop offset="100%" stop-color="#D97706"/>
+    </linearGradient>
+  </defs>
+
+  <!-- 1. 身體 (與司機管家同款骨架) -->
+  <path d="M 22 86 C 22 68, 33 64, 50 64 C 67 64, 78 68, 78 86 Z" fill="url(#vfBody)"/>
+
+  <!-- 2. 頭部 (純淨 MSN 球體) -->
+  <circle cx="50" cy="46" r="16" fill="url(#vfHead)"/>
+
+  <!-- 3. R2G 標誌性經典紅絨天鵝絨金拱皇冠 (完全一致) -->
+  <!-- (1) 特色深紅絨內襯 (雙拱飽滿弧度) -->
+  <path d="M 33 34 C 33 22, 45 22, 50 28 C 55 22, 67 22, 67 34 Z" fill="url(#r2gVelvetRed)"/>
+
+  <!-- (2) 雙道金色交織外拱 (Golden Arches) -->
+  <!-- 左拱 -->
+  <path d="M 33 34 C 32 20, 48 18, 50 26 C 47 21, 35 22, 35 34" fill="none" stroke="url(#r2gGold)" stroke-width="2.5" stroke-linecap="round"/>
+  <!-- 右拱 -->
+  <path d="M 67 34 C 68 20, 52 18, 50 26 C 53 21, 65 22, 65 34" fill="none" stroke="url(#r2gGold)" stroke-width="2.5" stroke-linecap="round"/>
+  <!-- 中間拱肋骨 -->
+  <line x1="50" y1="26" x2="50" y2="34" stroke="url(#r2gGold)" stroke-width="2"/>
+
+  <!-- (3) 頂部經典金色皇室十字/鳶尾飾件 (Fleur-de-lis Top) -->
+  <circle cx="50" cy="18" r="2.5" fill="url(#r2gGold)"/>
+  <path d="M 50 14 L 50 22 M 46 17 L 54 17" stroke="url(#r2gGold)" stroke-width="2" stroke-linecap="round"/>
+
+  <!-- (4) 底部寬厚黃金冠帶圈 (Gold Band) -->
+  <rect x="31" y="33" width="38" height="6" rx="3" fill="url(#r2gGold)" stroke="#B45309" stroke-width="0.5"/>
+  <!-- 冠帶上的白色珍珠/寶石排列點 -->
+  <circle cx="36" cy="36" r="1.2" fill="#FFFFFF"/>
+  <circle cx="43" cy="36" r="1.2" fill="#FFFFFF"/>
+  <circle cx="50" cy="36" r="1.2" fill="#FFFFFF"/>
+  <circle cx="57" cy="36" r="1.2" fill="#FFFFFF"/>
+  <circle cx="64" cy="36" r="1.2" fill="#FFFFFF"/>
+</svg>
