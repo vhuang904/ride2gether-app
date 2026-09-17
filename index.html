@@ -1321,6 +1321,8 @@
       showPinBubble(fieldType === 'pickup' ? pickupMarker : dropoffMarker, fieldType, catType, optAddressText);
     }
 
+    let isClearingAddress = false;
+
     function showPinBubble(marker, fieldType, catType, optAddressText) {
       if (window.isViewerMode) return;
       const bubble = document.getElementById('pinActionBubble');
@@ -1337,8 +1339,12 @@
       bubble.classList.remove('hidden');
       bubble.classList.add('flex');
 
+      // 若當前處於清空狀態，絕對不自動回填舊地址
+      if (isClearingAddress) return;
+
       if (geocoderInstance && !optAddressText) {
         geocoderInstance.geocode({ location: marker.getPosition() }, (res, status) => {
+          if (isClearingAddress) return;
           if (status === "OK" && res[0]) {
             updateInputBoxText(fieldType, catType, res[0].formatted_address);
           }
