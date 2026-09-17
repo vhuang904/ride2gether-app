@@ -205,12 +205,16 @@ function showPinBubble(marker, fieldType, catType, optAddressText) {
   if (isClearingAddress) return;
 
   if (geocoderInstance && !optAddressText) {
-    geocoderInstance.geocode({ location: marker.getPosition() }, (res, status) => {
-      if (isClearingAddress) return;
-      if (status === "OK" && res[0]) {
-        updateInputBoxText(fieldType, catType, res[0].formatted_address);
-      }
-    });
+    try {
+      geocoderInstance.geocode({ location: marker.getPosition() }, (res, status) => {
+        if (isClearingAddress) return;
+        if (status === "OK" && res[0]) {
+          updateInputBoxText(fieldType, catType, res[0].formatted_address);
+        }
+      });
+    } catch (err) {
+      console.error("Reverse geocode failed:", err);
+    }
   } else if (optAddressText) {
     updateInputBoxText(fieldType, catType, optAddressText);
   }
@@ -228,12 +232,16 @@ function updateInputBoxText(fieldType, catType, text) {
 
 function reverseGeocode(pos, targetInputId) {
   if (!geocoderInstance) return;
-  geocoderInstance.geocode({ location: pos }, (res, status) => {
-    if (status === "OK" && res[0]) {
-      const el = document.getElementById(targetInputId);
-      if (el) el.value = res[0].formatted_address;
-    }
-  });
+  try {
+    geocoderInstance.geocode({ location: pos }, (res, status) => {
+      if (status === "OK" && res[0]) {
+        const el = document.getElementById(targetInputId);
+        if (el) el.value = res[0].formatted_address;
+      }
+    });
+  } catch (err) {
+    console.error("Reverse geocode failed:", err);
+  }
 }
 
 function lockCurrentPin(isConfirmed) {
@@ -400,74 +408,122 @@ function syncCategoryCoords(cat) {
   }
 }
 
+// 安全初始化 Geocoder / DirectionsService：Maps JS API 在 loading=async 模式下，
+// 部分函式庫 (如 geocoding) 可能尚未就緒，直接 new 會拋出
+// "google.maps.Geocoder is not a constructor"。此處以型別檢查 + try/catch 防禦，
+// 避免單點錯誤中斷全域 JavaScript 執行（進而波及 order.js 的按鈕綁定）。
+function ensureMapsCoreServicesReady() {
+  if (!(window.google && window.google.maps)) return false;
+  try {
+    if (!geocoderInstance && typeof google.maps.Geocoder === "function") {
+      geocoderInstance = new google.maps.Geocoder();
+    }
+  } catch (err) {
+    console.error("Failed to initialize google.maps.Geocoder:", err);
+  }
+  try {
+    if (!directionsService && typeof google.maps.DirectionsService === "function") {
+      directionsService = new google.maps.DirectionsService();
+    }
+  } catch (err) {
+    console.error("Failed to initialize google.maps.DirectionsService:", err);
+  }
+  return !!(geocoderInstance && directionsService);
+}
+
+let mapsGeocodingRetryScheduled = false;
+
 function initAutocomplete() {
-  const options = {
-    componentRestrictions: { country: "ph" },
-    fields: ["formatted_address", "geometry", "name"]
-  };
+  try {
+    const options = {
+      componentRestrictions: { country: "ph" },
+      fields: ["formatted_address", "geometry", "name"]
+    };
 
-  const pickupInput = document.getElementById("pickupLoc");
-  const dropoffInput = document.getElementById("dropoffLoc");
-  const cPickupInput = document.getElementById("conciergePickup");
-  const cDropoffInput = document.getElementById("conciergeDropoff");
+    const pickupInput = document.getElementById("pickupLoc");
+    const dropoffInput = document.getElementById("dropoffLoc");
+    const cPickupInput = document.getElementById("conciergePickup");
+    const cDropoffInput = document.getElementById("conciergeDropoff");
 
-  if (window.google && window.google.maps) {
-    if (!geocoderInstance) geocoderInstance = new google.maps.Geocoder();
-    if (!directionsService) directionsService = new google.maps.DirectionsService();
-  }
+    const coreReady = ensureMapsCoreServicesReady();
 
-  window.addEventListener("googlemapsready", initAutocomplete);
+    // 若 Geocoder/DirectionsService 尚未就緒（函式庫非同步載入中），
+    // 稍後重試一次，且僅註冊一次 retry 監聽，避免重複堆疊。
+    if (!coreReady && !mapsGeocodingRetryScheduled) {
+      mapsGeocodingRetryScheduled = true;
+      window.addEventListener("googlemapsready", () => {
+        mapsGeocodingRetryScheduled = false;
+        ensureMapsCoreServicesReady();
+      });
+    }
 
-  const bindAuto = (input, fieldType, catType) => {
-    if (!input || !window.google || !window.google.maps || !window.google.maps.places) return;
+    const bindAuto = (input, fieldType, catType) => {
+      if (!input || !window.google || !window.google.maps || !window.google.maps.places) return;
 
-    input.addEventListener("focus", () => { activeFieldFocus = fieldType; });
+      input.addEventListener("focus", () => { activeFieldFocus = fieldType; });
 
-    const auto = new google.maps.places.Autocomplete(input, options);
-    google.maps.event.addDomListener(input, "keydown", (e) => { if (e.keyCode === 13) e.preventDefault(); });
+      try {
+        const auto = new google.maps.places.Autocomplete(input, options);
+        google.maps.event.addDomListener(input, "keydown", (e) => { if (e.keyCode === 13) e.preventDefault(); });
 
-    auto.addListener("place_changed", () => {
-      const place = auto.getPlace();
-      if (!place || !place.geometry || !place.geometry.location) return;
+        auto.addListener("place_changed", () => {
+          const place = auto.getPlace();
+          if (!place || !place.geometry || !place.geometry.location) return;
 
-      const addressText = place.name ? `${place.name}, ${place.formatted_address}` : place.formatted_address;
-      input.value = addressText;
-      setPointPosition(place.geometry.location, fieldType, catType, addressText);
-    });
-  };
-
-  bindAuto(pickupInput, "pickup", "mobility");
-  bindAuto(dropoffInput, "dropoff", "mobility");
-  bindAuto(cPickupInput, "pickup", "concierge");
-  bindAuto(cDropoffInput, "dropoff", "concierge");
-
-  const prefHomeInput = document.getElementById("prefHome");
-  if (prefHomeInput && window.google && window.google.maps && window.google.maps.places) {
-    const homeAuto = new google.maps.places.Autocomplete(prefHomeInput, options);
-    homeAuto.addListener("place_changed", () => {
-      const place = homeAuto.getPlace();
-      if (place && place.geometry && place.geometry.location) {
-        const loc = place.geometry.location;
-        const chosenPos = { lat: loc.lat(), lng: loc.lng() };
-        const chosenAddr = place.name ? `${place.name}, ${place.formatted_address}` : place.formatted_address;
-        prefHomeInput.value = chosenAddr;
-        openPickerFor('home', chosenPos, chosenAddr);
+          const addressText = place.name ? `${place.name}, ${place.formatted_address}` : place.formatted_address;
+          input.value = addressText;
+          setPointPosition(place.geometry.location, fieldType, catType, addressText);
+        });
+      } catch (err) {
+        console.error(`Failed to bind Autocomplete for ${fieldType}/${catType}:`, err);
       }
-    });
-  }
+    };
 
-  const newPlaceAddressInput = document.getElementById("newPlaceAddress");
-  if (newPlaceAddressInput && window.google && window.google.maps && window.google.maps.places) {
-    const customAuto = new google.maps.places.Autocomplete(newPlaceAddressInput, options);
-    customAuto.addListener("place_changed", () => {
-      const place = customAuto.getPlace();
-      if (place && place.geometry && place.geometry.location) {
-        const loc = place.geometry.location;
-        const chosenPos = { lat: loc.lat(), lng: loc.lng() };
-        const chosenAddr = place.name ? `${place.name}, ${place.formatted_address}` : place.formatted_address;
-        newPlaceAddressInput.value = chosenAddr;
-        openPickerFor('custom', chosenPos, chosenAddr);
+    bindAuto(pickupInput, "pickup", "mobility");
+    bindAuto(dropoffInput, "dropoff", "mobility");
+    bindAuto(cPickupInput, "pickup", "concierge");
+    bindAuto(cDropoffInput, "dropoff", "concierge");
+
+    const prefHomeInput = document.getElementById("prefHome");
+    if (prefHomeInput && window.google && window.google.maps && window.google.maps.places) {
+      try {
+        const homeAuto = new google.maps.places.Autocomplete(prefHomeInput, options);
+        homeAuto.addListener("place_changed", () => {
+          const place = homeAuto.getPlace();
+          if (place && place.geometry && place.geometry.location) {
+            const loc = place.geometry.location;
+            const chosenPos = { lat: loc.lat(), lng: loc.lng() };
+            const chosenAddr = place.name ? `${place.name}, ${place.formatted_address}` : place.formatted_address;
+            prefHomeInput.value = chosenAddr;
+            openPickerFor('home', chosenPos, chosenAddr);
+          }
+        });
+      } catch (err) {
+        console.error("Failed to bind Autocomplete for prefHome:", err);
       }
-    });
+    }
+
+    const newPlaceAddressInput = document.getElementById("newPlaceAddress");
+    if (newPlaceAddressInput && window.google && window.google.maps && window.google.maps.places) {
+      try {
+        const customAuto = new google.maps.places.Autocomplete(newPlaceAddressInput, options);
+        customAuto.addListener("place_changed", () => {
+          const place = customAuto.getPlace();
+          if (place && place.geometry && place.geometry.location) {
+            const loc = place.geometry.location;
+            const chosenPos = { lat: loc.lat(), lng: loc.lng() };
+            const chosenAddr = place.name ? `${place.name}, ${place.formatted_address}` : place.formatted_address;
+            newPlaceAddressInput.value = chosenAddr;
+            openPickerFor('custom', chosenPos, chosenAddr);
+          }
+        });
+      } catch (err) {
+        console.error("Failed to bind Autocomplete for newPlaceAddress:", err);
+      }
+    }
+  } catch (err) {
+    // 任何未預期的例外都不可讓 initAutocomplete 拋出，避免阻斷後續全域腳本
+    // (js/order.js) 的事件綁定與執行。
+    console.error("initAutocomplete failed unexpectedly:", err);
   }
 }

@@ -177,9 +177,10 @@ function renderPendingOrderView(orderId) {
   driver.textContent = `Order ${orderId} is being dispatched in real time.`;
   eta.textContent = 'Searching';
   pendingSlot.innerHTML = `
-    <button type="button" onclick="cancelAndReset()" class="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-600 transition hover:bg-slate-50">
+    <button type="button" id="btnCancelActiveOrder" class="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-600 transition hover:bg-slate-50">
       Cancel order
     </button>`;
+  pendingSlot.querySelector('#btnCancelActiveOrder')?.addEventListener('click', cancelAndReset);
   pendingSlot.classList.remove('hidden');
   shareSlot?.classList.add('hidden');
   completionSlot?.classList.add('hidden');
@@ -664,7 +665,8 @@ function startDispatchTimeoutChecker() {
 function showTimeoutStage1UI() {
   const pendingSlot = document.getElementById('activeTripPendingSlot');
   if (pendingSlot) {
-    pendingSlot.innerHTML = '<p class="mb-2 text-xs font-semibold text-amber-700">Drivers are currently busy. We are still looking.</p><button type="button" onclick="cancelAndReset()" class="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-600">Cancel order</button>';
+    pendingSlot.innerHTML = '<p class="mb-2 text-xs font-semibold text-amber-700">Drivers are currently busy. We are still looking.</p><button type="button" id="btnCancelActiveOrder" class="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-600">Cancel order</button>';
+    pendingSlot.querySelector('#btnCancelActiveOrder')?.addEventListener('click', cancelAndReset);
     pendingSlot.classList.remove('hidden');
   }
 }
@@ -679,7 +681,8 @@ function extendDispatchWait() {
 function showTimeoutStage2UI() {
   const pendingSlot = document.getElementById('activeTripPendingSlot');
   if (pendingSlot) {
-    pendingSlot.innerHTML = '<p class="mb-2 text-xs font-semibold text-slate-600">No chauffeur is available yet. You can keep waiting or cancel.</p><button type="button" onclick="cancelAndReset()" class="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-600">Cancel order</button>';
+    pendingSlot.innerHTML = '<p class="mb-2 text-xs font-semibold text-slate-600">No chauffeur is available yet. You can keep waiting or cancel.</p><button type="button" id="btnCancelActiveOrder" class="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-600">Cancel order</button>';
+    pendingSlot.querySelector('#btnCancelActiveOrder')?.addEventListener('click', cancelAndReset);
     pendingSlot.classList.remove('hidden');
   }
 }
@@ -693,6 +696,45 @@ function stopDispatchTimer() {
   const t2 = document.getElementById('timeoutStage2Card');
   if (t1) t1.classList.add('hidden');
   if (t2) t2.classList.add('hidden');
+}
+
+// 共用：還原乘客端首頁預約畫面（地圖、分類欄位、送出按鈕等）。
+// 供 cancelAndReset() 與 finishTripAndReset() 共用，避免取消訂單後
+// 畫面停留在被 prepareNativeTripView() 隱藏的空白狀態。
+function restoreBookingHomeView() {
+  document.getElementById('dispatchModal')?.classList.add('hidden');
+  document.getElementById('radarSection')?.classList.remove('hidden');
+  document.getElementById('matchedCard')?.classList.add('hidden');
+  document.getElementById('mascotCapsule')?.classList.add('hidden');
+  document.getElementById('activeTripBottomCard')?.classList.add('hidden');
+  if (typeof directionsRenderer !== 'undefined' && directionsRenderer) {
+    directionsRenderer.set('directions', null);
+  }
+  const mapContainer = document.getElementById('mapPreviewContainer');
+  if (mapContainer) {
+    mapContainer.style.height = '';
+    mapContainer.classList.add('mt-3');
+  }
+  const mainEl = document.querySelector('main');
+  if (mainEl) {
+    const sections = mainEl.querySelectorAll('section');
+    if (sections[0]) sections[0].classList.remove('hidden');
+    if (sections[2]) sections[2].classList.remove('hidden');
+    const gridMobility = document.getElementById('grid-mobility');
+    const gridConcierge = document.getElementById('grid-concierge');
+    const fieldsMobility = document.getElementById('fields-mobility');
+    const fieldsConcierge = document.getElementById('fields-concierge');
+    const savedPlaces = document.getElementById('mainSavedPlacesChips');
+    [gridMobility, gridConcierge, fieldsMobility, fieldsConcierge, savedPlaces].forEach(element => {
+      if (element) element.classList.remove('hidden');
+    });
+    if (typeof switchCategory === 'function') switchCategory(currentCategory);
+  }
+  const submitBtn = document.getElementById('btnSubmit');
+  if (submitBtn) {
+    submitBtn.disabled = false;
+    submitBtn.classList.remove('opacity-60', 'pointer-events-none');
+  }
 }
 
 async function cancelAndReset() {
@@ -732,16 +774,7 @@ async function cancelAndReset() {
     });
   }
 
-  document.getElementById('dispatchModal')?.classList.add('hidden');
-  document.getElementById('radarSection')?.classList.remove('hidden');
-  document.getElementById('matchedCard')?.classList.add('hidden');
-  document.getElementById('mascotCapsule')?.classList.add('hidden');
-  document.getElementById('activeTripBottomCard')?.classList.add('hidden');
-  const submitBtn = document.getElementById('btnSubmit');
-  if (submitBtn) {
-    submitBtn.disabled = false;
-    submitBtn.classList.remove('opacity-60', 'pointer-events-none');
-  }
+  restoreBookingHomeView();
 
   if (targetOrderId && targetOrderId !== 'Generating...') {
     try {
@@ -766,37 +799,7 @@ function finishTripAndReset() {
     unsubscribeOrder();
     unsubscribeOrder = null;
   }
-  document.getElementById('dispatchModal')?.classList.add('hidden');
-  document.getElementById('radarSection')?.classList.remove('hidden');
-  document.getElementById('matchedCard')?.classList.add('hidden');
-  document.getElementById('mascotCapsule')?.classList.add('hidden');
-  document.getElementById('activeTripBottomCard')?.classList.add('hidden');
-  if (directionsRenderer) directionsRenderer.set('directions', null);
-  const mapContainer = document.getElementById('mapPreviewContainer');
-  if (mapContainer) {
-    mapContainer.style.height = '';
-    mapContainer.classList.add('mt-3');
-  }
-  const mainEl = document.querySelector('main');
-  if (mainEl) {
-    const sections = mainEl.querySelectorAll('section');
-    if (sections[0]) sections[0].classList.remove('hidden');
-    if (sections[2]) sections[2].classList.remove('hidden');
-    const gridMobility = document.getElementById('grid-mobility');
-    const gridConcierge = document.getElementById('grid-concierge');
-    const fieldsMobility = document.getElementById('fields-mobility');
-    const fieldsConcierge = document.getElementById('fields-concierge');
-    const savedPlaces = document.getElementById('mainSavedPlacesChips');
-    [gridMobility, gridConcierge, fieldsMobility, fieldsConcierge, savedPlaces].forEach(element => {
-      if (element) element.classList.remove('hidden');
-    });
-    switchCategory(currentCategory);
-  }
-  const submitBtn = document.getElementById('btnSubmit');
-  if (submitBtn) {
-    submitBtn.disabled = false;
-    submitBtn.classList.remove('opacity-60', 'pointer-events-none');
-  }
+  restoreBookingHomeView();
   currentOrderId = null;
 }
 
@@ -804,7 +807,19 @@ function finishTripAndReset() {
 function checkActiveOrderOnLoad() {
   const activeId = localStorage.getItem('r2g_active_order_id');
   const urlParams = new URLSearchParams(window.location.search);
-  if (activeId && !urlParams.has('track')) {
+
+  // 防止幽靈訂單：id 為空、遺失或仍是 "Generating..." 佔位字串時，
+  // 一律視為無效訂單，直接清除本機暫存，絕不渲染待接單卡片。
+  const isGhostId = !activeId || !activeId.trim() || activeId.trim() === 'Generating...';
+  if (isGhostId) {
+    if (activeId) {
+      console.warn('[Passenger] Clearing ghost active order id on load:', activeId);
+      localStorage.removeItem('r2g_active_order_id');
+    }
+    return;
+  }
+
+  if (!urlParams.has('track')) {
     currentOrderId = activeId;
     renderPendingOrderView(activeId);
     subscribeToOrder(activeId);
@@ -834,10 +849,22 @@ async function fetchLatestRates() {
 }
 
 // 系統初始化
+// safeInvoke：確保任何單一初始化流程（包含地圖模組）拋出例外時，
+// 都不會阻斷其他全域事件監聽器的註冊與執行。
+function safeInvoke(fn, label) {
+  return function (...args) {
+    try {
+      return fn.apply(this, args);
+    } catch (err) {
+      console.error(`[Passenger] ${label} failed:`, err);
+    }
+  };
+}
+
 loadProfile();
 updateCardBadges();
 fetchLatestRates();
-window.addEventListener("DOMContentLoaded", initAutocomplete);
-window.addEventListener("load", initAutocomplete);
-window.addEventListener("DOMContentLoaded", checkViewerTrackingMode);
-window.addEventListener("DOMContentLoaded", checkActiveOrderOnLoad);
+window.addEventListener("DOMContentLoaded", safeInvoke(initAutocomplete, "initAutocomplete"));
+window.addEventListener("load", safeInvoke(initAutocomplete, "initAutocomplete"));
+window.addEventListener("DOMContentLoaded", safeInvoke(checkViewerTrackingMode, "checkViewerTrackingMode"));
+window.addEventListener("DOMContentLoaded", safeInvoke(checkActiveOrderOnLoad, "checkActiveOrderOnLoad"));
