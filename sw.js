@@ -8,6 +8,9 @@ const ASSETS_TO_CACHE = [
   './index.html',
   './manifest.json',
   './icon.svg',
+  './assets/icons/mascot-chauffeur.svg',
+  './assets/icons/mascot-vip-male.svg',
+  './assets/icons/mascot-vip-female.svg',
   'https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap',
   'https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js',
   'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js'
