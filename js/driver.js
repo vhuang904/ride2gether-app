@@ -39,7 +39,8 @@ function renderOrders(snapshot) {
   const container = document.getElementById("ordersContainer");
   const count = document.getElementById("orderCount");
   const pendingOrders = [];
-  const pendingIds = new Set();
+
+  container.innerHTML = "";
 
   snapshot.forEach((doc) => {
     const order = doc.data();
@@ -50,14 +51,8 @@ function renderOrders(snapshot) {
       pendingClaims.delete(doc.id);
     }
     observedOrderStatuses.set(doc.id, status);
-    if (status === "pending") {
+    if (order.status === "pending") {
       pendingOrders.push({ id: doc.id, ...order });
-      pendingIds.add(doc.id);
-    }
-  });
-  container.querySelectorAll("[data-order-card-id]").forEach((card) => {
-    if (!pendingIds.has(card.dataset.orderCardId)) {
-      card.remove();
     }
   });
   pendingOrders.sort((left, right) => {
