@@ -19,42 +19,17 @@
 
   <!-- Tailwind CSS & Google Fonts -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="js/tailwind-config.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 
+  <link rel="stylesheet" href="css/custom.css">
   <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            pearl: '#F8FAFC',
-            surface: '#FFFFFF',
-            navy: {
-              900: '#0F172A',
-              800: '#1E293B',
-              700: '#334155',
-              600: '#475569'
-            },
-            royal: {
-              DEFAULT: '#1E40AF',
-              hover: '#1D4ED8',
-              soft: '#EFF6FF',
-              border: '#BFDBFE'
-            }
-          },
-          fontFamily: {
-            serif: ['Cinzel', 'serif'],
-            sans: ['Plus Jakarta Sans', 'sans-serif']
-          }
-        }
-      }
-    }
+    window.initMap = function() {
+      window.dispatchEvent(new Event('googlemapsready'));
+    };
   </script>
-
-  <style>
-  <link rel="stylesheet" href="./css/custom.css">
-  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB2ePR5LnmHDJrzHx2ib0oRQfrM_c8IcOk&libraries=places&language=en"></script>
 </head>
 <body class="bg-[#0F172A] min-h-screen flex flex-col justify-between selection:bg-royal selection:text-white">
 
@@ -573,10 +548,11 @@
     </div>
   </div>
 
-  <script src="./js/config.js"></script>
-  <script src="./js/profile.js"></script>
-  <script src="./js/rates.js"></script>
-  <script src="./js/map.js"></script>
-  <script src="./js/order.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/rates.js"></script>
+  <script src="js/profile.js"></script>
+  <script src="js/map.js"></script>
+  <script async src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB2ePR5LnmHDJrzHx2ib0oRQfrM_c8IcOk&libraries=places&language=en&loading=async&callback=initMap"></script>
+  <script src="js/order.js"></script>
 </body>
 </html>

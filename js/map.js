@@ -15,24 +15,30 @@ let conciergeDropoffCoord = null;
 let activeFieldFocus = 'pickup';
 let currentEditingMarkerType = null;
 
-const PERSON_PIN_ICON = {
-  url: "data:image/svg+xml;charset=UTF-8," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="32" height="36" viewBox="0 0 30 34"><filter id="s" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="1.5" stdDeviation="1.5" flood-color="#000" flood-opacity="0.3"/></filter><g filter="url(#s)"><path d="M5 21 C5 15.5 9.5 13.5 15 13.5 C20.5 13.5 25 15.5 25 21 C25 24 18.5 26 18.5 26 L15 31.5 L11.5 26 C11.5 26 5 24 5 21 Z" fill="#2563eb" stroke="#ffffff" stroke-width="1" stroke-linejoin="round"/><circle cx="15" cy="7.5" r="5" fill="#2563eb" stroke="#ffffff" stroke-width="1"/></g></svg>'),
-  scaledSize: new google.maps.Size(28, 32),
-  anchor: new google.maps.Point(14, 32)
-};
+function getPersonPinIcon() {
+  return {
+    url: "data:image/svg+xml;charset=UTF-8," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="32" height="36" viewBox="0 0 30 34"><filter id="s" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="1.5" stdDeviation="1.5" flood-color="#000" flood-opacity="0.3"/></filter><g filter="url(#s)"><path d="M5 21 C5 15.5 9.5 13.5 15 13.5 C20.5 13.5 25 15.5 25 21 C25 24 18.5 26 18.5 26 L15 31.5 L11.5 26 C11.5 26 5 24 5 21 Z" fill="#2563eb" stroke="#ffffff" stroke-width="1" stroke-linejoin="round"/><circle cx="15" cy="7.5" r="5" fill="#2563eb" stroke="#ffffff" stroke-width="1"/></g></svg>'),
+    scaledSize: new google.maps.Size(28, 32),
+    anchor: new google.maps.Point(14, 32)
+  };
+}
 
-const DESTINATION_FLAG_ICON = {
-  url: 'assets/icons/pin-destination.svg',
-  scaledSize: new google.maps.Size(42, 50),
-  origin: new google.maps.Point(0, 0),
-  anchor: new google.maps.Point(21, 46)
-};
+function getDestinationFlagIcon() {
+  return {
+    url: 'assets/icons/pin-destination.svg',
+    scaledSize: new google.maps.Size(42, 50),
+    origin: new google.maps.Point(0, 0),
+    anchor: new google.maps.Point(21, 46)
+  };
+}
 
-const USER_GPS_ICON = {
-  url: "data:image/svg+xml;charset=UTF-8," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#3b82f6" fill-opacity="0.3"/><circle cx="12" cy="12" r="6" fill="#1d4ed8" stroke="#ffffff" stroke-width="2"/></svg>'),
-  scaledSize: new google.maps.Size(24, 24),
-  anchor: new google.maps.Point(12, 12)
-};
+function getUserGpsIcon() {
+  return {
+    url: "data:image/svg+xml;charset=UTF-8," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#3b82f6" fill-opacity="0.3"/><circle cx="12" cy="12" r="6" fill="#1d4ed8" stroke="#ffffff" stroke-width="2"/></svg>'),
+    scaledSize: new google.maps.Size(24, 24),
+    anchor: new google.maps.Point(12, 12)
+  };
+}
 
 function addContextAwareLocationControl(map) {
   const controlDiv = document.createElement("div");
@@ -76,7 +82,7 @@ function addContextAwareLocationControl(map) {
             userLocationMarker = new google.maps.Marker({
               position: userPos,
               map: map,
-              icon: USER_GPS_ICON,
+              icon: getUserGpsIcon(),
               zIndex: 999
             });
           }
@@ -157,7 +163,7 @@ function setPointPosition(pos, fieldType, catType, optAddressText) {
       position: pos,
       map: map,
       draggable: true,
-      icon: DESTINATION_FLAG_ICON
+      icon: getDestinationFlagIcon()
     });
     dropoffMarker.addListener("dragend", () => {
       const newPos = dropoffMarker.getPosition();
@@ -409,6 +415,8 @@ function initAutocomplete() {
     if (!geocoderInstance) geocoderInstance = new google.maps.Geocoder();
     if (!directionsService) directionsService = new google.maps.DirectionsService();
   }
+
+  window.addEventListener("googlemapsready", initAutocomplete);
 
   const bindAuto = (input, fieldType, catType) => {
     if (!input || !window.google || !window.google.maps || !window.google.maps.places) return;

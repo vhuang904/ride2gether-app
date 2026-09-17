@@ -292,7 +292,7 @@ function openPickerFor(target, optPos, optAddress) {
       position: initialPos,
       map: pickerMapInstance,
       draggable: true,
-      icon: PERSON_PIN_ICON
+      icon: getPersonPinIcon()
     });
 
     temporaryPickerPos = initialPos;
