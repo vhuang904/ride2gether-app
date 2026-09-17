@@ -174,7 +174,7 @@ function subscribeToOrder(orderId) {
 
 function renderPendingOrderView(orderId) {
   prepareNativeTripView();
-  const card = document.getElementById('activeTripBottomCard');
+  const card = document.getElementById('activeTripPanel');
   const state = document.getElementById('activeTripStateLabel');
   const title = document.getElementById('activeTripTitle');
   const driver = document.getElementById('activeTripDriver');
@@ -240,7 +240,9 @@ function prepareNativeTripView() {
     legacyModal.setAttribute('inert', '');
   }
   document.getElementById('mascotCapsule')?.classList.add('hidden');
-  const bottomCard = document.getElementById('activeTripBottomCard');
+  // 整併需求：行程進行期間隱藏「小費區塊」，讓合一後的行程卡片取代其視覺空間。
+  document.getElementById('priorityTipSection')?.classList.add('hidden');
+  const bottomCard = document.getElementById('activeTripPanel');
   if (bottomCard) {
     bottomCard.classList.remove('hidden');
     bottomCard.style.display = '';
@@ -299,7 +301,7 @@ function renderNativeTripView(status, data) {
     lockMainMapGestures();
   }
 
-  const card = document.getElementById('activeTripBottomCard');
+  const card = document.getElementById('activeTripPanel');
   const title = document.getElementById('activeTripTitle');
   const state = document.getElementById('activeTripStateLabel');
   const driverNameEl = document.getElementById('activeTripDriverName');
@@ -408,14 +410,14 @@ function updateFloatingBubbleAvatar(data) {
 
 function showActiveTripFloatingBubble(data) {
   updateFloatingBubbleAvatar(data || lastTripData || {});
-  const bubble = document.getElementById('activeTripFloatingBubble');
+  const bubble = document.getElementById('tripFloatingBubble');
   if (!bubble) return;
   bubble.classList.remove('hidden');
   bubble.classList.add('flex');
 }
 
 function hideActiveTripFloatingBubble() {
-  const bubble = document.getElementById('activeTripFloatingBubble');
+  const bubble = document.getElementById('tripFloatingBubble');
   if (!bubble) return;
   bubble.classList.add('hidden');
   bubble.classList.remove('flex');
@@ -425,7 +427,7 @@ function hideActiveTripFloatingBubble() {
 // 司機資訊持續在背景（Firestore 監聽）更新，乘客可隨時點擊氣泡還原完整視窗。
 function minimizeActiveTrip() {
   isActiveTripMinimized = true;
-  const card = document.getElementById('activeTripBottomCard');
+  const card = document.getElementById('activeTripPanel');
   if (card) {
     card.classList.add('hidden');
     card.style.display = 'none';
@@ -437,7 +439,7 @@ function minimizeActiveTrip() {
 function restoreActiveTripFromBubble() {
   isActiveTripMinimized = false;
   hideActiveTripFloatingBubble();
-  const card = document.getElementById('activeTripBottomCard');
+  const card = document.getElementById('activeTripPanel');
   if (card) {
     card.classList.remove('hidden');
     card.style.display = '';
@@ -729,7 +731,7 @@ function restoreBookingHomeView() {
   if (radarSection) radarSection.classList.remove('hidden');
   document.getElementById('matchedCard')?.classList.add('hidden');
   document.getElementById('mascotCapsule')?.classList.add('hidden');
-  const activeTripBottomCard = document.getElementById('activeTripBottomCard');
+  const activeTripBottomCard = document.getElementById('activeTripPanel');
   if (activeTripBottomCard) {
     activeTripBottomCard.classList.add('hidden');
     activeTripBottomCard.style.display = 'none';
@@ -765,7 +767,8 @@ function restoreBookingHomeView() {
     const fieldsMobility = document.getElementById('fields-mobility');
     const fieldsConcierge = document.getElementById('fields-concierge');
     const savedPlaces = document.getElementById('mainSavedPlacesChips');
-    [gridMobility, gridConcierge, fieldsMobility, fieldsConcierge, savedPlaces].forEach(element => {
+    const priorityTipSection = document.getElementById('priorityTipSection');
+    [gridMobility, gridConcierge, fieldsMobility, fieldsConcierge, savedPlaces, priorityTipSection].forEach(element => {
       if (element) element.classList.remove('hidden');
     });
     if (typeof switchCategory === 'function') switchCategory(currentCategory);
@@ -954,5 +957,5 @@ window.addEventListener("DOMContentLoaded", safeInvoke(function () {
 }, "wireTripEndConfirmDialog"));
 window.addEventListener("DOMContentLoaded", safeInvoke(function () {
   document.getElementById('btnMinimizeActiveTrip')?.addEventListener('click', minimizeActiveTrip);
-  document.getElementById('activeTripFloatingBubble')?.addEventListener('click', restoreActiveTripFromBubble);
+  document.getElementById('tripFloatingBubble')?.addEventListener('click', restoreActiveTripFromBubble);
 }, "wireActiveTripMinimizeControls"));
