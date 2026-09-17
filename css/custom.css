@@ -1,0 +1,60 @@
+    body {
+      background-color: #0F172A;
+      color: #0F172A;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+    .navy-gradient-text {
+      background: linear-gradient(135deg, #0F172A 0%, #1E40AF 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .card-active {
+      border: 1.5px solid #1E40AF !important;
+      background: #EFF6FF !important;
+      box-shadow: 0 10px 25px -5px rgba(30, 64, 175, 0.12), 0 0 0 1px rgba(30, 64, 175, 0.15) !important;
+    }
+    .glass-nav {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+    }
+    @keyframes ping-slow {
+      0% { transform: scale(0.9); opacity: 0.8; }
+      70% { transform: scale(2.2); opacity: 0; }
+      100% { transform: scale(2.2); opacity: 0; }
+    }
+    .animate-ping-slow {
+      animation: ping-slow 2.4s cubic-bezier(0, 0, 0.2, 1) infinite;
+    }
+
+    /* Google Places Dropdown 暗色質感 */
+    .pac-container {
+      background-color: #1e293b !important;
+      border: 1px solid #334155 !important;
+      border-radius: 12px !important;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5) !important;
+      font-family: inherit !important;
+      margin-top: 6px !important;
+      z-index: 99999 !important;
+    }
+    .pac-item {
+      padding: 10px 14px !important;
+      border-top: 1px solid #334155 !important;
+      color: #94a3b8 !important;
+      cursor: pointer !important;
+    }
+    .pac-item:hover, .pac-item-selected {
+      background-color: #334155 !important;
+    }
+    .pac-item-query {
+      color: #f8fafc !important;
+      font-size: 14px !important;
+    }
+    .pac-matched {
+      color: #38bdf8 !important;
+    }
+    .pac-icon {
+      filter: invert(1) hue-rotate(180deg) !important;
+    }
