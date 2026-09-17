@@ -1324,7 +1324,7 @@
   const curDropoff = isMobility ? mobilityDropoffCoord : conciergeDropoffCoord;
 
   if (curPickup && curDropoff) {
-    calculateAndDisplayRoute(true);
+    calculateAndDisplayRoute(false);
   }
 
   showPinBubble(fieldType === 'pickup' ? pickupMarker : dropoffMarker, fieldType, catType, optAddressText);
