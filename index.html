@@ -1454,21 +1454,47 @@
         el.value = '';
       }
 
-      // 取得對應圖釘並保持可拖曳
-      const marker = (fieldType === 'pickup') ? pickupMarker : dropoffMarker;
-      if (marker) {
-        marker.setDraggable(true);
-        showPinBubble(marker, fieldType, catType);
+      const isMobility = (catType === 'mobility');
+
+      // 清除對應點的座標與地圖 Marker
+      if (fieldType === 'pickup') {
+        if (isMobility) mobilityPickupCoord = null;
+        else conciergePickupCoord = null;
+        if (pickupMarker) {
+          pickupMarker.setMap(null);
+          pickupMarker = null;
+        }
+        activeFieldFocus = 'pickup';
+      } else {
+        if (isMobility) mobilityDropoffCoord = null;
+        else conciergeDropoffCoord = null;
+        if (dropoffMarker) {
+          dropoffMarker.setMap(null);
+          dropoffMarker = null;
+        }
+        activeFieldFocus = 'dropoff';
       }
 
-      // 路線計算重置
+      // 路線計算重置並移除導航折線
       if (directionsRenderer) directionsRenderer.set('directions', null);
       document.getElementById("distance").value = "0";
       document.getElementById("distVal").innerText = "-- km";
       document.getElementById("durationVal").innerText = "-- mins";
+      const bubble = document.getElementById('pinActionBubble');
+      if (bubble) bubble.classList.add('hidden');
       calculateEstimate();
 
-      // 延遲解除清空鎖定，確保當前非同步回呼不會回填舊地址
+      // 檢查是否還有另一個保留的點：若有，地圖平滑平移並近距離聚焦（Zoom 17）
+      const remainingCoord = (fieldType === 'pickup')
+        ? (isMobility ? mobilityDropoffCoord : conciergeDropoffCoord)
+        : (isMobility ? mobilityPickupCoord : conciergePickupCoord);
+
+      if (remainingCoord && mapInstance) {
+        mapInstance.panTo(remainingCoord);
+        mapInstance.setZoom(17);
+      }
+
+      // 延遲解除清空旗標，避免非同步逆編碼回填
       setTimeout(() => { isClearingAddress = false; }, 400);
     }
     
