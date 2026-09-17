@@ -165,10 +165,6 @@ function recenterMapToUserGps() {
 }
 
 function setPointPosition(pos, fieldType, catType, optAddressText) {
-  const map = getOrCreateMap(pos);
-  map.panTo(pos);
-  map.setZoom(17);
-
   currentEditingMarkerType = fieldType;
 
   if (catType === 'mobility') {
@@ -178,6 +174,20 @@ function setPointPosition(pos, fieldType, catType, optAddressText) {
     if (fieldType === 'pickup') conciergePickupCoord = pos;
     else conciergeDropoffCoord = pos;
   }
+
+  // 管家（Concierge）採輕量文字表單日常體驗，不常駐加載大型主地圖；
+  // 座標仍照常寫入 conciergePickupCoord/conciergeDropoffCoord 供費率/路線計算使用，
+  // 大地圖僅在乘客主動點擊「在地圖上微調」開啟獨立 Picker Modal 時才會加載。
+  if (catType !== 'mobility') {
+    if (conciergePickupCoord && conciergeDropoffCoord) {
+      calculateAndDisplayRoute(false);
+    }
+    return;
+  }
+
+  const map = getOrCreateMap(pos);
+  map.panTo(pos);
+  map.setZoom(17);
 
   if (fieldType === 'pickup') {
     if (pickupMarker) pickupMarker.setMap(null);

@@ -933,6 +933,140 @@ function closeTripEndConfirmDialog() {
 }
 
 
+// --- 管家（Concierge）彈出式選點地圖 Picker Modal ---
+// 管家日常介面為輕量文字表單，平時不加載大型地圖；僅在乘客點擊
+// 地址欄旁「在地圖上微調」時，才以 Lazy-Singleton 方式建立/重用獨立的
+// 輕量地圖實例（conciergePickerMapInstance），確認或取消後即隱藏 Modal 釋放畫面，
+// 但保留地圖實例供下次快速重用，避免重複觸發 Google Maps 地圖載入計費事件。
+let conciergePickerMapInstance = null;
+let conciergePickerMarker = null;
+let conciergePickerFieldType = 'pickup';
+let conciergePickerTempPos = null;
+let conciergePickerTempAddress = "";
+
+function openConciergeLocationPicker(fieldType) {
+  conciergePickerFieldType = fieldType;
+  const modal = document.getElementById('locationPickerModal');
+  const title = document.getElementById('locationPickerTitle');
+  if (!modal) return;
+
+  if (title) {
+    title.innerText = (fieldType === 'pickup') ? 'Adjust Store / Pickup Point' : 'Adjust Delivery Destination';
+  }
+  modal.classList.remove('hidden');
+
+  setTimeout(() => {
+    if (!window.google || !window.google.maps) return;
+
+    const existingCoord = (fieldType === 'pickup') ? conciergePickupCoord : conciergeDropoffCoord;
+    const initialPos = existingCoord || { lat: 7.0722, lng: 125.6125 };
+
+    if (!conciergePickerMapInstance) {
+      conciergePickerMapInstance = new google.maps.Map(document.getElementById("conciergePickerMap"), {
+        center: initialPos,
+        zoom: 17,
+        disableDefaultUI: true,
+        zoomControl: true
+      });
+    } else {
+      google.maps.event.trigger(conciergePickerMapInstance, 'resize');
+      conciergePickerMapInstance.setCenter(initialPos);
+      conciergePickerMapInstance.setZoom(17);
+    }
+
+    if (conciergePickerMarker) conciergePickerMarker.setMap(null);
+    conciergePickerMarker = new google.maps.Marker({
+      position: initialPos,
+      map: conciergePickerMapInstance,
+      draggable: true,
+      icon: (typeof getPersonPinIcon === 'function') ? getPersonPinIcon() : undefined
+    });
+
+    conciergePickerTempPos = initialPos;
+    const addressInput = document.getElementById(fieldType === 'pickup' ? 'conciergePickup' : 'conciergeDropoff');
+    const existingAddress = addressInput ? addressInput.value.trim() : "";
+    if (existingAddress) {
+      conciergePickerTempAddress = existingAddress;
+      const addrText = document.getElementById('conciergePickerAddressText');
+      if (addrText) addrText.innerText = existingAddress;
+    } else {
+      reverseGeocodeConciergePicker(initialPos);
+    }
+
+    conciergePickerMarker.addListener("dragend", () => {
+      const newPos = conciergePickerMarker.getPosition();
+      conciergePickerTempPos = { lat: newPos.lat(), lng: newPos.lng() };
+      reverseGeocodeConciergePicker(conciergePickerTempPos);
+    });
+  }, 200);
+}
+
+function locateConciergePickerGps() {
+  if (!navigator.geolocation) return;
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      const userPos = { lat: position.coords.latitude, lng: position.coords.longitude };
+      if (conciergePickerMapInstance && conciergePickerMarker) {
+        conciergePickerMapInstance.panTo(userPos);
+        conciergePickerMapInstance.setZoom(17);
+        conciergePickerMarker.setPosition(userPos);
+        conciergePickerTempPos = userPos;
+        reverseGeocodeConciergePicker(userPos);
+      }
+    },
+    (err) => console.warn("[Concierge Picker] GPS locate failed:", err),
+    { enableHighAccuracy: true, timeout: 6000 }
+  );
+}
+
+function reverseGeocodeConciergePicker(pos) {
+  if (typeof geocoderInstance === 'undefined' || !geocoderInstance) return;
+  try {
+    geocoderInstance.geocode({ location: pos }, (res, status) => {
+      if (status === "OK" && res[0]) {
+        conciergePickerTempAddress = res[0].formatted_address;
+        const addrText = document.getElementById('conciergePickerAddressText');
+        if (addrText) addrText.innerText = conciergePickerTempAddress;
+      }
+    });
+  } catch (err) {
+    console.error("[Concierge Picker] Reverse geocode failed:", err);
+  }
+}
+
+function confirmConciergeLocationPicker() {
+  if (!conciergePickerTempPos) {
+    closeLocationPickerModal();
+    return;
+  }
+
+  const finalPos = conciergePickerTempPos;
+  const finalAddr = conciergePickerTempAddress ||
+    document.getElementById(conciergePickerFieldType === 'pickup' ? 'conciergePickup' : 'conciergeDropoff')?.value || "";
+
+  if (conciergePickerFieldType === 'pickup') {
+    conciergePickupCoord = finalPos;
+  } else {
+    conciergeDropoffCoord = finalPos;
+  }
+
+  const addressInput = document.getElementById(conciergePickerFieldType === 'pickup' ? 'conciergePickup' : 'conciergeDropoff');
+  if (addressInput) addressInput.value = finalAddr;
+
+  if (conciergePickupCoord && conciergeDropoffCoord && typeof calculateAndDisplayRoute === 'function') {
+    calculateAndDisplayRoute(false);
+  }
+
+  closeLocationPickerModal();
+}
+
+function closeLocationPickerModal() {
+  const modal = document.getElementById('locationPickerModal');
+  if (modal) modal.classList.add('hidden');
+  conciergePickerTempPos = null;
+  conciergePickerTempAddress = "";
+}
+
 // --- 任務 3：網頁載入時自動恢復正在進行的訂單 (防跳App或刷新丟失) ---
 function checkActiveOrderOnLoad() {
   const activeId = localStorage.getItem('r2g_active_order_id');

@@ -205,7 +205,8 @@
           <label class="text-[11px] text-navy-800 font-medium uppercase tracking-wider block mb-1">Store / Pickup Point</label>
           <div class="relative flex items-center">
             <input type="text" id="conciergePickup" placeholder="Store name, Mall branch or Pickup address"
-                   class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-3.5 pr-8 py-2.5 text-sm text-navy-900 placeholder-slate-400 focus:outline-none focus:border-royal focus:bg-white transition-colors">
+                   class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-3.5 pr-16 py-2.5 text-sm text-navy-900 placeholder-slate-400 focus:outline-none focus:border-royal focus:bg-white transition-colors">
+            <button type="button" onclick="openConciergeLocationPicker('pickup')" title="Adjust on map" class="absolute right-8 text-slate-400 hover:text-royal text-sm p-1">📍</button>
             <button type="button" onclick="clearLocationInput('conciergePickup', 'pickup', 'concierge')" class="absolute right-2.5 text-slate-400 hover:text-slate-600 text-sm p-1">✕</button>
           </div>
         </div>
@@ -213,7 +214,8 @@
           <label class="text-[11px] text-navy-800 font-medium uppercase tracking-wider block mb-1">Delivery Destination</label>
           <div class="relative flex items-center">
             <input type="text" id="conciergeDropoff" placeholder="Unit, Building name or Street"
-                   class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-3.5 pr-8 py-2.5 text-sm text-navy-900 placeholder-slate-400 focus:outline-none focus:border-royal focus:bg-white transition-colors">
+                   class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-3.5 pr-16 py-2.5 text-sm text-navy-900 placeholder-slate-400 focus:outline-none focus:border-royal focus:bg-white transition-colors">
+            <button type="button" onclick="openConciergeLocationPicker('dropoff')" title="Adjust on map" class="absolute right-8 text-slate-400 hover:text-royal text-sm p-1">📍</button>
             <button type="button" onclick="clearLocationInput('conciergeDropoff', 'dropoff', 'concierge')" class="absolute right-2.5 text-slate-400 hover:text-slate-600 text-sm p-1">✕</button>
           </div>
         </div>
@@ -467,6 +469,40 @@
       <div class="p-3 bg-slate-50 border-t border-slate-200">
         <div class="text-[10px] font-bold text-slate-400 uppercase">Selected Address</div>
         <div id="pickerCurrentAddressText" class="text-xs text-navy-900 font-medium truncate mt-0.5">Adjusting pin...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 管家（Concierge）輕量彈出式選點地圖：平時不加載，僅於乘客點擊「在地圖上微調」時開啟 -->
+  <div id="locationPickerModal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex flex-col items-center justify-center p-4 hidden">
+    <div class="bg-white w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl border border-slate-700 flex flex-col h-[520px]">
+      <div class="p-3 bg-slate-900 text-white flex items-center justify-between">
+        <div>
+          <div class="text-xs font-bold uppercase tracking-wider" id="locationPickerTitle">Adjust Location on Map</div>
+          <div class="text-[10px] text-slate-400">Drag pin to exact gate / entrance</div>
+        </div>
+        <button type="button" onclick="closeLocationPickerModal()" class="text-slate-400 hover:text-white text-base font-bold px-2">✕</button>
+      </div>
+
+      <div class="relative flex-1 bg-slate-800">
+        <div id="conciergePickerMap" class="w-full h-full"></div>
+        <div class="absolute top-2 left-1/2 -translate-x-1/2 z-20 flex items-center space-x-2.5 bg-slate-900/95 border border-slate-700 shadow-xl px-3 py-1 rounded-full text-white backdrop-blur-md">
+          <button type="button" onclick="confirmConciergeLocationPicker()" class="w-12 h-7 rounded-lg bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white flex items-center justify-center font-black text-sm shadow transition">
+            ✓
+          </button>
+          <span class="text-[11px] font-bold text-slate-100 tracking-wider uppercase px-1 leading-none">Confirm</span>
+          <button type="button" onclick="closeLocationPickerModal()" class="w-12 h-7 rounded-lg bg-rose-600 hover:bg-rose-700 active:scale-95 text-white flex items-center justify-center font-black text-sm shadow transition">
+            ✕
+          </button>
+        </div>
+        <button type="button" onclick="locateConciergePickerGps()" title="Locate my position"
+                class="absolute top-4 right-4 z-20 w-10 h-10 rounded-full bg-white shadow-lg border border-slate-200 flex items-center justify-center text-royal active:scale-90 transition">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1e40af" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="7"/><polyline points="12 2 12 5"/><polyline points="12 19 12 22"/><polyline points="2 12 5 12"/><polyline points="19 12 22 12"/></svg>
+        </button>
+      </div>
+      <div class="p-3 bg-slate-50 border-t border-slate-200">
+        <div class="text-[10px] font-bold text-slate-400 uppercase">Selected Address</div>
+        <div id="conciergePickerAddressText" class="text-xs text-navy-900 font-medium truncate mt-0.5">Adjusting pin...</div>
       </div>
     </div>
   </div>
