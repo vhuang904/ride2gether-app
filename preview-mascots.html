@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ride2gether Mascot Preview</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-900 text-white min-h-screen p-6 flex flex-col items-center justify-center space-y-10">
+
+  <div class="text-center space-y-2">
+    <h1 class="text-xl font-bold tracking-wider text-amber-400">RIDE2GETHER MASCOT SYSTEM</h1>
+    <p class="text-xs text-slate-400">客端王室貴賓 (冠冕) ＆ 專屬隨行司機 (白西裝禮賓)</p>
+  </div>
+
+  <!-- 角色預覽列 (模擬 FAB 懸浮按鈕質感) -->
+  <div class="grid grid-cols-3 gap-6 w-full max-w-md">
+
+    <!-- 1. 男士貴賓 (藍寶石王子) -->
+    <div class="flex flex-col items-center space-y-3">
+      <div class="w-20 h-20 rounded-full bg-slate-800/90 border border-amber-400/40 p-2 shadow-2xl flex items-center justify-center relative backdrop-blur-md">
+        <svg class="w-full h-full drop-shadow-md" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="sapphireGrad" x1="20" y1="20" x2="80" y2="95" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stop-color="#38BDF8"/>
+              <stop offset="45%" stop-color="#0284C7"/>
+              <stop offset="100%" stop-color="#082F49"/>
+            </linearGradient>
+            <linearGradient id="goldGrad" x1="30" y1="5" x2="70" y2="35" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stop-color="#FEF08A"/>
+              <stop offset="50%" stop-color="#EAB308"/>
+              <stop offset="100%" stop-color="#A16207"/>
+            </linearGradient>
+          </defs>
+          <!-- 軀幹 -->
+          <path d="M22 84 C22 62, 36 56, 50 56 C64 56, 78 62, 78 84 C78 88, 74 90, 50 90 C26 90, 22 88, 22 84 Z" fill="url(#sapphireGrad)"/>
+          <!-- 圓形頭部 -->
+          <circle cx="50" cy="40" r="18" fill="url(#sapphireGrad)"/>
+          <!-- 琉璃高光折射 -->
+          <ellipse cx="44" cy="34" rx="6" ry="3" fill="#ffffff" opacity="0.4" transform="rotate(-25 44 34)"/>
+          <!-- 專屬幾何金冠 (Ride2gether 幾何標誌款) -->
+          <g transform="rotate(-8 50 20)">
+            <path d="M34 25 L38 10 L46 19 L50 6 L54 19 L62 10 L66 25 Z" fill="url(#goldGrad)" stroke="#78350F" stroke-width="0.8"/>
+            <rect x="34" y="23" width="32" height="3.5" rx="1.5" fill="url(#goldGrad)"/>
+            <polygon points="50,11 47,16 53,16" fill="#FEF08A"/>
+          </g>
+        </svg>
+      </div>
+      <span class="text-xs font-semibold text-slate-300">VIP 王子 (男客)</span>
+    </div>
+
+    <!-- 2. 女士貴賓 (玫瑰粉晶公主) -->
+    <div class="flex flex-col items-center space-y-3">
+      <div class="w-20 h-20 rounded-full bg-slate-800/90 border border-pink-400/40 p-2 shadow-2xl flex items-center justify-center relative backdrop-blur-md">
+        <svg class="w-full h-full drop-shadow-md" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="roseGrad" x1="20" y1="20" x2="80" y2="95" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stop-color="#F472B6"/>
+              <stop offset="45%" stop-color="#DB2777"/>
+              <stop offset="100%" stop-color="#700730"/>
+            </linearGradient>
+          </defs>
+          <!-- 軀幹 -->
+          <path d="M22 84 C22 62, 36 56, 50 56 C64 56, 78 62, 78 84 C78 88, 74 90, 50 90 C26 90, 22 88, 22 84 Z" fill="url(#roseGrad)"/>
+          <!-- 圓形頭部 -->
+          <circle cx="50" cy="40" r="18" fill="url(#roseGrad)"/>
+          <!-- 琉璃高光折射 -->
+          <ellipse cx="44" cy="34" rx="6" ry="3" fill="#ffffff" opacity="0.45" transform="rotate(-25 44 34)"/>
+          <!-- 專屬幾何金冠 (同款微調 Tiara) -->
+          <g transform="rotate(7 50 20)">
+            <path d="M35 24 L39 12 L46 18 L50 8 L54 18 L61 12 L65 24 Z" fill="url(#goldGrad)" stroke="#78350F" stroke-width="0.8"/>
+            <rect x="35" y="22.5" width="30" height="3" rx="1.5" fill="url(#goldGrad)"/>
+            <circle cx="50" cy="9" r="1.5" fill="#FFFFFF"/>
+          </g>
+        </svg>
+      </div>
+      <span class="text-xs font-semibold text-slate-300">VIP 公主 (女客)</span>
+    </div>
+
+    <!-- 3. 禮賓司機 (白西裝管家 / 無冠) -->
+    <div class="flex flex-col items-center space-y-3">
+      <div class="w-20 h-20 rounded-full bg-slate-800/90 border border-slate-600/40 p-2 shadow-2xl flex items-center justify-center relative backdrop-blur-md">
+        <svg class="w-full h-full drop-shadow-md" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="suitGrad" x1="30" y1="56" x2="70" y2="90" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stop-color="#FFFFFF"/>
+              <stop offset="60%" stop-color="#F1F5F9"/>
+              <stop offset="100%" stop-color="#CBD5E1"/>
+            </linearGradient>
+            <linearGradient id="driverHeadGrad" x1="30" y1="20" x2="70" y2="55" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stop-color="#94A3B8"/>
+              <stop offset="60%" stop-color="#475569"/>
+              <stop offset="100%" stop-color="#1E293B"/>
+            </linearGradient>
+          </defs>
+          <!-- 白西裝身軀 -->
+          <path d="M22 84 C22 62, 36 56, 50 56 C64 56, 78 62, 78 84 C78 88, 74 90, 50 90 C26 90, 22 88, 22 84 Z" fill="url(#suitGrad)"/>
+          <!-- 西裝深藍領結與前襟細節 -->
+          <polygon points="46,62 50,65 46,68" fill="#0F172A"/>
+          <polygon points="54,62 50,65 54,68" fill="#0F172A"/>
+          <circle cx="50" cy="65" r="1.5" fill="#EAB308"/>
+          <line x1="50" y1="68" x2="50" y2="86" stroke="#94A3B8" stroke-width="1.2" stroke-dasharray="2 2"/>
+          <!-- 琉璃質感情境頭部 (無冠，俐落專業) -->
+          <circle cx="50" cy="38" r="17" fill="url(#driverHeadGrad)"/>
+          <ellipse cx="45" cy="33" rx="5" ry="2.5" fill="#ffffff" opacity="0.3" transform="rotate(-25 45 33)"/>
+        </svg>
+      </div>
+      <span class="text-xs font-semibold text-slate-300">專屬司機 (管家)</span>
+    </div>
+
+  </div>
+
+  <!-- 地圖微型 Marker 模擬 (36px 尺寸實際辨識測試) -->
+  <div class="bg-slate-800/60 p-4 rounded-2xl border border-slate-700/60 flex items-center space-x-6">
+    <span class="text-xs text-slate-400">地圖實際尺寸 (36px)：</span>
+    <div class="w-9 h-9 rounded-full bg-slate-900 border border-amber-400/50 p-1 flex items-center justify-center shadow">
+      <!-- 縮小版王子 -->
+      <svg class="w-full h-full" viewBox="0 0 100 100" fill="none">
+        <use href="#sapphireGrad"/>
+        <path d="M22 84 C22 62, 36 56, 50 56 C64 56, 78 62, 78 84 C78 88, 74 90, 50 90 C26 90, 22 88, 22 84 Z" fill="#0284C7"/>
+        <circle cx="50" cy="40" r="18" fill="#0284C7"/>
+        <path d="M34 25 L38 10 L46 19 L50 6 L54 19 L62 10 L66 25 Z" fill="#EAB308"/>
+      </svg>
+    </div>
+    <div class="w-9 h-9 rounded-full bg-slate-900 border border-slate-500/50 p-1 flex items-center justify-center shadow">
+      <!-- 縮小版司機 -->
+      <svg class="w-full h-full" viewBox="0 0 100 100" fill="none">
+        <path d="M22 84 C22 62, 36 56, 50 56 C64 56, 78 62, 78 84 C78 88, 74 90, 50 90 C26 90, 22 88, 22 84 Z" fill="#F8FAFC"/>
+        <polygon points="46,63 54,63 50,66" fill="#0F172A"/>
+        <circle cx="50" cy="38" r="17" fill="#475569"/>
+      </svg>
+    </div>
+  </div>
+
+</body>
+</html>
