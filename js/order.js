@@ -987,11 +987,17 @@ function openConciergeLocationPicker(fieldType) {
     }
 
     if (conciergePickerMarker) conciergePickerMarker.setMap(null);
+    // 嚴禁自創圖示：起點沿用系統既有男女專屬圖釘 getPickupPinIcon()（js/profile.js，
+    // 依 currentUserProfile.gender 切換），終點沿用既有目的地旗幟 getDestinationFlagIcon()
+    // （js/map.js），與主地圖、Concierge 表單左側 Pin 完全同一套官方資產。
+    const pickerIcon = (fieldType === 'pickup')
+      ? (typeof getPickupPinIcon === 'function' ? getPickupPinIcon() : undefined)
+      : (typeof getDestinationFlagIcon === 'function' ? getDestinationFlagIcon() : undefined);
     conciergePickerMarker = new google.maps.Marker({
       position: initialPos,
       map: conciergePickerMapInstance,
       draggable: true,
-      icon: (typeof getPersonPinIcon === 'function') ? getPersonPinIcon() : undefined
+      icon: pickerIcon
     });
 
     conciergePickerTempPos = initialPos;
