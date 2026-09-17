@@ -1412,11 +1412,17 @@
       }
     }
     
-    function clearLocationInput(inputId, fieldType, catType) {
-      const el = document.getElementById(inputId);
-      if (el) el.value = '';
+    let isClearingAddress = false;
 
-      // 取得當前對應的圖釘
+    function clearLocationInput(inputId, fieldType, catType) {
+      isClearingAddress = true;
+      const el = document.getElementById(inputId);
+      if (el) {
+        el.value = '';
+        el.focus();
+      }
+
+      // 取得對應圖釘並保持可拖曳
       const marker = (fieldType === 'pickup') ? pickupMarker : dropoffMarker;
       if (marker) {
         marker.setDraggable(true);
@@ -1429,6 +1435,9 @@
       document.getElementById("distVal").innerText = "-- km";
       document.getElementById("durationVal").innerText = "-- mins";
       calculateEstimate();
+
+      // 延遲解除清空鎖定，確保當前非同步回呼不會回填舊地址
+      setTimeout(() => { isClearingAddress = false; }, 400);
     }
     
     function calculateAndDisplayRoute(fitRoute = true) {
