@@ -82,10 +82,10 @@ async function requestOrder() {
   };
 
   try {
-    await db.collection("orders").doc(orderId).set(orderData);
+    await db.collection("ride_orders").doc(orderId).set(orderData);
     console.log("[Passenger] Order written to Firestore:", {
       orderId,
-      collection: "orders",
+      collection: "ride_orders",
       status: orderData.status,
       pickup: orderData.pickup,
       destination: orderData.destination,
@@ -141,7 +141,7 @@ function subscribeToOrder(orderId) {
 
   if (unsubscribeOrder) unsubscribeOrder();
 
-  unsubscribeOrder = db.collection("orders").doc(orderId).onSnapshot(doc => {
+  unsubscribeOrder = db.collection("ride_orders").doc(orderId).onSnapshot(doc => {
     if (!doc.exists) return;
     const data = doc.data();
     const status = String(data.status || "").toLowerCase();
@@ -713,7 +713,7 @@ function checkViewerTrackingMode() {
     }
   }, 300);
 
-  db.collection("orders").doc(trackOrderId).onSnapshot(doc => {
+  db.collection("ride_orders").doc(trackOrderId).onSnapshot(doc => {
     if (!doc.exists) {
       alert("Trip not found or has concluded.");
       return;
@@ -778,7 +778,7 @@ function startDispatchTimeoutChecker() {
 
       if (currentOrderId && db) {
         try {
-          const docSnap = await db.collection("orders").doc(currentOrderId).get();
+          const docSnap = await db.collection("ride_orders").doc(currentOrderId).get();
           if (docSnap.exists) {
             const data = docSnap.data();
             const matchedStatuses = ['accepted', 'matched', 'arrived', 'in_progress', 'completed'];
@@ -905,6 +905,9 @@ function restoreBookingHomeView() {
   }
   const submitBtn = document.getElementById('btnSubmit');
   if (submitBtn) {
+    // 修復：prepareNativeTripView() 進入行程追蹤時會對 #btnSubmit 加上 hidden，
+    // 取消訂單復位若漏掉這一步，底部「Request Driver」操作列會直接消失不見。
+    submitBtn.classList.remove('hidden');
     submitBtn.disabled = false;
     submitBtn.classList.remove('opacity-60', 'pointer-events-none');
   }
@@ -931,7 +934,7 @@ async function cancelAndReset() {
 
   if (db) {
     try {
-      const orderRef = db.collection("orders").doc(targetOrderId);
+      const orderRef = db.collection("ride_orders").doc(targetOrderId);
       await orderRef.set({
         status: 'cancelled',
         cancelledAt: firebase.firestore.FieldValue.serverTimestamp()

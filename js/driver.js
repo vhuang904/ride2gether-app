@@ -1,4 +1,4 @@
-const DRIVER_ORDERS_COLLECTION = "orders";
+const DRIVER_ORDERS_COLLECTION = "ride_orders";
 const DRIVER_ID = "DRV-001";
 const DRIVER_NAME = "BigV904";
 const DRIVER_VEHICLE = "Executive Sedan";
