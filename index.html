@@ -420,6 +420,22 @@
           <label class="text-[11px] text-navy-800 font-semibold block mb-1">Guest Name</label>
           <input type="text" id="prefName" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-navy-900 font-medium focus:border-royal focus:outline-none">
         </div>
+        <!-- 稱謂選擇 (決定地圖上車圖釘造型：預設 Mr. 男客) -->
+        <div>
+          <label class="text-[11px] text-navy-800 font-semibold block mb-1">Title / Honorific</label>
+          <div class="grid grid-cols-2 gap-2">
+            <button type="button" id="titleBtnMale" onclick="setGuestTitle('male')" 
+                    class="py-2 rounded-xl border border-royal bg-royal-soft text-royal font-bold text-xs flex items-center justify-center space-x-1.5 transition active:scale-95">
+              <span>👑</span>
+              <span>Mr. (Gentleman)</span>
+            </button>
+            <button type="button" id="titleBtnFemale" onclick="setGuestTitle('female')" 
+                    class="py-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-600 font-medium text-xs flex items-center justify-center space-x-1.5 transition active:scale-95">
+              <span>👑</span>
+              <span>Ms. (Lady)</span>
+            </button>
+          </div>
+        </div>
         <div>
           <label class="text-[11px] text-navy-800 font-semibold block mb-1">Mobile Phone (Verified)</label>
           <input type="tel" id="prefPhone" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm font-mono text-navy-900 focus:border-royal focus:outline-none">
@@ -621,7 +637,7 @@
 
   <script>
     // --- 1. SERVICE WORKER 版本控管 ---
-    const APP_VERSION = 'ride2gether-cache-v7.5';
+    const APP_VERSION = 'ride2gether-cache-v7.6';
 
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
@@ -663,6 +679,7 @@
 
     let currentUserProfile = {
       name: "Mr. Vincent",
+      gender: "male",
       phone: "0917-888-9999",
       home: {
         address: "Villa Josefina Resort Village, Dumoy, Davao City",
@@ -683,6 +700,7 @@
             currentUserProfile.home = parsed.home || { address: "", lat: null, lng: null };
           }
           currentUserProfile.name = parsed.name || "VIP Guest";
+          currentUserProfile.gender = parsed.gender || "male";
           currentUserProfile.phone = parsed.phone || "0917-000-0000";
           currentUserProfile.customPlaces = parsed.customPlaces || [];
         } catch(e) { console.warn("Load profile error:", e); }
@@ -701,6 +719,39 @@
       document.getElementById('prefName').value = currentUserProfile.name || "";
       document.getElementById('prefPhone').value = currentUserProfile.phone || "";
       document.getElementById('prefHome').value = (currentUserProfile.home && currentUserProfile.home.address) ? currentUserProfile.home.address : "";
+      updateTitleButtonsUI();
+    }
+
+    function setGuestTitle(gender) {
+      currentUserProfile.gender = gender;
+      updateTitleButtonsUI();
+      if (pickupMarker) {
+        pickupMarker.setIcon(getPickupPinIcon());
+      }
+    }
+
+    function updateTitleButtonsUI() {
+      const isFemale = currentUserProfile.gender === 'female';
+      const btnM = document.getElementById('titleBtnMale');
+      const btnF = document.getElementById('titleBtnFemale');
+      if (!btnM || !btnF) return;
+
+      if (isFemale) {
+        btnF.className = "py-2 rounded-xl border border-rose-400 bg-rose-50 text-rose-600 font-bold text-xs flex items-center justify-center space-x-1.5 transition active:scale-95";
+        btnM.className = "py-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-600 font-medium text-xs flex items-center justify-center space-x-1.5 transition active:scale-95";
+      } else {
+        btnM.className = "py-2 rounded-xl border border-royal bg-royal-soft text-royal font-bold text-xs flex items-center justify-center space-x-1.5 transition active:scale-95";
+        btnF.className = "py-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-600 font-medium text-xs flex items-center justify-center space-x-1.5 transition active:scale-95";
+      }
+    }
+
+    function getPickupPinIcon() {
+      const isFemale = currentUserProfile.gender === 'female';
+      return {
+        url: isFemale ? './assets/icons/mascot-vip-female.svg' : './assets/icons/mascot-vip-male.svg',
+        scaledSize: new google.maps.Size(42, 50),
+        anchor: new google.maps.Point(21, 48)
+      };
     }
 
     function renderMainSavedPlacesChips() {
@@ -811,6 +862,7 @@
 
     function saveProfile() {
       currentUserProfile.name = document.getElementById('prefName').value.trim() || "VIP Guest";
+      currentUserProfile.gender = currentUserProfile.gender || "male";
       currentUserProfile.phone = document.getElementById('prefPhone').value.trim() || "0917-000-0000";
       const homeInputVal = document.getElementById('prefHome').value.trim();
 
@@ -1251,13 +1303,8 @@
           position: pos,
           map: map,
           draggable: true,
-          icon: {
-            url: './assets/icons/mascot-vip-male.svg',
-            scaledSize: new google.maps.Size(42, 42),
-            anchor: new google.maps.Point(21, 21)
-          }
+          icon: getPickupPinIcon()
         });
-        
         pickupMarker.addListener("dragend", () => showPinBubble(pickupMarker, 'pickup', catType));
       } else {
         if (dropoffMarker) dropoffMarker.setMap(null);
@@ -1614,8 +1661,8 @@
           zIndex: 999,
           icon: {
             url: './assets/icons/mascot-chauffeur.svg',
-            scaledSize: new google.maps.Size(42, 42),
-            anchor: new google.maps.Point(21, 21)
+            scaledSize: new google.maps.Size(42, 50),
+            anchor: new google.maps.Point(21, 48)
           }
         });
         return;
