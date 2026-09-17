@@ -1283,40 +1283,35 @@
       return mapInstance;
     }
 
-    function setPointPosition(pos, fieldType, catType, optAddressText) {
-  const map = getOrCreateMap(pos);
-  map.panTo(pos);
-  map.setZoom(17);
-
-  currentEditingMarkerType = fieldType;
-
-  if (catType === 'mobility') {
-    if (fieldType === 'pickup') mobilityPickupCoord = pos;
-    else mobilityDropoffCoord = pos;
-  } else {
-    if (fieldType === 'pickup') conciergePickupCoord = pos;
-    else conciergeDropoffCoord = pos;
-  }
-
-  if (fieldType === 'pickup') {
-    if (pickupMarker) pickupMarker.setMap(null);
-    pickupMarker = new google.maps.Marker({
-      position: pos,
-      map: map,
-      draggable: true,
-      icon: getPickupPinIcon()
-    });
-    pickupMarker.addListener("dragend", () => showPinBubble(pickupMarker, 'pickup', catType));
-  } else {
-    if (dropoffMarker) dropoffMarker.setMap(null);
-    dropoffMarker = new google.maps.Marker({
-      position: pos,
-      map: map,
-      draggable: true,
-      icon: DESTINATION_FLAG_ICON
-    });
-    dropoffMarker.addListener("dragend", () => showPinBubble(dropoffMarker, 'dropoff', catType));
-  }
+    if (fieldType === 'pickup') {
+        if (pickupMarker) pickupMarker.setMap(null);
+        pickupMarker = new google.maps.Marker({
+          position: pos,
+          map: map,
+          draggable: true,
+          icon: getPickupPinIcon()
+        });
+        pickupMarker.addListener("dragend", () => {
+          const newPos = pickupMarker.getPosition();
+          if (catType === 'mobility') mobilityPickupCoord = newPos; else conciergePickupCoord = newPos;
+          if (mobilityDropoffCoord || conciergeDropoffCoord) calculateAndDisplayRoute(false);
+          showPinBubble(pickupMarker, 'pickup', catType);
+        });
+      } else {
+        if (dropoffMarker) dropoffMarker.setMap(null);
+        dropoffMarker = new google.maps.Marker({
+          position: pos,
+          map: map,
+          draggable: true,
+          icon: DESTINATION_FLAG_ICON
+        });
+        dropoffMarker.addListener("dragend", () => {
+          const newPos = dropoffMarker.getPosition();
+          if (catType === 'mobility') mobilityDropoffCoord = newPos; else conciergeDropoffCoord = newPos;
+          if (mobilityPickupCoord || conciergePickupCoord) calculateAndDisplayRoute(false);
+          showPinBubble(dropoffMarker, 'dropoff', catType);
+        });
+      }
 
   // 起點與終點齊全時，立即自動繪製路線並顯示里程、時間與計價
   const isMobility = catType === 'mobility';
@@ -1432,7 +1427,6 @@
       const el = document.getElementById(inputId);
       if (el) {
         el.value = '';
-        el.focus();
       }
 
       // 取得對應圖釘並保持可拖曳
