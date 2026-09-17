@@ -39,6 +39,7 @@ function renderOrders(snapshot) {
   const container = document.getElementById("ordersContainer");
   const count = document.getElementById("orderCount");
   const pendingOrders = [];
+  const pendingIds = new Set();
 
   snapshot.forEach((doc) => {
     const order = doc.data();
@@ -51,6 +52,12 @@ function renderOrders(snapshot) {
     observedOrderStatuses.set(doc.id, status);
     if (status === "pending") {
       pendingOrders.push({ id: doc.id, ...order });
+      pendingIds.add(doc.id);
+    }
+  });
+  container.querySelectorAll("[data-order-card-id]").forEach((card) => {
+    if (!pendingIds.has(card.dataset.orderCardId)) {
+      card.remove();
     }
   });
   pendingOrders.sort((left, right) => {
@@ -69,7 +76,7 @@ function renderOrders(snapshot) {
   }
 
   container.innerHTML = pendingOrders.map((order) => `
-    <article class="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+    <article data-order-card-id="${escapeHtml(order.id)}" class="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
       <div class="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p class="font-mono text-xs font-semibold text-blue-600">${displayValue(order.id)}</p>

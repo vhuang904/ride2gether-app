@@ -475,6 +475,10 @@ function stopDispatchTimer() {
 }
 
 async function cancelAndReset() {
+  const orderIdSpan = document.getElementById('modalOrderId');
+  const targetOrderId = String(currentOrderId || (orderIdSpan ? orderIdSpan.innerText.trim() : '')).trim();
+  console.log('[Passenger] Cancel requested for order:', targetOrderId || '(missing orderId)');
+
   stopDispatchTimer();
   removeDriverMarker();
   localStorage.removeItem('r2g_active_order_id'); // 清空本地記憶
@@ -484,18 +488,25 @@ async function cancelAndReset() {
     unsubscribeOrder = null;
   }
 
-  const orderIdSpan = document.getElementById('modalOrderId');
-  const targetOrderId = currentOrderId || (orderIdSpan ? orderIdSpan.innerText.trim() : '');
-
   if (targetOrderId && targetOrderId !== 'Generating...' && db) {
     try {
-      await db.collection("orders").doc(targetOrderId).update({
+      const orderRef = db.collection("orders").doc(targetOrderId);
+      await orderRef.set({
         status: 'cancelled',
         cancelledAt: firebase.firestore.FieldValue.serverTimestamp()
-      });
+      }, { merge: true });
+      console.log('[Passenger] Cancellation written to Firestore:', targetOrderId);
     } catch (err) {
-      console.error('Failed to update cancelled order status:', err);
+      console.error('[Passenger] Cancellation write failed:', {
+        orderId: targetOrderId,
+        error: err
+      });
     }
+  } else {
+    console.error('[Passenger] Cancellation skipped: no valid orderId or Firestore instance.', {
+      orderId: targetOrderId,
+      hasDb: Boolean(db)
+    });
   }
 
   document.getElementById('dispatchModal').classList.add('hidden');
