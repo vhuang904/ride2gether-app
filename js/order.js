@@ -55,12 +55,16 @@ async function requestOrder() {
     itemCost: itemCost,
     tip: tip,
     totalPay: finalPrice,
-    status: 'SEARCHING',
+    pickup: from,
+    dropoff: to,
+    vehicleType: RATES[currentService].nameEn,
+    estimatedFare: finalPrice,
+    status: 'pending',
     createdAt: firebase.firestore.FieldValue.serverTimestamp()
   };
 
   try {
-    await db.collection("ride_orders").doc(orderId).set(orderData);
+    await db.collection("orders").doc(orderId).set(orderData);
     subscribeToOrder(orderId);
 
     fetch(GAS_WEBHOOK_URL, {
@@ -79,14 +83,14 @@ async function requestOrder() {
 function subscribeToOrder(orderId) {
   if (unsubscribeOrder) unsubscribeOrder();
 
-  unsubscribeOrder = db.collection("ride_orders").doc(orderId).onSnapshot(doc => {
+  unsubscribeOrder = db.collection("orders").doc(orderId).onSnapshot(doc => {
     if (!doc.exists) return;
     const data = doc.data();
 
     if (data.driverLat && data.driverLng) {
       updateDriverLocationOnMap(data.driverLat, data.driverLng);
     }
-    if (['MATCHED', 'ACCEPTED', 'ARRIVED', 'IN_TRANSIT', 'COMPLETED'].includes(data.status)) {
+    if (['accepted', 'MATCHED', 'ACCEPTED', 'ARRIVED', 'IN_TRANSIT', 'COMPLETED'].includes(data.status)) {
       showMatchedDriver(data);
       updateTripStatusUI(data.status);
     }
@@ -229,7 +233,7 @@ function checkViewerTrackingMode() {
     }
   }, 300);
 
-  db.collection("ride_orders").doc(trackOrderId).onSnapshot(doc => {
+  db.collection("orders").doc(trackOrderId).onSnapshot(doc => {
     if (!doc.exists) {
       alert("Trip not found or has concluded.");
       return;
@@ -393,7 +397,7 @@ function startDispatchTimeoutChecker() {
 
       if (currentOrderId && db) {
         try {
-          const docSnap = await db.collection("ride_orders").doc(currentOrderId).get();
+          const docSnap = await db.collection("orders").doc(currentOrderId).get();
           if (docSnap.exists) {
             const data = docSnap.data();
             const matchedStatuses = ['MATCHED', 'ACCEPTED', 'ARRIVED', 'IN_TRANSIT', 'COMPLETED'];

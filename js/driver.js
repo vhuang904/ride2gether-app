@@ -35,6 +35,11 @@ function renderOrders(snapshot) {
       pendingOrders.push({ id: doc.id, ...order });
     }
   });
+  pendingOrders.sort((left, right) => {
+    const leftTime = left.createdAt?.toMillis?.() || new Date(left.createdAt || 0).getTime();
+    const rightTime = right.createdAt?.toMillis?.() || new Date(right.createdAt || 0).getTime();
+    return rightTime - leftTime;
+  });
 
   count.textContent = `${pendingOrders.length} pending`;
   if (!pendingOrders.length) {
@@ -101,14 +106,20 @@ async function claimOrder(orderId, button) {
 }
 
 function listenForPendingOrders() {
+  document.getElementById("driverStatus").textContent = "Connecting to pending orders...";
+  console.log(`[Driver] Listening to ${DRIVER_ORDERS_COLLECTION} without composite index query.`);
+
   db.collection(DRIVER_ORDERS_COLLECTION).onSnapshot(
-    renderOrders,
+    (snapshot) => {
+      console.log(`[Driver] Order snapshot received: ${snapshot.size} documents.`);
+      renderOrders(snapshot);
+      document.getElementById("driverStatus").textContent = "Connected. Listening for new pending orders.";
+    },
     (error) => {
-      console.error("Unable to load pending orders:", error);
-      document.getElementById("driverStatus").textContent = "Unable to connect to order dispatch.";
+      console.error("[Driver] Pending order listener failed:", error);
+      document.getElementById("driverStatus").textContent = `Connection error: ${error.message || "Unable to load orders."}`;
     }
   );
-  document.getElementById("driverStatus").textContent = "Listening for new pending orders.";
 }
 
 document.getElementById("ordersContainer").addEventListener("click", (event) => {
