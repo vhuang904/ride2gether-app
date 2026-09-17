@@ -3,6 +3,8 @@ const DRIVER_ID = "DRV-001";
 const DRIVER_NAME = "BigV904";
 const DRIVER_VEHICLE = "Executive Sedan";
 const pendingClaims = new Set();
+const observedOrderStatuses = new Map();
+let noticeTimer = null;
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -24,6 +26,15 @@ function formatCreatedAt(value) {
   return date.toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
 }
 
+function showDriverNotice(message) {
+  const notice = document.getElementById("driverNotice");
+  if (!notice) return;
+  notice.textContent = message;
+  notice.classList.remove("hidden");
+  if (noticeTimer) clearTimeout(noticeTimer);
+  noticeTimer = setTimeout(() => notice.classList.add("hidden"), 5000);
+}
+
 function renderOrders(snapshot) {
   const container = document.getElementById("ordersContainer");
   const count = document.getElementById("orderCount");
@@ -31,7 +42,14 @@ function renderOrders(snapshot) {
 
   snapshot.forEach((doc) => {
     const order = doc.data();
-    if (String(order.status || "").toLowerCase() === "pending") {
+    const status = String(order.status || "").toLowerCase();
+    const previousStatus = observedOrderStatuses.get(doc.id);
+    if (status === "cancelled" && previousStatus === "pending") {
+      showDriverNotice("Passenger cancelled this trip.");
+      pendingClaims.delete(doc.id);
+    }
+    observedOrderStatuses.set(doc.id, status);
+    if (status === "pending") {
       pendingOrders.push({ id: doc.id, ...order });
     }
   });

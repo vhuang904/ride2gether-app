@@ -487,6 +487,17 @@ async function cancelAndReset() {
   const orderIdSpan = document.getElementById('modalOrderId');
   const targetOrderId = currentOrderId || (orderIdSpan ? orderIdSpan.innerText.trim() : '');
 
+  if (targetOrderId && targetOrderId !== 'Generating...' && db) {
+    try {
+      await db.collection("orders").doc(targetOrderId).update({
+        status: 'cancelled',
+        cancelledAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    } catch (err) {
+      console.error('Failed to update cancelled order status:', err);
+    }
+  }
+
   document.getElementById('dispatchModal').classList.add('hidden');
   document.getElementById('radarSection').classList.remove('hidden');
   document.getElementById('matchedCard').classList.add('hidden');
