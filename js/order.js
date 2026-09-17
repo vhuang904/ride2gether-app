@@ -242,8 +242,10 @@ function prepareNativeTripView() {
     mapContainer.style.height = 'min(48vh, 360px)';
     if (mapInstance && window.google) google.maps.event.trigger(mapInstance, 'resize');
   }
-  // 起訖點一旦鎖定進入派單/追蹤流程，地圖上絕不可殘留「Confirm Yes/No」拖曳確認彈窗。
+  // 起訖點一旦鎖定進入派單/追蹤流程，地圖上絕不可殘留「Confirm Yes/No」拖曳確認彈窗，
+  // 亦不需再顯示「Adjusting pin...」拖曳提示（起終點已固定，不再開放調整）。
   if (typeof closePinConfirmBubble === 'function') closePinConfirmBubble();
+  document.getElementById('pinLockStatusBadge')?.classList.add('hidden');
   // 行程進行期間「預估路程/時間」卡片已失去意義，隱藏以緊貼地圖與行程卡片。
   document.getElementById('estimatedRouteCard')?.classList.add('hidden');
   const legacyModal = document.getElementById('dispatchModal');
@@ -305,6 +307,14 @@ function renderNativeTripRoute(status, data) {
 }
 
 function renderNativeTripView(status, data) {
+  // Stage 4/5 生命週期修復：若行程於「氣泡最小化」狀態下轉為 completed，
+  // 必須在呼叫 prepareNativeTripView() 之前就先解除最小化狀態，
+  // 否則 prepareNativeTripView() 會依舊誤判為最小化中，導致 #step2Panel（含地圖與結算卡）
+  // 持續被隱藏 —— 這正是氣泡消失後底層地圖變黑、結算卡未彈出的根因。
+  if (status === 'completed' && isActiveTripMinimized) {
+    isActiveTripMinimized = false;
+    hideActiveTripFloatingBubble();
+  }
   prepareNativeTripView();
   lastTripStatus = status;
   lastTripData = data;
@@ -313,9 +323,6 @@ function renderNativeTripView(status, data) {
   // Stage 4 (completed)：解鎖手勢，準備讓乘客確認後平滑回到待命視角。
   if (status === 'completed') {
     unlockMainMapGestures();
-    // 行程結束需要乘客明確確認才能重置，強制還原 Layer 2 完整視窗，
-    // 避免結算卡被懸浮氣泡遮蔽而永遠無法確認完成。
-    isActiveTripMinimized = false;
   } else {
     lockMainMapGestures();
   }
@@ -784,6 +791,7 @@ function restoreBookingHomeView() {
     mapContainer.classList.add('mt-3');
   }
   document.getElementById('estimatedRouteCard')?.classList.remove('hidden');
+  document.getElementById('pinLockStatusBadge')?.classList.remove('hidden');
   const mainEl = document.querySelector('main');
   if (mainEl) {
     const sections = mainEl.querySelectorAll('section');
@@ -885,9 +893,17 @@ function resetAppToIdle() {
 
   if (typeof unlockMainMapGestures === 'function') unlockMainMapGestures();
   if (typeof clearAllTripCoordsAndRoute === 'function') clearAllTripCoordsAndRoute();
+
+  // #map 容器歸位：先讓 Layer 1 主容器（含 #map／#mapPreviewContainer）
+  // 精準恢復可視，才能對地圖執行 resize／視角重置；若在容器仍隱藏
+  // （高度為 0）時就先 pan/zoom，會導致地圖回到 Layer 1 後維持黑塊。
+  restoreBookingHomeView();
+
+  if (mapInstance && window.google) {
+    google.maps.event.trigger(mapInstance, 'resize');
+  }
   if (typeof recenterMapToUserGps === 'function') recenterMapToUserGps();
 
-  restoreBookingHomeView();
   currentOrderId = null;
 }
 
