@@ -506,6 +506,15 @@
       </div>
     </div>
   </div>
+
+  <!-- R2G 常駐懸浮管家膠囊 (點擊 Toggle 展開/收合司機卡片) -->
+  <div id="mascotCapsule" class="fixed bottom-6 right-6 z-50 flex items-center bg-slate-900/90 text-white rounded-full shadow-2xl p-1.5 pr-4 border border-slate-700/60 backdrop-blur cursor-pointer transition-transform active:scale-95 hidden" onclick="toggleMatchedCard()">
+    <img src="./assets/icons/mascot-chauffeur.svg" class="w-10 h-10 flex-shrink-0" alt="Chauffeur" />
+    <div class="ml-2.5 text-left">
+      <p class="text-[11px] font-bold text-amber-400 leading-none">Chauffeur</p>
+      <p id="capsuleStatusText" class="text-[10px] text-slate-300 leading-tight mt-0.5">En Route 🚗</p>
+    </div>
+  </div>
   
   <!-- 派單狀態 Modal (升級：透明浮動層，不擋住大地圖，卡片下沉置底) -->
   <div id="dispatchModal" class="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex flex-col justify-center items-center p-4 hidden">
@@ -612,7 +621,7 @@
 
   <script>
     // --- 1. SERVICE WORKER 版本控管 ---
-    const APP_VERSION = 'ride2gether-cache-v7.4';
+    const APP_VERSION = 'ride2gether-cache-v7.5';
 
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
@@ -1242,8 +1251,13 @@
           position: pos,
           map: map,
           draggable: true,
-          icon: PERSON_PIN_ICON
+          icon: {
+            url: './assets/icons/mascot-vip-male.svg',
+            scaledSize: new google.maps.Size(42, 42),
+            anchor: new google.maps.Point(21, 21)
+          }
         });
+        
         pickupMarker.addListener("dragend", () => showPinBubble(pickupMarker, 'pickup', catType));
       } else {
         if (dropoffMarker) dropoffMarker.setMap(null);
@@ -1598,7 +1612,11 @@
           map: map,
           title: "Chauffeur Live Location",
           zIndex: 999,
-          icon: PERSON_PIN_ICON
+          icon: {
+            url: './assets/icons/mascot-chauffeur.svg',
+            scaledSize: new google.maps.Size(42, 42),
+            anchor: new google.maps.Point(21, 21)
+          }
         });
         return;
       }
@@ -1744,6 +1762,13 @@
       });
     }
 
+    // 點擊管家膠囊展開或收合司機資訊卡
+    window.toggleMatchedCard = function() {
+      const modal = document.getElementById("dispatchModal");
+      if (!modal) return;
+      modal.classList.toggle("hidden");
+    };
+    
     // --- 任務 1：司機接單後自動切換全幅大地圖＋底部浮動卡片 ---
     function showMatchedDriver(data) {
       stopDispatchTimer();
@@ -1777,6 +1802,7 @@
       document.getElementById('radarSection').classList.add('hidden');
       document.getElementById('matchedCard').classList.remove('hidden');
       document.getElementById('dispatchModal').classList.remove('hidden');
+      document.getElementById('mascotCapsule')?.classList.remove('hidden');
 
       const driverNameEl = document.getElementById('driverName');
       if (driverNameEl) driverNameEl.innerText = data.driverName || 'Executive Chauffeur';
@@ -1938,6 +1964,7 @@
       document.getElementById('dispatchModal').classList.add('hidden');
       document.getElementById('radarSection').classList.remove('hidden');
       document.getElementById('matchedCard').classList.add('hidden');
+      document.getElementById('mascotCapsule')?.classList.add('hidden');
 
       if (targetOrderId && targetOrderId !== 'Generating...') {
         try {
@@ -1965,6 +1992,7 @@
       document.getElementById('dispatchModal').classList.add('hidden');
       document.getElementById('radarSection').classList.remove('hidden');
       document.getElementById('matchedCard').classList.add('hidden');
+      document.getElementById('mascotCapsule')?.classList.add('hidden');
       currentOrderId = null;
     }
 
