@@ -39,18 +39,10 @@ async function requestOrder() {
     submitBtn.classList.add('opacity-60', 'pointer-events-none');
   }
 
-  document.getElementById('dispatchModal')?.classList.add('hidden');
-  document.getElementById('radarSection').classList.remove('hidden');
-  document.getElementById('matchedCard').classList.add('hidden');
-  document.getElementById('modalOrderId').innerText = 'Generating...';
-  document.getElementById('dispatchStatusText').innerText = 'Connecting to exclusive fleet in real-time...';
-  document.getElementById('dispatchStatusText').className = 'text-xs text-slate-500 mt-1';
-
   const orderId = 'OD-' + Math.floor(100000 + Math.random() * 900000);
   currentOrderId = orderId;
   localStorage.setItem('r2g_active_order_id', orderId); // 任務3：記憶訂單狀態
-
-  document.getElementById('modalOrderId').innerText = orderId;
+  renderPendingOrderView(orderId);
   dispatchStage = 1;
   dispatchStartTime = Date.now();
   startDispatchTimeoutChecker();
@@ -113,9 +105,14 @@ function subscribeToOrder(orderId) {
     if (data.driverLat && data.driverLng) {
       updateDriverLocationOnMap(data.driverLat, data.driverLng);
     }
+
     if (status === 'cancelled') {
       showDriverNoticeToPassenger("This trip was cancelled.");
       finishTripAndReset();
+      return;
+    }
+    if (status === 'pending') {
+      renderPendingOrderView(orderId);
       return;
     }
     if (['accepted', 'matched', 'arrived', 'in_progress', 'completed'].includes(status)) {
@@ -128,6 +125,32 @@ function subscribeToOrder(orderId) {
     const statusText = document.getElementById('dispatchStatusText');
     if (statusText) statusText.innerText = `Live order update failed: ${err.message || 'connection error'}`;
   });
+}
+
+function renderPendingOrderView(orderId) {
+  prepareNativeTripView();
+  const card = document.getElementById('activeTripBottomCard');
+  const state = document.getElementById('activeTripStateLabel');
+  const title = document.getElementById('activeTripTitle');
+  const driver = document.getElementById('activeTripDriver');
+  const eta = document.getElementById('activeTripEta');
+  const pendingSlot = document.getElementById('activeTripPendingSlot');
+  const shareSlot = document.getElementById('activeTripShareSlot');
+  const completionSlot = document.getElementById('activeTripCompletionSlot');
+  if (!card || !state || !title || !driver || !eta || !pendingSlot) return;
+
+  state.textContent = 'Looking for drivers';
+  title.textContent = 'Finding a chauffeur for you';
+  driver.textContent = `Order ${orderId} is being dispatched in real time.`;
+  eta.textContent = 'Searching';
+  pendingSlot.innerHTML = `
+    <button type="button" onclick="cancelAndReset()" class="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-600 transition hover:bg-slate-50">
+      Cancel order
+    </button>`;
+  pendingSlot.classList.remove('hidden');
+  shareSlot?.classList.add('hidden');
+  completionSlot?.classList.add('hidden');
+  card.classList.remove('hidden');
 }
 
 function prepareNativeTripView() {
@@ -235,6 +258,7 @@ function renderNativeTripView(status, data) {
   vehicle.textContent = data.driverModel || data.vehicleType || data.serviceName || 'Private Fleet';
   plate.textContent = data.driverPlate || 'Private Fleet';
   shareSlot.innerHTML = '';
+  document.getElementById('activeTripPendingSlot')?.classList.add('hidden');
   completionSlot.innerHTML = '';
   shareSlot.classList.toggle('hidden', status !== 'in_progress');
   completionSlot.classList.toggle('hidden', status !== 'completed');
@@ -444,6 +468,8 @@ window.toggleMatchedCard = function() {
 // --- 任務 1：司機接單後自動切換全幅大地圖＋底部浮動卡片 ---
 function showMatchedDriver(data) {
   stopDispatchTimer();
+  renderNativeTripView('accepted', data);
+  return;
 
   const mainEl = document.querySelector('main');
   if (mainEl) {
@@ -603,22 +629,26 @@ function startDispatchTimeoutChecker() {
 }
 
 function showTimeoutStage1UI() {
-  document.getElementById('radarSection').classList.add('hidden');
-  document.getElementById('timeoutStage1Card').classList.remove('hidden');
+  const pendingSlot = document.getElementById('activeTripPendingSlot');
+  if (pendingSlot) {
+    pendingSlot.innerHTML = '<p class="mb-2 text-xs font-semibold text-amber-700">Drivers are currently busy. We are still looking.</p><button type="button" onclick="cancelAndReset()" class="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-600">Cancel order</button>';
+    pendingSlot.classList.remove('hidden');
+  }
 }
 
 function extendDispatchWait() {
-  document.getElementById('timeoutStage1Card').classList.add('hidden');
-  document.getElementById('radarSection').classList.remove('hidden');
+  document.getElementById('activeTripPendingSlot')?.classList.remove('hidden');
   dispatchStage = 2;
   dispatchStartTime = Date.now();
   startDispatchTimeoutChecker();
 }
 
 function showTimeoutStage2UI() {
-  document.getElementById('radarSection').classList.add('hidden');
-  document.getElementById('timeoutStage1Card').classList.add('hidden');
-  document.getElementById('timeoutStage2Card').classList.remove('hidden');
+  const pendingSlot = document.getElementById('activeTripPendingSlot');
+  if (pendingSlot) {
+    pendingSlot.innerHTML = '<p class="mb-2 text-xs font-semibold text-slate-600">No chauffeur is available yet. You can keep waiting or cancel.</p><button type="button" onclick="cancelAndReset()" class="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-600">Cancel order</button>';
+    pendingSlot.classList.remove('hidden');
+  }
 }
 
 function stopDispatchTimer() {
@@ -669,10 +699,11 @@ async function cancelAndReset() {
     });
   }
 
-  document.getElementById('dispatchModal').classList.add('hidden');
-  document.getElementById('radarSection').classList.remove('hidden');
-  document.getElementById('matchedCard').classList.add('hidden');
+  document.getElementById('dispatchModal')?.classList.add('hidden');
+  document.getElementById('radarSection')?.classList.remove('hidden');
+  document.getElementById('matchedCard')?.classList.add('hidden');
   document.getElementById('mascotCapsule')?.classList.add('hidden');
+  document.getElementById('activeTripBottomCard')?.classList.add('hidden');
   const submitBtn = document.getElementById('btnSubmit');
   if (submitBtn) {
     submitBtn.disabled = false;
@@ -702,9 +733,9 @@ function finishTripAndReset() {
     unsubscribeOrder();
     unsubscribeOrder = null;
   }
-  document.getElementById('dispatchModal').classList.add('hidden');
-  document.getElementById('radarSection').classList.remove('hidden');
-  document.getElementById('matchedCard').classList.add('hidden');
+  document.getElementById('dispatchModal')?.classList.add('hidden');
+  document.getElementById('radarSection')?.classList.remove('hidden');
+  document.getElementById('matchedCard')?.classList.add('hidden');
   document.getElementById('mascotCapsule')?.classList.add('hidden');
   document.getElementById('activeTripBottomCard')?.classList.add('hidden');
   if (directionsRenderer) directionsRenderer.set('directions', null);
@@ -742,8 +773,7 @@ function checkActiveOrderOnLoad() {
   const urlParams = new URLSearchParams(window.location.search);
   if (activeId && !urlParams.has('track')) {
     currentOrderId = activeId;
-    const modalIdEl = document.getElementById('modalOrderId');
-    if (modalIdEl) modalIdEl.innerText = activeId;
+    renderPendingOrderView(activeId);
     subscribeToOrder(activeId);
   }
 }

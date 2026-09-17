@@ -465,11 +465,12 @@
       </div>
     </div>
     <div id="activeTripShareSlot" class="mt-3 hidden"></div>
+    <div id="activeTripPendingSlot" class="mt-3 hidden"></div>
     <div id="activeTripCompletionSlot" class="mt-3 hidden"></div>
   </section>
   
-  <!-- 派單狀態 Modal (升級：透明浮動層，不擋住大地圖，卡片下沉置底) -->
-  <div id="dispatchModal" aria-hidden="true" inert style="display:none!important" class="hidden">
+  <!-- Legacy dispatch markup is inert and never mounted; live UI is on the main map. -->
+  <template id="dispatchModal">
     
     <!-- 雷達掃描區 (保留置中全黑毛玻璃，接單後才消失) -->
     <div id="radarSection" class="w-full max-w-sm bg-white rounded-3xl p-7 text-center space-y-5 shadow-2xl border border-slate-100">
@@ -478,7 +479,7 @@
         <div class="absolute inset-3 rounded-full border border-royal/40"></div>
         <div class="w-14 h-14 rounded-full bg-royal-soft flex items-center justify-center border border-royal shadow-md">
           <span class="text-xl">🚗</span>
-        </div>
+        </template>
       </div>
       <div>
         <h3 class="font-serif text-lg text-navy-900 font-bold uppercase">Dispatching Chauffeur</h3>
