@@ -39,7 +39,7 @@ async function requestOrder() {
     submitBtn.classList.add('opacity-60', 'pointer-events-none');
   }
 
-  document.getElementById('dispatchModal').classList.remove('hidden');
+  document.getElementById('dispatchModal')?.classList.add('hidden');
   document.getElementById('radarSection').classList.remove('hidden');
   document.getElementById('matchedCard').classList.add('hidden');
   document.getElementById('modalOrderId').innerText = 'Generating...';
@@ -121,10 +121,7 @@ function subscribeToOrder(orderId) {
     if (['accepted', 'matched', 'arrived', 'in_progress', 'completed'].includes(status)) {
       renderNativeTripView(status, data);
       updateTripStatusUI(status, data);
-      if (status === 'completed' && typeof unsubscribeOrder === 'function') {
-        unsubscribeOrder();
-        unsubscribeOrder = null;
-      }
+      // Keep the listener active until the passenger confirms the settlement card.
     }
   }, err => {
     console.error("Realtime listener error:", err);
@@ -160,7 +157,12 @@ function prepareNativeTripView() {
     mapContainer.style.height = 'calc(100vh - 150px)';
     if (mapInstance && window.google) google.maps.event.trigger(mapInstance, 'resize');
   }
-  document.getElementById('dispatchModal')?.classList.add('hidden');
+  const legacyModal = document.getElementById('dispatchModal');
+  if (legacyModal) {
+    legacyModal.classList.add('hidden');
+    legacyModal.setAttribute('aria-hidden', 'true');
+    legacyModal.setAttribute('inert', '');
+  }
   document.getElementById('mascotCapsule')?.classList.add('hidden');
   document.getElementById('activeTripBottomCard')?.classList.remove('hidden');
 }
@@ -436,9 +438,7 @@ function checkViewerTrackingMode() {
 
 // 點擊管家膠囊展開或收合司機資訊卡
 window.toggleMatchedCard = function() {
-  const modal = document.getElementById("dispatchModal");
-  if (!modal) return;
-  modal.classList.toggle("hidden");
+  prepareNativeTripView();
 };
 
 // --- 任務 1：司機接單後自動切換全幅大地圖＋底部浮動卡片 ---
@@ -473,7 +473,7 @@ function showMatchedDriver(data) {
 
   document.getElementById('radarSection').classList.add('hidden');
   document.getElementById('matchedCard').classList.remove('hidden');
-  document.getElementById('dispatchModal').classList.remove('hidden');
+  document.getElementById('dispatchModal')?.classList.add('hidden');
   document.getElementById('mascotCapsule')?.classList.remove('hidden');
 
   const driverNameEl = document.getElementById('driverName');
@@ -583,7 +583,7 @@ function startDispatchTimeoutChecker() {
             const status = String(data.status || '').toLowerCase();
             if (matchedStatuses.includes(status)) {
               stopDispatchTimer();
-              showMatchedDriver(data);
+              renderNativeTripView(status, data);
               updateTripStatusUI(status, data);
               return;
             }
