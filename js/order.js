@@ -494,6 +494,36 @@ function restoreActiveTripFromBubble() {
 
   const panel = document.getElementById('step2Panel');
   if (panel) panel.classList.remove('hidden');
+
+  // 修復：最小化期間 switchCategory('concierge') 曾透過 syncCategoryCoords()
+  // 將乘客起點圖釘 setMap(null)。還原時強制歸位為 Mobility，重新同步座標
+  // 讓圖釘與路線接回地圖，不依賴使用者再次觸發任何互動。
+  currentCategory = 'mobility';
+  if (typeof syncCategoryCoords === 'function') syncCategoryCoords('mobility');
+
+  if (mapInstance && window.google) {
+    // ① resize：容器由 hidden 恢復可視後尺寸快取可能過期，先行校正。
+    google.maps.event.trigger(mapInstance, 'resize');
+    // ② fitBounds/panTo：重新校正視角，不等待路線 API 回應即可秒級定位。
+    if (mobilityPickupCoord && mobilityDropoffCoord) {
+      const bounds = new google.maps.LatLngBounds();
+      bounds.extend(mobilityPickupCoord);
+      bounds.extend(mobilityDropoffCoord);
+      mapInstance.fitBounds(bounds, { top: 40, bottom: 40, left: 40, right: 40 });
+    } else if (mobilityPickupCoord) {
+      mapInstance.panTo(mobilityPickupCoord);
+    }
+  }
+  // ③ 強制重新掛載並顯示乘客起點圖釘與司機即時 Marker，確保秒級重現。
+  if (pickupMarker) {
+    if (mobilityPickupCoord) pickupMarker.setMap(mapInstance);
+    pickupMarker.setVisible(true);
+  }
+  if (typeof driverMarker !== 'undefined' && driverMarker) {
+    driverMarker.setMap(mapInstance);
+    driverMarker.setVisible(true);
+  }
+
   if (lastTripStatus && lastTripStatus !== 'completed' && typeof lockMainMapGestures === 'function') {
     lockMainMapGestures();
   }
