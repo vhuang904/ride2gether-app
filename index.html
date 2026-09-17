@@ -793,7 +793,7 @@
       targetInput.value = placeObj.address;
 
       if (placeObj.lat && placeObj.lng) {
-        setPointPosition({ lat: placeObj.lat, lng: placeObj.lng }, targetField, currentCategory, placeObj.address);
+        ({ lat: placeObj.lat, lng: placeObj.lng }, targetField, currentCategory, placeObj.address);
       } else {
         geocodeAndFocus(placeObj.address, targetField, currentCategory);
       }
@@ -1243,7 +1243,7 @@
               }
 
               if (!curPickup) {
-                setPointPosition(userPos, 'pickup', currentCategory);
+                (userPos, 'pickup', currentCategory);
               } else {
                 map.panTo(userPos);
                 map.setZoom(16);
@@ -1283,7 +1283,22 @@
       return mapInstance;
     }
 
-    if (fieldType === 'pickup') {
+    function setPointPosition(pos, fieldType, catType, optAddressText) {
+      const map = getOrCreateMap(pos);
+      map.panTo(pos);
+      map.setZoom(17);
+
+      currentEditingMarkerType = fieldType;
+
+      if (catType === 'mobility') {
+        if (fieldType === 'pickup') mobilityPickupCoord = pos;
+        else mobilityDropoffCoord = pos;
+      } else {
+        if (fieldType === 'pickup') conciergePickupCoord = pos;
+        else conciergeDropoffCoord = pos;
+      }
+
+      if (fieldType === 'pickup') {
         if (pickupMarker) pickupMarker.setMap(null);
         pickupMarker = new google.maps.Marker({
           position: pos,
@@ -1313,17 +1328,17 @@
         });
       }
 
-  // 起點與終點齊全時，立即自動繪製路線並顯示里程、時間與計價
-  const isMobility = catType === 'mobility';
-  const curPickup = isMobility ? mobilityPickupCoord : conciergePickupCoord;
-  const curDropoff = isMobility ? mobilityDropoffCoord : conciergeDropoffCoord;
+      // 起終點齊全時，立即繪製路線並更新數據（維持原始視角不縮放）
+      const isMobility = catType === 'mobility';
+      const curPickup = isMobility ? mobilityPickupCoord : conciergePickupCoord;
+      const curDropoff = isMobility ? mobilityDropoffCoord : conciergeDropoffCoord;
 
-  if (curPickup && curDropoff) {
-    calculateAndDisplayRoute(false);
-  }
+      if (curPickup && curDropoff) {
+        calculateAndDisplayRoute(false);
+      }
 
-  showPinBubble(fieldType === 'pickup' ? pickupMarker : dropoffMarker, fieldType, catType, optAddressText);
-}
+      showPinBubble(fieldType === 'pickup' ? pickupMarker : dropoffMarker, fieldType, catType, optAddressText);
+    }
     
     function showPinBubble(marker, fieldType, catType, optAddressText) {
       if (window.isViewerMode) return;
@@ -1534,7 +1549,7 @@
 
           const addressText = place.name ? `${place.name}, ${place.formatted_address}` : place.formatted_address;
           input.value = addressText;
-          setPointPosition(place.geometry.location, fieldType, catType, addressText);
+          (place.geometry.location, fieldType, catType, addressText);
         });
       };
 
