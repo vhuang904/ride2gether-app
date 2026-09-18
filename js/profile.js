@@ -375,24 +375,62 @@ function loadOrderHistory() {
     return;
   }
   listEl.innerHTML = '<p class="text-center text-xs text-slate-400 py-6">Loading order history...</p>';
+  const normalizedPhone = normalizePhoneNumber(phone);
+  // No orderBy() paired with where(): avoids requiring a Firestore composite index.
+  // Sorting is instead done client-side after the snapshot resolves.
   db.collection('ride_orders')
     .where('customerPhone', '==', phone)
-    .orderBy('createdAt', 'desc')
-    .limit(30)
+    .limit(50)
     .get()
-    .then(snap => renderOrderHistory(listEl, snap))
+    .then(snap => {
+      const matched = filterAndSortOrderDocs(snap.docs, normalizedPhone);
+      if (matched.length) return renderOrderHistory(listEl, matched);
+      // Fallback: the stored customerPhone may use a different +63/09 prefix or
+      // spacing than the current profile value, so the exact where() match found
+      // nothing. Scan a bounded recent window and match by normalized phone instead.
+      return db.collection('ride_orders').limit(200).get()
+        .then(fallbackSnap => renderOrderHistory(listEl, filterAndSortOrderDocs(fallbackSnap.docs, normalizedPhone)));
+    })
     .catch(err => {
       console.warn('[Profile] Order history query failed:', err);
       listEl.innerHTML = '<p class="text-center text-xs text-slate-400 py-6">Unable to load order history.</p>';
     });
 }
 
-function renderOrderHistory(listEl, snap) {
-  if (snap.empty) {
+// 電話號碼正規化：移除空格/橫槓，統一 '+63' 與 '09' 前綴，避免因儲存格式不一致
+// 導致 where() 精準比對查無結果。
+function normalizePhoneNumber(phone) {
+  let digits = String(phone || '').replace(/[\s-]/g, '');
+  if (digits.startsWith('+63')) digits = '0' + digits.slice(3);
+  else if (digits.startsWith('63') && digits.length > 10) digits = '0' + digits.slice(2);
+  return digits;
+}
+
+// customerPhone 的 where() 已用原始字串比對過一輪；此處針對可能因格式差異
+// (+63/09 前綴、空格、橫槓) 而漏抓的紀錄，用正規化後電話號碼再次比對並依
+// createdAt 倒序排序。
+function filterAndSortOrderDocs(docs, normalizedPhone) {
+  const seen = new Set();
+  const matched = docs.filter(doc => {
+    if (seen.has(doc.id)) return false;
+    seen.add(doc.id);
+    const o = doc.data();
+    return normalizePhoneNumber(o.customerPhone) === normalizedPhone;
+  });
+  matched.sort((a, b) => {
+    const aMs = a.data().createdAt?.toMillis ? a.data().createdAt.toMillis() : 0;
+    const bMs = b.data().createdAt?.toMillis ? b.data().createdAt.toMillis() : 0;
+    return bMs - aMs;
+  });
+  return matched;
+}
+
+function renderOrderHistory(listEl, docs) {
+  if (!docs.length) {
     listEl.innerHTML = '<p class="text-center text-xs text-slate-400 py-6">No past orders yet.</p>';
     return;
   }
-  listEl.innerHTML = snap.docs.map(doc => {
+  listEl.innerHTML = docs.map(doc => {
     const o = doc.data();
     const dateStr = o.createdAt?.toDate ? o.createdAt.toDate().toLocaleString() : '--';
     const status = String(o.status || 'pending').toUpperCase();
@@ -410,7 +448,7 @@ function renderOrderHistory(listEl, snap) {
         <p class="text-slate-700"><span class="text-slate-400">To:</span> ${o.destination || o.dropoff || '--'}</p>
         <div class="mt-1.5 flex items-center justify-between">
           <span class="text-slate-500">${o.vehicleType || o.serviceName || '--'}</span>
-          <span class="font-bold text-royal">₱${o.totalPay || o.fare || 0}</span>
+          <span class="font-bold text-royal">\u20B1${o.totalPay || o.fare || 0}</span>
         </div>
       </div>
     `;

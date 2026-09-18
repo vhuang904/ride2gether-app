@@ -4,7 +4,7 @@ const DRIVER_NAME = "BigV904";
 const DRIVER_VEHICLE = "Executive Sedan";
 const DRIVER_PLATE = "NBB 2024";
 const DRIVER_PHONE = "+639171234567";
-// 'male' | 'female'ï¼šæ±ºå®šä¹˜å®¢ç«¯ Layer 2 æ‡¸æµ®æ°£æ³¡å±•ç¤ºçš„å¸æ©Ÿé ­åƒåœ–ç¤ºã€‚
+// 'male' | 'female'：決定乘客端 Layer 2 懸浮氣泡展示的司機頭像圖示。
 const DRIVER_GENDER = "male";
 const pendingClaims = new Set();
 const DISMISSED_ORDERS_KEY = "ride2gether_driver_dismissed_orders";
@@ -52,15 +52,15 @@ function getCreatedAtMillis(value) {
 
 function formatFare(value) {
   const fare = Number(value);
-  return Number.isFinite(fare) ? `â‚±${fare.toFixed(2)}` : "Fare pending";
+  return Number.isFinite(fare) ? `₱${fare.toFixed(2)}` : "Fare pending";
 }
 
 function isStaleOrder(createdAtMillis) {
   return createdAtMillis != null && Date.now() - createdAtMillis > ORDER_STALE_AFTER_MS;
 }
 
-// é˜²å‘†ï¼šåš´ç¦å°éžæ³• orderIdï¼ˆç©ºå€¼ã€éžå­—ä¸²ã€æˆ–ä½”ä½å­—ä¸² 'Generating...'ï¼‰
-// ç™¼èµ· Firestore doc()/onSnapshot è«‹æ±‚ï¼Œé¿å…è§¸ç™¼ 400 Bad Request ä¸¦æŽæ–· WebChannelã€‚
+// 防呆：嚴禁對非法 orderId（空值、非字串、或佔位字串 'Generating...'）
+// 發起 Firestore doc()/onSnapshot 請求，避免觸發 400 Bad Request 並掐斷 WebChannel。
 function isValidOrderId(orderId) {
   return typeof orderId === "string" && orderId.trim().length > 0 && orderId.trim() !== "Generating...";
 }
@@ -200,7 +200,7 @@ function renderOrders(snapshot) {
         </div>
         <div class="flex items-start gap-2">
           <p class="text-lg font-bold text-slate-900">${formatFare(order.estimatedFare ?? order.fare ?? order.totalPay)}</p>
-          <button type="button" data-order-id="${escapeHtml(order.id)}" class="dismiss-order rounded-lg bg-slate-100 px-2 py-1 text-xs font-bold text-slate-600 transition hover:bg-slate-200" aria-label="Dismiss order">Ã—</button>
+          <button type="button" data-order-id="${escapeHtml(order.id)}" class="dismiss-order rounded-lg bg-slate-100 px-2 py-1 text-xs font-bold text-slate-600 transition hover:bg-slate-200" aria-label="Dismiss order">×</button>
         </div>
       </div>
       <dl class="mt-4 space-y-3 border-t border-slate-100 pt-4 text-sm">
@@ -248,13 +248,20 @@ async function claimOrder(orderId, button) {
     });
     button.textContent = "Order accepted";
 
-    // é˜²å‘†é€šçŸ¥ GAS/Telegramï¼šæŽ¥å–®æˆåŠŸå¾Œæ‰è§¸ç™¼ï¼Œå¤±æ•—çµ•ä¸é˜»æ“‹åŽŸæœ¬çš„ Firestore æ´¾å–®æµç¨‹ã€‚
+    // Notify GAS/Telegram after successful accept; failures never block the Firestore dispatch flow.
     if (typeof GAS_WEBHOOK_URL !== 'undefined' && GAS_WEBHOOK_URL) {
+      let telegramMessageId = null;
+      try {
+        const orderSnap = await db.collection(DRIVER_ORDERS_COLLECTION).doc(orderId).get();
+        telegramMessageId = orderSnap.data()?.telegramMessageId || null;
+      } catch (err) {
+        console.warn('[Driver] Unable to read telegramMessageId:', err);
+      }
       fetch(GAS_WEBHOOK_URL, {
         method: 'POST',
         mode: 'no-cors',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'CLAIM_ORDER', orderId, driverName: DRIVER_NAME })
+        body: JSON.stringify({ action: 'ORDER_ACCEPTED_WEB', orderId, driverName: DRIVER_NAME, telegramMessageId })
       }).catch(err => console.warn('[Driver] GAS claim notify failed:', err));
     }
   } catch (error) {
@@ -354,8 +361,16 @@ document.getElementById("clearAllOrders").addEventListener("click", clearAllOrde
 
 listenForPendingOrders();
 
-// --- æ­·å²è¨‚å–®ç´€éŒ„ (Order History Drawer) ---
-// å¸æ©Ÿç«¯ä¾ DRIVER_PHONE æŸ¥è©¢ ride_ordersï¼ŒæŒ‰æ™‚é–“å€’åºåˆ—å‡ºéŽå¾€å·²å®Œæˆ/å–æ¶ˆè¨‚å–®ã€‚
+// --- Order History Drawer ---
+// Normalize phone numbers (strip spaces/dashes, unify +63/09 prefixes) so stored
+// values in slightly different formats still match the driver's own phone.
+function normalizeDriverPhone(phone) {
+  let digits = String(phone || "").replace(/[\s-]/g, "");
+  if (digits.startsWith("+63")) digits = "0" + digits.slice(3);
+  else if (digits.startsWith("63") && digits.length > 10) digits = "0" + digits.slice(2);
+  return digits;
+}
+
 function openDriverOrderHistory() {
   const modal = document.getElementById("driverOrderHistoryModal");
   if (modal) {
@@ -373,30 +388,57 @@ function closeDriverOrderHistory() {
   }
 }
 
+function filterAndSortDriverOrderDocs(docs, normalizedPhone) {
+  const seen = new Set();
+  const matched = docs.filter((doc) => {
+    if (seen.has(doc.id)) return false;
+    seen.add(doc.id);
+    const o = doc.data();
+    // Prefer normalized phone match; fall back to driverName/driverId when the
+    // phone value is missing or was recorded before this field existed.
+    if (normalizeDriverPhone(o.driverPhone) === normalizedPhone) return true;
+    return o.driverName === DRIVER_NAME || o.driverId === DRIVER_ID;
+  });
+  matched.sort((a, b) => {
+    const aMs = getCreatedAtMillis(a.data().createdAt) || 0;
+    const bMs = getCreatedAtMillis(b.data().createdAt) || 0;
+    return bMs - aMs;
+  });
+  return matched;
+}
+
 function loadDriverOrderHistory() {
   const listEl = document.getElementById("driverOrderHistoryList");
   if (!listEl) return;
   listEl.innerHTML = '<p class="py-6 text-center text-xs text-slate-400">Loading order history...</p>';
+  const normalizedPhone = normalizeDriverPhone(DRIVER_PHONE);
+  // No orderBy() paired with where(): avoids requiring a Firestore composite index.
+  // Sorting and phone-format reconciliation both happen client-side instead.
   db.collection(DRIVER_ORDERS_COLLECTION)
     .where("driverPhone", "==", DRIVER_PHONE)
-    .orderBy("createdAt", "desc")
-    .limit(30)
+    .limit(50)
     .get()
-    .then((snap) => renderDriverOrderHistory(listEl, snap))
+    .then((snap) => {
+      const matched = filterAndSortDriverOrderDocs(snap.docs, normalizedPhone);
+      if (matched.length) return renderDriverOrderHistory(listEl, matched);
+      // Fallback: scan a bounded recent window and match by name/id/normalized phone.
+      return db.collection(DRIVER_ORDERS_COLLECTION).limit(200).get()
+        .then((fallbackSnap) => renderDriverOrderHistory(listEl, filterAndSortDriverOrderDocs(fallbackSnap.docs, normalizedPhone)));
+    })
     .catch((err) => {
       console.warn("[Driver] Order history query failed:", err);
       listEl.innerHTML = '<p class="py-6 text-center text-xs text-slate-400">Unable to load order history.</p>';
     });
 }
 
-function renderDriverOrderHistory(listEl, snap) {
-  if (snap.empty) {
+function renderDriverOrderHistory(listEl, docs) {
+  if (!docs.length) {
     listEl.innerHTML = '<p class="py-6 text-center text-xs text-slate-400">No past orders yet.</p>';
     return;
   }
-  listEl.innerHTML = snap.docs.map((doc) => {
+  listEl.innerHTML = docs.map((doc) => {
     const o = doc.data();
-    const dateStr = o.createdAt?.toDate ? o.createdAt.toDate().toLocaleString() : "--";
+    const dateStr = formatCreatedAt(o.createdAt);
     const status = String(o.status || "pending").toUpperCase();
     const statusClass = status === "COMPLETED" ? "bg-emerald-50 text-emerald-600 border-emerald-200"
       : status === "CANCELLED" ? "bg-slate-100 text-slate-500 border-slate-200"
@@ -408,11 +450,11 @@ function renderDriverOrderHistory(listEl, snap) {
           <span class="rounded-full border px-2 py-0.5 text-[10px] font-bold ${statusClass}">${status}</span>
         </div>
         <p class="mt-1 text-slate-400">${dateStr}</p>
-        <p class="mt-1.5 text-slate-700"><span class="text-slate-400">From:</span> ${o.origin || o.pickup || "--"}</p>
-        <p class="text-slate-700"><span class="text-slate-400">To:</span> ${o.destination || o.dropoff || "--"}</p>
+        <p class="mt-1.5 text-slate-700"><span class="text-slate-400">From:</span> ${displayValue(o.origin || o.pickup)}</p>
+        <p class="text-slate-700"><span class="text-slate-400">To:</span> ${displayValue(o.destination || o.dropoff)}</p>
         <div class="mt-1.5 flex items-center justify-between">
-          <span class="text-slate-500">${o.vehicleType || o.serviceName || "--"}</span>
-          <span class="font-bold text-blue-600">â‚±${o.totalPay || o.fare || 0}</span>
+          <span class="text-slate-500">${displayValue(o.vehicleType || o.serviceName)}</span>
+          <span class="font-bold text-blue-600">${formatFare(o.totalPay ?? o.fare)}</span>
         </div>
       </div>
     `;
