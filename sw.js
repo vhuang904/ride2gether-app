@@ -2,7 +2,7 @@
 // RIDE2GETHER Service Worker
 // ==========================================
 
-const CACHE_NAME = 'ride2gether-cache-v7.30';
+const CACHE_NAME = 'ride2gether-cache-v7.31';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',

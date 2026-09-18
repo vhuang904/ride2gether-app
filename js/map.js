@@ -152,16 +152,40 @@ function closePinConfirmBubble() {
 
 // 行程結束後，將主地圖視角平滑重設回乘客目前 GPS 定位。
 function recenterMapToUserGps() {
-  if (!mapInstance || !navigator.geolocation) return;
+  if (!mapInstance) return;
+  const defaultCenter = { lat: 7.0722, lng: 125.6125 }; // Davao City Center fallback
+
+  if (!navigator.geolocation) {
+    mapInstance.panTo(defaultCenter);
+    mapInstance.setZoom(15);
+    return;
+  }
+
   navigator.geolocation.getCurrentPosition(
     (position) => {
       const userPos = { lat: position.coords.latitude, lng: position.coords.longitude };
       mapInstance.panTo(userPos);
       mapInstance.setZoom(16);
     },
-    (err) => console.warn("[Passenger] GPS recenter failed:", err),
+    (err) => {
+      console.warn("[Passenger] GPS recenter failed, falling back to default center:", err);
+      mapInstance.panTo(defaultCenter);
+      mapInstance.setZoom(15);
+    },
     { enableHighAccuracy: true, timeout: 6000 }
   );
+}
+
+// 行程結束回首頁時的完整地圖重新適應與視角復位
+function resetMapToHomeView() {
+  if (!mapInstance || !window.google) return;
+  setTimeout(() => {
+    google.maps.event.trigger(mapInstance, 'resize');
+    recenterMapToUserGps();
+    setTimeout(() => {
+      google.maps.event.trigger(mapInstance, 'resize');
+    }, 150);
+  }, 50);
 }
 
 function setPointPosition(pos, fieldType, catType, optAddressText) {

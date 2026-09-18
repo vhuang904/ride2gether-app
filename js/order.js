@@ -990,10 +990,14 @@ function resetAppToIdle() {
   // （高度為 0）時就先 pan/zoom，會導致地圖回到 Layer 1 後維持黑塊。
   restoreBookingHomeView();
 
-  if (mapInstance && window.google) {
-    google.maps.event.trigger(mapInstance, 'resize');
+  if (typeof resetMapToHomeView === 'function') {
+    resetMapToHomeView();
+  } else {
+    if (mapInstance && window.google) {
+      google.maps.event.trigger(mapInstance, 'resize');
+    }
+    if (typeof recenterMapToUserGps === 'function') recenterMapToUserGps();
   }
-  if (typeof recenterMapToUserGps === 'function') recenterMapToUserGps();
 
   currentOrderId = null;
 }
