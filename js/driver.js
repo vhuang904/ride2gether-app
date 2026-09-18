@@ -263,6 +263,24 @@ async function claimOrder(orderId, button) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'ORDER_ACCEPTED_WEB', orderId, driverName: DRIVER_NAME, telegramMessageId })
       }).catch(err => console.warn('[Driver] GAS claim notify failed:', err));
+
+      // 若 Telegram 訊息尚未建立 (telegramMessageId 為空)，延遲 2 秒補發鎖定請求以防競態延遲
+      if (!telegramMessageId) {
+        setTimeout(async () => {
+          try {
+            const retrySnap = await db.collection(DRIVER_ORDERS_COLLECTION).doc(orderId).get();
+            const delayedMsgId = retrySnap.data()?.telegramMessageId || null;
+            fetch(GAS_WEBHOOK_URL, {
+              method: 'POST',
+              mode: 'no-cors',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ action: 'ORDER_ACCEPTED_WEB', orderId, driverName: DRIVER_NAME, telegramMessageId: delayedMsgId })
+            }).catch(err => console.warn('[Driver] GAS retry claim notify failed:', err));
+          } catch (err) {
+            console.warn('[Driver] Retry check for telegramMessageId failed:', err);
+          }
+        }, 2000);
+      }
     }
   } catch (error) {
     console.error("Unable to accept order:", error);

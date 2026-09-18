@@ -7,7 +7,7 @@ async function requestOrder() {
     from = document.getElementById('pickupLoc')?.value.trim() || "";
     to = document.getElementById('dropoffLoc')?.value.trim() || "";
     if (!from || !to) {
-      showOrderValidationError("請先輸入起訖點 (Please specify both Pick-up and Drop-off locations).");
+      showOrderValidationError("Please specify both Pick-up and Drop-off locations.");
       return;
     }
   } else {
@@ -15,7 +15,7 @@ async function requestOrder() {
     to = document.getElementById('conciergeDropoff')?.value.trim() || "";
     notes = document.getElementById('itemList')?.value.trim() || "";
     if (!from || !to) {
-      showOrderValidationError("請先輸入起訖點 (Please specify both Store/Pickup and Delivery locations).");
+      showOrderValidationError("Please specify both Store/Pickup and Delivery locations.");
       return;
     }
   }
@@ -109,7 +109,7 @@ async function requestOrder() {
     localStorage.removeItem('r2g_active_order_id');
     stopDispatchTimer();
     finishTripAndReset();
-    showOrderValidationError(`建立訂單失敗，請稍後再試 (Unable to send order${err?.code ? ` · ${err.code}` : ""}).`);
+    showOrderValidationError(`Unable to send order${err?.code ? ` · ${err.code}` : ""}. Please try again later.`);
   }
 }
 
