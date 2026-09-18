@@ -57,6 +57,10 @@
     
     <!-- VIP Profile Button -->
     <div class="flex items-center space-x-2.5">
+      <button type="button" onclick="openOrderHistoryModal()" aria-label="Order History" title="Order History"
+              class="w-9 h-9 rounded-full bg-slate-50 border border-slate-200 text-slate-600 flex items-center justify-center shadow-sm active:scale-95 transition">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="w-4.5 h-4.5 stroke-current fill-none stroke-[1.8]"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+      </button>
       <div class="flex flex-col items-end">
         <div class="flex items-center space-x-1.5">
           <span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.6)]"></span>
@@ -450,6 +454,22 @@
       <button type="button" onclick="saveProfile()" class="w-full py-3 rounded-xl bg-navy-900 hover:bg-royal text-white font-bold text-xs tracking-wider transition shadow-md">
         SAVE VIP PREFERENCES
       </button>
+    </div>
+  </div>
+
+  <!-- 歷史訂單紀錄 (Order History Drawer) -->
+  <div id="orderHistoryModal" class="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+    <div class="bg-white w-full max-w-sm rounded-3xl p-5 shadow-2xl border border-slate-100 space-y-3 max-h-[85vh] flex flex-col">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3 flex-shrink-0">
+        <div>
+          <h3 class="font-bold text-sm text-navy-900">Order History</h3>
+          <p class="text-[10px] text-slate-400">Your past trips & deliveries</p>
+        </div>
+        <button type="button" onclick="closeOrderHistoryModal()" class="text-slate-400 hover:text-slate-600 text-lg font-bold p-1">✕</button>
+      </div>
+      <div id="orderHistoryList" class="space-y-2 overflow-y-auto flex-1">
+        <p class="text-center text-xs text-slate-400 py-6">Loading order history...</p>
+      </div>
     </div>
   </div>
 

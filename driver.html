@@ -31,8 +31,13 @@
           <h1 class="text-lg font-bold text-slate-900">Driver Reception</h1>
         </div>
       </a>
-      <span class="rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-600">
-        <span class="mr-1 inline-block h-2 w-2 rounded-full bg-blue-600"></span>Live
+      <span class="flex items-center gap-2">
+        <button type="button" onclick="openDriverOrderHistory()" class="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600 transition hover:bg-slate-50">
+          Order History
+        </button>
+        <span class="rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-600">
+          <span class="mr-1 inline-block h-2 w-2 rounded-full bg-blue-600"></span>Live
+        </span>
       </span>
     </div>
   </header>
@@ -92,6 +97,22 @@
       </div>
     </section>
   </main>
+
+  <!-- 司機端歷史訂單紀錄 (Order History Drawer) -->
+  <div id="driverOrderHistoryModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-950/70 backdrop-blur-sm p-4">
+    <div class="flex max-h-[85vh] w-full max-w-sm flex-col space-y-3 rounded-3xl border border-slate-100 bg-white p-5 shadow-2xl">
+      <div class="flex flex-shrink-0 items-center justify-between border-b border-slate-100 pb-3">
+        <div>
+          <h3 class="text-sm font-bold text-slate-900">Order History</h3>
+          <p class="text-[10px] text-slate-400">Your completed & cancelled trips</p>
+        </div>
+        <button type="button" onclick="closeDriverOrderHistory()" class="p-1 text-lg font-bold text-slate-400 hover:text-slate-600">✕</button>
+      </div>
+      <div id="driverOrderHistoryList" class="flex-1 space-y-2 overflow-y-auto">
+        <p class="py-6 text-center text-xs text-slate-400">Loading order history...</p>
+      </div>
+    </div>
+  </div>
 
   <script src="js/config.js"></script>
   <script src="js/driver.js"></script>

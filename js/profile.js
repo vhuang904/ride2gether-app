@@ -37,6 +37,10 @@ function loadProfile() {
       currentUserProfile.customPlaces = parsed.customPlaces || [];
     } catch(e) { console.warn("Load profile error:", e); }
   }
+  // 保持 guest_name/guest_phone 與既有 VIP 個資同步，供 Order History 及
+  // 未來司機端頁面沿用同一組「姓名+電話」身分識別，不需重新觸發登入。
+  localStorage.setItem('guest_name', currentUserProfile.name || "VIP Guest");
+  localStorage.setItem('guest_phone', currentUserProfile.phone || "");
   updateHeaderProfileUI();
   renderMainSavedPlacesChips();
   renderCustomPlacesList();
@@ -214,6 +218,7 @@ function saveProfile() {
   }
 
   saveProfileToStorage();
+  syncGuestIdentityAndRole();
   updateHeaderProfileUI();
   renderMainSavedPlacesChips();
   closeProfileModal();
@@ -221,6 +226,32 @@ function saveProfile() {
 
 function saveProfileToStorage() {
   localStorage.setItem('r2g_vip_profile', JSON.stringify(currentUserProfile));
+}
+
+// 全站登入與身分識別以「姓名 + 電話」為核心基準：寫入 guest_name/guest_phone
+// 供其他頁面（如 driver.html）沿用，並同步 Firestore users/{phone}，
+// 比對 drivers 集合以標記角色（customer / driver），全程防呆不阻擋既有下單流程。
+function syncGuestIdentityAndRole() {
+  const name = currentUserProfile.name || "VIP Guest";
+  const phone = currentUserProfile.phone || "";
+  localStorage.setItem('guest_name', name);
+  localStorage.setItem('guest_phone', phone);
+
+  if (!phone || typeof db === 'undefined' || !db) return;
+
+  db.collection('users').doc(phone).set({
+    name: name,
+    phone: phone,
+    gender: currentUserProfile.gender || 'male',
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  }, { merge: true }).catch(err => console.warn('[Profile] users sync failed:', err));
+
+  db.collection('drivers').where('phone', '==', phone).limit(1).get()
+    .then(snap => {
+      const role = snap.empty ? 'customer' : 'driver';
+      localStorage.setItem('user_role', role);
+    })
+    .catch(err => console.warn('[Profile] driver role lookup failed:', err));
 }
 
 // --- 3.1 會員中心專屬地圖微調與 GPS 邏輯 ---
@@ -321,6 +352,71 @@ function openPickerFor(target, optPos, optAddress) {
     });
   }, 200);
 }
+
+// --- 3.2 歷史訂單紀錄 (Order History Drawer) ---
+// 客戶端依 guest_phone 查詢 ride_orders，按時間倒序列出過往行程／管家訂單。
+function openOrderHistoryModal() {
+  const modal = document.getElementById('orderHistoryModal');
+  if (modal) modal.classList.remove('hidden');
+  loadOrderHistory();
+}
+
+function closeOrderHistoryModal() {
+  const modal = document.getElementById('orderHistoryModal');
+  if (modal) modal.classList.add('hidden');
+}
+
+function loadOrderHistory() {
+  const listEl = document.getElementById('orderHistoryList');
+  if (!listEl) return;
+  const phone = currentUserProfile.phone || localStorage.getItem('guest_phone') || '';
+  if (!phone || typeof db === 'undefined' || !db) {
+    listEl.innerHTML = '<p class="text-center text-xs text-slate-400 py-6">No verified phone number yet. Save your profile first.</p>';
+    return;
+  }
+  listEl.innerHTML = '<p class="text-center text-xs text-slate-400 py-6">Loading order history...</p>';
+  db.collection('ride_orders')
+    .where('customerPhone', '==', phone)
+    .orderBy('createdAt', 'desc')
+    .limit(30)
+    .get()
+    .then(snap => renderOrderHistory(listEl, snap))
+    .catch(err => {
+      console.warn('[Profile] Order history query failed:', err);
+      listEl.innerHTML = '<p class="text-center text-xs text-slate-400 py-6">Unable to load order history.</p>';
+    });
+}
+
+function renderOrderHistory(listEl, snap) {
+  if (snap.empty) {
+    listEl.innerHTML = '<p class="text-center text-xs text-slate-400 py-6">No past orders yet.</p>';
+    return;
+  }
+  listEl.innerHTML = snap.docs.map(doc => {
+    const o = doc.data();
+    const dateStr = o.createdAt?.toDate ? o.createdAt.toDate().toLocaleString() : '--';
+    const status = String(o.status || 'pending').toUpperCase();
+    const statusClass = status === 'COMPLETED' ? 'bg-emerald-50 text-emerald-600 border-emerald-200'
+      : status === 'CANCELLED' ? 'bg-slate-100 text-slate-500 border-slate-200'
+      : 'bg-blue-50 text-blue-600 border-blue-200';
+    return `
+      <div class="rounded-xl border border-slate-100 bg-slate-50 p-3 text-xs">
+        <div class="flex items-center justify-between">
+          <span class="font-bold text-slate-900">#${String(doc.id).slice(-6)}</span>
+          <span class="px-2 py-0.5 rounded-full border font-bold text-[10px] ${statusClass}">${status}</span>
+        </div>
+        <p class="mt-1 text-slate-400">${dateStr}</p>
+        <p class="mt-1.5 text-slate-700"><span class="text-slate-400">From:</span> ${o.origin || o.pickup || '--'}</p>
+        <p class="text-slate-700"><span class="text-slate-400">To:</span> ${o.destination || o.dropoff || '--'}</p>
+        <div class="mt-1.5 flex items-center justify-between">
+          <span class="text-slate-500">${o.vehicleType || o.serviceName || '--'}</span>
+          <span class="font-bold text-royal">₱${o.totalPay || o.fare || 0}</span>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
 
 function locatePickerGps() {
   if (!navigator.geolocation) return;
