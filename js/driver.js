@@ -1,3 +1,4 @@
+(() => {
 const DRIVER_ORDERS_COLLECTION = "ride_orders";
 const DRIVER_ID = "DRV-001";
 const DRIVER_NAME = "BigV904";
@@ -21,6 +22,22 @@ const ORDER_STALE_AFTER_MS = 5 * 60 * 1000;
 const ACTIVE_TRIP_STATUSES = new Set(["accepted", "arrived", "in_progress"]);
 let activeTrip = null;
 let noticeTimer = null;
+let unsubscribeOrders = null;
+let listenerGeneration = 0;
+let driverPanelInitialized = false;
+let historyRequestId = 0;
+
+function hasDriverPanelAccess() {
+  return typeof window.isCurrentDriverAuthorized === "function"
+    && window.isCurrentDriverAuthorized()
+    && !document.getElementById("driverView").classList.contains("hidden");
+}
+
+function requireDriverPanelAccess() {
+  if (hasDriverPanelAccess()) return true;
+  console.warn("Unauthorized access: Not a registered fleet driver.");
+  return false;
+}
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -91,7 +108,7 @@ function renderActiveTrip(order) {
   document.getElementById("activeTripStatus").textContent = status.replace("_", " ");
   document.getElementById("activeTripPickup").textContent = order.pickup || order.origin || "Not provided";
   document.getElementById("activeTripDropoff").textContent = order.dropoff || order.destination || "Not provided";
-  document.getElementById("activeTripVehicle").textContent = order.vehicleType || order.serviceName || "Standard ride";
+  document.getElementById("driverActiveTripVehicle").textContent = order.vehicleType || order.serviceName || "Standard ride";
   document.getElementById("activeTripFare").textContent = formatFare(order.estimatedFare ?? order.fare ?? order.totalPay);
   action.disabled = false;
   action.textContent = status === "accepted"
@@ -103,6 +120,7 @@ function renderActiveTrip(order) {
 }
 
 async function advanceActiveTrip() {
+  if (!requireDriverPanelAccess()) return;
   if (!activeTrip) return;
   if (!isValidOrderId(activeTrip.id)) {
     console.warn("[Driver] Skipping trip advance: invalid activeTrip.id.", activeTrip.id);
@@ -117,6 +135,14 @@ async function advanceActiveTrip() {
         ? "completed"
         : null;
   if (!nextStatus) return;
+
+  if (currentStatus === "arrived") {
+    const destination = (activeTrip.destination || activeTrip.dropoff || "").trim();
+    if (destination) {
+      const destUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}`;
+      window.open(destUrl, '_blank');
+    }
+  }
 
   const action = document.getElementById("activeTripAction");
   action.disabled = true;
@@ -226,6 +252,7 @@ function renderOrders(snapshot) {
 }
 
 async function claimOrder(orderId, button) {
+  if (!requireDriverPanelAccess()) return;
   if (!isValidOrderId(orderId)) {
     console.warn("[Driver] Ignoring claim request: invalid orderId.", orderId);
     return;
@@ -292,6 +319,7 @@ async function claimOrder(orderId, button) {
 }
 
 async function dismissOrder(orderId) {
+  if (!requireDriverPanelAccess()) return;
   if (!isValidOrderId(orderId)) {
     console.warn("[Driver] Ignoring dismiss request: invalid orderId.", orderId);
     return;
@@ -320,6 +348,7 @@ async function dismissOrder(orderId) {
 let lastOrderSnapshot = null;
 
 function clearAllOrders() {
+  if (!requireDriverPanelAccess()) return;
   if (!lastOrderSnapshot) return;
   lastOrderSnapshot.forEach((doc) => {
     const order = doc.data();
@@ -335,24 +364,29 @@ function clearAllOrders() {
 }
 
 function listenForPendingOrders() {
+  if (!requireDriverPanelAccess() || unsubscribeOrders) return;
+  const generation = ++listenerGeneration;
   document.getElementById("driverStatus").textContent = "Connecting to pending orders...";
   console.log(`[Driver] Listening to ${DRIVER_ORDERS_COLLECTION} without composite index query.`);
 
-  db.collection(DRIVER_ORDERS_COLLECTION).onSnapshot(
+  unsubscribeOrders = db.collection(DRIVER_ORDERS_COLLECTION).onSnapshot(
     (snapshot) => {
+      if (generation !== listenerGeneration || !hasDriverPanelAccess()) return;
       console.log(`[Driver] Order snapshot received: ${snapshot.size} documents.`);
       lastOrderSnapshot = snapshot;
       renderOrders(snapshot);
       document.getElementById("driverStatus").textContent = "Connected. Listening for new pending orders.";
     },
     (error) => {
+      if (generation !== listenerGeneration || !hasDriverPanelAccess()) return;
       console.error("[Driver] Pending order listener failed:", error);
       document.getElementById("driverStatus").textContent = `Connection error: ${error.message || "Unable to load orders."}`;
     }
   );
 }
 
-document.getElementById("ordersContainer").addEventListener("click", (event) => {
+function handleDriverOrderClick(event) {
+  if (!requireDriverPanelAccess()) return;
   const dismissButton = event.target.closest(".dismiss-order");
   if (dismissButton) {
     const dismissOrderId = dismissButton.dataset.orderId;
@@ -372,12 +406,35 @@ document.getElementById("ordersContainer").addEventListener("click", (event) => 
     }
     claimOrder(claimOrderId, button);
   }
-});
+}
 
-document.getElementById("activeTripAction").addEventListener("click", advanceActiveTrip);
-document.getElementById("clearAllOrders").addEventListener("click", clearAllOrders);
+function initializeDriverPanel() {
+  if (!requireDriverPanelAccess()) return;
+  if (!driverPanelInitialized) {
+    document.getElementById("ordersContainer").addEventListener("click", handleDriverOrderClick);
+    document.getElementById("activeTripAction").addEventListener("click", advanceActiveTrip);
+    document.getElementById("clearAllOrders").addEventListener("click", clearAllOrders);
+    driverPanelInitialized = true;
+  }
+  listenForPendingOrders();
+}
 
-listenForPendingOrders();
+function stopDriverPanel() {
+  listenerGeneration += 1;
+  historyRequestId += 1;
+  if (unsubscribeOrders) unsubscribeOrders();
+  unsubscribeOrders = null;
+  lastOrderSnapshot = null;
+  observedOrderStatuses.clear();
+  clearActiveTrip();
+  closeDriverOrderHistory();
+  if (noticeTimer) clearTimeout(noticeTimer);
+  noticeTimer = null;
+  document.getElementById("driverNotice").classList.add("hidden");
+  document.getElementById("ordersContainer").innerHTML = "";
+  document.getElementById("orderCount").textContent = "0 pending";
+  document.getElementById("driverOrderHistoryList").innerHTML = "";
+}
 
 // --- Order History Drawer ---
 // Normalize phone numbers (strip spaces/dashes, unify +63/09 prefixes) so stored
@@ -390,6 +447,7 @@ function normalizeDriverPhone(phone) {
 }
 
 function openDriverOrderHistory() {
+  if (!requireDriverPanelAccess()) return;
   const modal = document.getElementById("driverOrderHistoryModal");
   if (modal) {
     modal.classList.remove("hidden");
@@ -426,6 +484,8 @@ function filterAndSortDriverOrderDocs(docs, normalizedPhone) {
 }
 
 function loadDriverOrderHistory() {
+  if (!requireDriverPanelAccess()) return;
+  const requestId = ++historyRequestId;
   const listEl = document.getElementById("driverOrderHistoryList");
   if (!listEl) return;
   listEl.innerHTML = '<p class="py-6 text-center text-xs text-slate-400">Loading order history...</p>';
@@ -437,14 +497,19 @@ function loadDriverOrderHistory() {
     .limit(50)
     .get()
     .then((snap) => {
+      if (requestId !== historyRequestId || !hasDriverPanelAccess()) return;
       const matched = filterAndSortDriverOrderDocs(snap.docs, normalizedPhone);
       if (matched.length) return renderDriverOrderHistory(listEl, matched);
       // Fallback: scan a bounded recent window and match by name/id/normalized phone.
       return db.collection(DRIVER_ORDERS_COLLECTION).limit(200).get()
-        .then((fallbackSnap) => renderDriverOrderHistory(listEl, filterAndSortDriverOrderDocs(fallbackSnap.docs, normalizedPhone)));
+        .then((fallbackSnap) => {
+          if (requestId !== historyRequestId || !hasDriverPanelAccess()) return;
+          renderDriverOrderHistory(listEl, filterAndSortDriverOrderDocs(fallbackSnap.docs, normalizedPhone));
+        });
     })
     .catch((err) => {
       console.warn("[Driver] Order history query failed:", err);
+      if (requestId !== historyRequestId || !hasDriverPanelAccess()) return;
       listEl.innerHTML = '<p class="py-6 text-center text-xs text-slate-400">Unable to load order history.</p>';
     });
 }
@@ -478,3 +543,8 @@ function renderDriverOrderHistory(listEl, docs) {
     `;
   }).join("");
 }
+
+window.driverApp = { initialize: initializeDriverPanel, stop: stopDriverPanel };
+window.openDriverOrderHistory = openDriverOrderHistory;
+window.closeDriverOrderHistory = closeDriverOrderHistory;
+})();

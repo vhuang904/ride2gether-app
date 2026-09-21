@@ -58,3 +58,15 @@
     .pac-icon {
       filter: invert(1) hue-rotate(180deg) !important;
     }
+
+    body[data-app-mode="driver"] {
+      background-color: #f8fafc;
+    }
+    body[data-app-mode="driver"] #mascotCapsule,
+    body[data-app-mode="driver"] #tripFloatingBubble,
+    body[data-app-mode="driver"] #tripEndConfirmDialog,
+    body[data-app-mode="driver"] #locationPickerModal,
+    body[data-app-mode="driver"] #orderHistoryModal,
+    body[data-app-mode="passenger"] #driverOrderHistoryModal {
+      display: none !important;
+    }

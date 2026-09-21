@@ -34,7 +34,7 @@
 <body class="bg-[#0F172A] min-h-screen flex flex-col justify-between selection:bg-royal selection:text-white">
 
   <!-- Header: 頂部導航欄 (純英文、VIP 會員頭像中心) -->
-  <header class="sticky top-0 z-40 glass-nav border-b border-slate-200/80 px-5 py-3 flex items-center justify-between shadow-sm">
+  <header class="sticky top-0 z-40 glass-nav border-b border-slate-200/80 px-5 py-3 flex flex-wrap gap-y-2 items-center justify-between shadow-sm">
     <div class="flex flex-col items-start">
       <div class="flex items-center space-x-1.5">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 80" class="w-8 h-8 flex-shrink-0 drop-shadow-md -mt-1" fill="none">
@@ -57,7 +57,12 @@
     
     <!-- VIP Profile Button -->
     <div class="flex items-center space-x-2.5">
-      <button type="button" onclick="openOrderHistoryModal()" aria-label="Order History" title="Order History"
+      <button type="button" id="btnSwitchMode" onclick="toggleAppMode()" aria-controls="passengerView driverView" aria-pressed="false"
+              class="hidden items-center space-x-1 px-3 py-1.5 rounded-full bg-slate-50 border border-slate-200 text-slate-700 hover:border-royal hover:text-royal text-[11px] font-bold tracking-wider uppercase shadow-sm active:scale-95 transition">
+        <span id="switchModeIcon">🚘</span>
+        <span id="switchModeText">Driver Mode</span>
+      </button>
+      <button type="button" onclick="openAppOrderHistory()" aria-label="Order History" title="Order History"
               class="w-9 h-9 rounded-full bg-slate-50 border border-slate-200 text-slate-600 flex items-center justify-center shadow-sm active:scale-95 transition">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="w-4.5 h-4.5 stroke-current fill-none stroke-[1.8]"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
       </button>
@@ -75,7 +80,7 @@
   </header>
 
   <!-- 主視窗容器 -->
-  <main class="flex-1 max-w-md w-full mx-auto p-4 space-y-4 pb-24">
+  <main id="passengerView" class="flex-1 max-w-md w-full mx-auto p-4 space-y-4 pb-24">
 
     <!-- Step 1: 服務分類 -->
     <section class="space-y-3">
@@ -365,6 +370,62 @@
       <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14.5v-9l6 4.5-6 4.5z"/></svg>
       <span>REQUEST PRIVATE CHAUFFEUR</span>
     </button>
+  </main>
+
+  <main id="driverView" class="hidden mx-auto w-full max-w-3xl space-y-5 px-4 py-6 sm:px-6">
+    <section id="activeTripContainer" class="hidden rounded-2xl border border-blue-100 bg-white p-5 shadow-sm" aria-live="polite">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p class="text-xs font-bold uppercase tracking-[0.2em] text-blue-600">Ongoing Trip</p>
+          <h2 class="mt-1 text-xl font-bold text-slate-900">Active Trip</h2>
+        </div>
+        <span id="activeTripStatus" class="rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-xs font-bold uppercase tracking-wider text-blue-700">Accepted</span>
+      </div>
+      <div class="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+        <div class="rounded-xl border border-slate-100 bg-slate-50 p-3">
+          <p class="text-xs font-semibold text-slate-600">Pickup</p>
+          <p id="activeTripPickup" class="mt-1 font-semibold text-slate-900">--</p>
+        </div>
+        <div class="rounded-xl border border-slate-100 bg-slate-50 p-3">
+          <p class="text-xs font-semibold text-slate-600">Drop-off</p>
+          <p id="activeTripDropoff" class="mt-1 font-semibold text-slate-900">--</p>
+        </div>
+        <div class="rounded-xl border border-slate-100 bg-slate-50 p-3">
+          <p class="text-xs font-semibold text-slate-600">Vehicle</p>
+          <p id="driverActiveTripVehicle" class="mt-1 font-semibold text-slate-900">--</p>
+        </div>
+        <div class="rounded-xl border border-slate-100 bg-slate-50 p-3">
+          <p class="text-xs font-semibold text-slate-600">Estimated fare</p>
+          <p id="activeTripFare" class="mt-1 font-semibold text-slate-900">Fare pending</p>
+        </div>
+      </div>
+      <button id="activeTripAction" type="button" class="mt-4 w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700 active:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300">
+        Arrived at Pickup
+      </button>
+    </section>
+
+    <section class="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+      <div class="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-wider text-slate-600">Available orders</p>
+          <div class="flex flex-wrap items-center gap-3">
+            <h2 class="mt-1 text-2xl font-bold text-slate-900">Ready for pickup</h2>
+            <button id="clearAllOrders" type="button" class="rounded-xl bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-200">
+              Clear All
+            </button>
+          </div>
+        </div>
+        <span id="orderCount" class="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600">0 pending</span>
+      </div>
+      <p id="driverStatus" class="mt-3 text-sm text-slate-600" role="status">Connecting to order dispatch...</p>
+      <p id="driverNotice" class="mt-3 hidden rounded-xl border border-blue-100 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700" role="alert"></p>
+    </section>
+
+    <section id="ordersContainer" class="space-y-4" aria-live="polite">
+      <div class="rounded-2xl border border-slate-100 bg-white p-8 text-center text-sm text-slate-600 shadow-sm">
+        Loading pending orders...
+      </div>
+    </section>
   </main>
 
   <!-- VIP 會員資料彈窗 (Profile Modal) -->
@@ -677,11 +738,28 @@
     </div>
   </template>
 
+  <div id="driverOrderHistoryModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-950/70 backdrop-blur-sm p-4">
+    <div class="flex max-h-[85vh] w-full max-w-sm flex-col space-y-3 rounded-3xl border border-slate-100 bg-white p-5 shadow-2xl">
+      <div class="flex flex-shrink-0 items-center justify-between border-b border-slate-100 pb-3">
+        <div>
+          <h3 class="text-sm font-bold text-slate-900">Order History</h3>
+          <p class="text-[10px] text-slate-400">Your completed & cancelled trips</p>
+        </div>
+        <button type="button" onclick="closeDriverOrderHistory()" class="p-1 text-lg font-bold text-slate-400 hover:text-slate-600">✕</button>
+      </div>
+      <div id="driverOrderHistoryList" class="flex-1 space-y-2 overflow-y-auto">
+        <p class="py-6 text-center text-xs text-slate-400">Loading order history...</p>
+      </div>
+    </div>
+  </div>
+
   <script src="js/config.js"></script>
   <script src="js/rates.js"></script>
   <script src="js/profile.js"></script>
   <script src="js/map.js"></script>
   <script async src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB2ePR5LnmHDJrzHx2ib0oRQfrM_c8IcOk&libraries=places,geocoding,routes&language=en&loading=async&callback=initMap"></script>
   <script src="js/order.js"></script>
+  <script src="js/driver.js"></script>
+  <script src="js/app-mode.js"></script>
 </body>
 </html>

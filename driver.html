@@ -31,7 +31,7 @@
           <h1 class="text-lg font-bold text-slate-900">Driver Reception</h1>
         </div>
       </a>
-      <span class="flex items-center gap-2">
+      <span id="driverHeaderControls" class="hidden flex items-center gap-2">
         <button type="button" onclick="openDriverOrderHistory()" class="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600 transition hover:bg-slate-50">
           Order History
         </button>
@@ -42,7 +42,12 @@
     </div>
   </header>
 
-  <main class="mx-auto w-full max-w-3xl space-y-5 px-4 py-6 sm:px-6">
+  <div id="driverAccessPanel" class="mx-auto max-w-3xl space-y-3 px-4 py-6 text-sm text-slate-600">
+    <p id="driverAccessStatus" role="status">Checking driver access...</p>
+    <a href="index.html" class="font-semibold text-blue-600 hover:text-blue-700">Return to VIP profile</a>
+  </div>
+
+  <main id="driverView" class="hidden mx-auto w-full max-w-3xl space-y-5 px-4 py-6 sm:px-6">
     <section id="activeTripContainer" class="hidden rounded-2xl border border-blue-100 bg-white p-5 shadow-sm" aria-live="polite">
       <div class="flex flex-wrap items-center justify-between gap-3">
         <div>
@@ -62,7 +67,7 @@
         </div>
         <div class="rounded-xl border border-slate-100 bg-slate-50 p-3">
           <p class="text-xs font-semibold text-slate-600">Vehicle</p>
-          <p id="activeTripVehicle" class="mt-1 font-semibold text-slate-900">--</p>
+          <p id="driverActiveTripVehicle" class="mt-1 font-semibold text-slate-900">--</p>
         </div>
         <div class="rounded-xl border border-slate-100 bg-slate-50 p-3">
           <p class="text-xs font-semibold text-slate-600">Estimated fare</p>
@@ -116,5 +121,6 @@
 
   <script src="js/config.js"></script>
   <script src="js/driver.js"></script>
+  <script src="js/app-mode.js"></script>
 </body>
 </html>

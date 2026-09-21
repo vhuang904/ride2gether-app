@@ -57,6 +57,7 @@ function updateHeaderProfileUI() {
   document.getElementById('prefHome').value = (currentUserProfile.home && currentUserProfile.home.address) ? currentUserProfile.home.address : "";
   updateTitleButtonsUI();
   syncConciergePickupPinIcon();
+  window.dispatchEvent(new Event('vipprofilechange'));
 }
 
 // 依乘客性別設定，同步 Concierge 表單起點膠囊左側的男/女專屬 Pin 圖示，

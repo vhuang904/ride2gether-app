@@ -10,6 +10,7 @@ const ASSETS_TO_CACHE = [
   './css/custom.css',
   './js/config.js',
   './js/driver.js',
+  './js/app-mode.js',
   './js/tailwind-config.js',
   './manifest.json',
   './icon.svg',
