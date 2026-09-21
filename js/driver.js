@@ -1,22 +1,11 @@
 (() => {
 const DRIVER_ORDERS_COLLECTION = "ride_orders";
-const DRIVER_ID = "DRV-001";
-const DRIVER_NAME = "BigV904";
-const DRIVER_VEHICLE = "Executive Sedan";
-const DRIVER_PLATE = "NBB 2024";
-const DRIVER_PHONE = "+639171234567";
 // 'male' | 'female'：決定乘客端 Layer 2 懸浮氣泡展示的司機頭像圖示。
 const DRIVER_GENDER = "male";
 const pendingClaims = new Set();
 const DISMISSED_ORDERS_KEY = "ride2gether_driver_dismissed_orders";
-let storedDismissedOrderIds = [];
-try {
-  const parsedDismissedOrderIds = JSON.parse(localStorage.getItem(DISMISSED_ORDERS_KEY) || "[]");
-  storedDismissedOrderIds = Array.isArray(parsedDismissedOrderIds) ? parsedDismissedOrderIds : [];
-} catch (error) {
-  console.warn("[Driver] Ignoring invalid dismissed order cache:", error);
-}
-const dismissedOrderIds = new Set(storedDismissedOrderIds);
+const dismissedOrderIds = new Set();
+let dismissedOrderProfileId = null;
 const observedOrderStatuses = new Map();
 const ORDER_STALE_AFTER_MS = 5 * 60 * 1000;
 const ACTIVE_TRIP_STATUSES = new Set(["accepted", "arrived", "in_progress"]);
@@ -30,6 +19,7 @@ let historyRequestId = 0;
 function hasDriverPanelAccess() {
   return typeof window.isCurrentDriverAuthorized === "function"
     && window.isCurrentDriverAuthorized()
+    && Boolean(window.getCurrentDriverProfile?.())
     && !document.getElementById("driverView").classList.contains("hidden");
 }
 
@@ -83,7 +73,13 @@ function isValidOrderId(orderId) {
 }
 
 function persistDismissedOrderIds() {
-  localStorage.setItem(DISMISSED_ORDERS_KEY, JSON.stringify([...dismissedOrderIds]));
+  localStorage.setItem(`${DISMISSED_ORDERS_KEY}:${dismissedOrderProfileId}`, JSON.stringify([...dismissedOrderIds]));
+}
+
+function belongsToCurrentDriver(order, profile = window.getCurrentDriverProfile()) {
+  const phone = normalizeDriverPhone(order.driverPhone);
+  return Boolean(profile) && (order.driverId === profile.id
+    || (phone && phone === normalizeDriverPhone(profile.phone)));
 }
 
 function showDriverNotice(message) {
@@ -190,7 +186,7 @@ function renderOrders(snapshot) {
       pendingClaims.delete(doc.id);
     }
     observedOrderStatuses.set(doc.id, status);
-    const belongsToDriver = order.driverId === DRIVER_ID || order.driverName === DRIVER_NAME;
+    const belongsToDriver = belongsToCurrentDriver(order);
     if (belongsToDriver && ACTIVE_TRIP_STATUSES.has(status)) {
       snapshotActiveTrip = { id: doc.id, ...order };
     } else if (belongsToDriver && status === "cancelled" && activeTrip?.id === doc.id) {
@@ -208,7 +204,7 @@ function renderOrders(snapshot) {
     }
   });
   if (snapshotActiveTrip) renderActiveTrip(snapshotActiveTrip);
-  else if (activeTrip && !snapshot.docs.some((doc) => doc.id === activeTrip.id)) clearActiveTrip();
+  else if (activeTrip) clearActiveTrip();
   pendingOrders.sort((a, b) => b.createdAtMillis - a.createdAtMillis);
 
   count.textContent = `${pendingOrders.length} pending`;
@@ -256,6 +252,7 @@ function renderOrders(snapshot) {
 
 async function claimOrder(orderId, button) {
   if (!requireDriverPanelAccess()) return;
+  const profile = window.getCurrentDriverProfile();
   if (!isValidOrderId(orderId)) {
     console.warn("[Driver] Ignoring claim request: invalid orderId.", orderId);
     return;
@@ -268,11 +265,11 @@ async function claimOrder(orderId, button) {
   try {
     await db.collection(DRIVER_ORDERS_COLLECTION).doc(orderId).update({
       status: "accepted",
-      driverId: DRIVER_ID,
-      driverName: DRIVER_NAME,
-      driverVehicle: DRIVER_VEHICLE,
-      driverPlate: DRIVER_PLATE,
-      driverPhone: DRIVER_PHONE,
+      driverId: profile.id,
+      driverName: profile.name,
+      driverVehicle: profile.model,
+      driverPlate: profile.plate,
+      driverPhone: profile.phone,
       driverGender: DRIVER_GENDER,
       acceptedAt: firebase.firestore.FieldValue.serverTimestamp()
     });
@@ -291,7 +288,7 @@ async function claimOrder(orderId, button) {
         method: 'POST',
         mode: 'no-cors',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'ORDER_ACCEPTED_WEB', orderId, driverName: DRIVER_NAME, telegramMessageId })
+        body: JSON.stringify({ action: 'ORDER_ACCEPTED_WEB', orderId, driverName: profile.name, telegramMessageId })
       }).catch(err => console.warn('[Driver] GAS claim notify failed:', err));
 
       // 若 Telegram 訊息尚未建立 (telegramMessageId 為空)，延遲 2 秒補發鎖定請求以防競態延遲
@@ -304,7 +301,7 @@ async function claimOrder(orderId, button) {
               method: 'POST',
               mode: 'no-cors',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ action: 'ORDER_ACCEPTED_WEB', orderId, driverName: DRIVER_NAME, telegramMessageId: delayedMsgId })
+              body: JSON.stringify({ action: 'ORDER_ACCEPTED_WEB', orderId, driverName: profile.name, telegramMessageId: delayedMsgId })
             }).catch(err => console.warn('[Driver] GAS retry claim notify failed:', err));
           } catch (err) {
             console.warn('[Driver] Retry check for telegramMessageId failed:', err);
@@ -323,6 +320,7 @@ async function claimOrder(orderId, button) {
 
 async function dismissOrder(orderId) {
   if (!requireDriverPanelAccess()) return;
+  const profile = window.getCurrentDriverProfile();
   if (!isValidOrderId(orderId)) {
     console.warn("[Driver] Ignoring dismiss request: invalid orderId.", orderId);
     return;
@@ -336,7 +334,7 @@ async function dismissOrder(orderId) {
     await db.collection(DRIVER_ORDERS_COLLECTION).doc(orderId).set({
       status: "closed",
       closedAt: firebase.firestore.FieldValue.serverTimestamp(),
-      closedBy: DRIVER_ID
+      closedBy: profile.id
     }, { merge: true });
   } catch (error) {
     console.error("[Driver] Unable to close dismissed order:", {
@@ -414,6 +412,18 @@ function handleDriverOrderClick(event) {
 
 function initializeDriverPanel() {
   if (!requireDriverPanelAccess()) return;
+  const profile = window.getCurrentDriverProfile();
+  if (dismissedOrderProfileId !== profile.id) {
+    dismissedOrderProfileId = profile.id;
+    dismissedOrderIds.clear();
+    try {
+      const cached = JSON.parse(localStorage.getItem(`${DISMISSED_ORDERS_KEY}:${profile.id}`) || "[]");
+      if (!Array.isArray(cached)) throw new Error("Dismissed order cache must be an array.");
+      cached.filter(id => typeof id === "string").forEach(id => dismissedOrderIds.add(id));
+    } catch (error) {
+      console.warn("[Driver] Ignoring invalid dismissed order cache:", error);
+    }
+  }
   if (!driverPanelInitialized) {
     document.getElementById("ordersContainer").addEventListener("click", handleDriverOrderClick);
     document.getElementById("activeTripAction").addEventListener("click", advanceActiveTrip);
@@ -441,13 +451,8 @@ function stopDriverPanel() {
 }
 
 // --- Order History Drawer ---
-// Normalize phone numbers (strip spaces/dashes, unify +63/09 prefixes) so stored
-// values in slightly different formats still match the driver's own phone.
 function normalizeDriverPhone(phone) {
-  let digits = String(phone || "").replace(/[\s-]/g, "");
-  if (digits.startsWith("+63")) digits = "0" + digits.slice(3);
-  else if (digits.startsWith("63") && digits.length > 10) digits = "0" + digits.slice(2);
-  return digits;
+  return window.normalizeFleetPhone?.(phone) || "";
 }
 
 function openDriverOrderHistory() {
@@ -468,16 +473,15 @@ function closeDriverOrderHistory() {
   }
 }
 
-function filterAndSortDriverOrderDocs(docs, normalizedPhone) {
+function filterAndSortDriverOrderDocs(docs, normalizedPhone, profile) {
   const seen = new Set();
   const matched = docs.filter((doc) => {
     if (seen.has(doc.id)) return false;
     seen.add(doc.id);
     const o = doc.data();
-    // Prefer normalized phone match; fall back to driverName/driverId when the
-    // phone value is missing or was recorded before this field existed.
-    if (normalizeDriverPhone(o.driverPhone) === normalizedPhone) return true;
-    return o.driverName === DRIVER_NAME || o.driverId === DRIVER_ID;
+    // Reconcile legacy phone formats without authorizing by display name.
+    if (normalizedPhone && normalizeDriverPhone(o.driverPhone) === normalizedPhone) return true;
+    return o.driverId === profile.id;
   });
   matched.sort((a, b) => {
     const aMs = getCreatedAtMillis(a.data().createdAt) || 0;
@@ -490,25 +494,26 @@ function filterAndSortDriverOrderDocs(docs, normalizedPhone) {
 function loadDriverOrderHistory() {
   if (!requireDriverPanelAccess()) return;
   const requestId = ++historyRequestId;
+  const profile = window.getCurrentDriverProfile();
   const listEl = document.getElementById("driverOrderHistoryList");
   if (!listEl) return;
   listEl.innerHTML = '<p class="py-6 text-center text-xs text-slate-400">Loading order history...</p>';
-  const normalizedPhone = normalizeDriverPhone(DRIVER_PHONE);
+  const normalizedPhone = normalizeDriverPhone(profile.phone);
   // No orderBy() paired with where(): avoids requiring a Firestore composite index.
   // Sorting and phone-format reconciliation both happen client-side instead.
   db.collection(DRIVER_ORDERS_COLLECTION)
-    .where("driverPhone", "==", DRIVER_PHONE)
+    .where("driverPhone", "==", profile.phone)
     .limit(50)
     .get()
     .then((snap) => {
       if (requestId !== historyRequestId || !hasDriverPanelAccess()) return;
-      const matched = filterAndSortDriverOrderDocs(snap.docs, normalizedPhone);
+      const matched = filterAndSortDriverOrderDocs(snap.docs, normalizedPhone, profile);
       if (matched.length) return renderDriverOrderHistory(listEl, matched);
-      // Fallback: scan a bounded recent window and match by name/id/normalized phone.
+      // Fallback: scan a bounded window and match id/normalized phone.
       return db.collection(DRIVER_ORDERS_COLLECTION).limit(200).get()
         .then((fallbackSnap) => {
           if (requestId !== historyRequestId || !hasDriverPanelAccess()) return;
-          renderDriverOrderHistory(listEl, filterAndSortDriverOrderDocs(fallbackSnap.docs, normalizedPhone));
+          renderDriverOrderHistory(listEl, filterAndSortDriverOrderDocs(fallbackSnap.docs, normalizedPhone, profile));
         });
     })
     .catch((err) => {

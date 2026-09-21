@@ -35,14 +35,15 @@ async function requestOrder() {
   const dist = parseFloat(document.getElementById('distance')?.value) || 0;
   const itemCost = (currentService === 'PABILI') ? (parseFloat(document.getElementById('itemCost')?.value) || 0) : 0;
   const tip = parseFloat(document.getElementById('priorityTip')?.value) || 0;
-  const finalPrice = parseFloat(document.getElementById('estTotal')?.innerText) || 0;
+  const quote = calculateEstimate();
   const serviceRate = RATES[currentService];
 
-  if (!serviceRate) {
+  if (!quote || !serviceRate) {
     console.error("Order dispatch blocked: missing service rate.", currentService);
     showOrderValidationError("Unable to calculate this service fare. Please select the service again.");
     return;
   }
+  const finalPrice = quote.total;
 
   if (submitBtn) {
     submitBtn.disabled = true;
@@ -1198,28 +1199,6 @@ function checkActiveOrderOnLoad() {
   }
 }
 
-async function fetchLatestRates() {
-  try {
-    const res = await fetch(GAS_WEBHOOK_URL);
-    const data = await res.json();
-    if (data.status === "SUCCESS" && data.rates) {
-      Object.keys(data.rates).forEach(k => {
-        if (RATES[k]) {
-          RATES[k].base = data.rates[k].base;
-          RATES[k].baseKm = data.rates[k].baseKm;
-          RATES[k].perKm = data.rates[k].perKm;
-          RATES[k].commType = data.rates[k].commType;
-          RATES[k].commVal = data.rates[k].commVal;
-        }
-      });
-      updateCardBadges();
-      calculateEstimate();
-    }
-  } catch (err) {
-    console.warn("Using local rates:", err);
-  }
-}
-
 // 系統初始化
 // safeInvoke：確保任何單一初始化流程（包含地圖模組）拋出例外時，
 // 都不會阻斷其他全域事件監聽器的註冊與執行。
@@ -1235,7 +1214,7 @@ function safeInvoke(fn, label) {
 
 loadProfile();
 updateCardBadges();
-fetchLatestRates();
+startRatesListener();
 window.addEventListener("DOMContentLoaded", safeInvoke(initAutocomplete, "initAutocomplete"));
 window.addEventListener("load", safeInvoke(initAutocomplete, "initAutocomplete"));
 window.addEventListener("DOMContentLoaded", safeInvoke(checkViewerTrackingMode, "checkViewerTrackingMode"));

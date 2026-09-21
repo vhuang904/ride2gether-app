@@ -33,8 +33,12 @@ function element(classes = "") {
   };
 }
 
-function roster(empty = false) {
-  return { empty, metadata: { fromCache: false, hasPendingWrites: false } };
+function roster(empty = false, phone = "+639171234567", profile = {}) {
+  const docs = empty ? [] : [{
+    id: profile.id || "DRV-001",
+    data: () => ({ phone, name: "Test driver", plate: "TEST 001", model: "Test sedan", ...profile })
+  }];
+  return { empty, docs, size: docs.length, metadata: { fromCache: false, hasPendingWrites: false } };
 }
 
 function orderSnapshot(data) {
@@ -73,7 +77,7 @@ function harness({ standalone = false, phone = "09171234567" } = {}) {
             this.phone = value;
             return this;
           },
-          limit(count) { assert.equal(count, 1); return this; },
+          limit(count) { assert.equal(count, 2); return this; },
           get(options) {
             assert.equal(options.source, "server");
             return new Promise((resolve, reject) => Object.assign(this, { resolve, reject }));
@@ -265,7 +269,7 @@ test("profile save revalidates and cross-tab profile edits revoke the previous a
   h.get("prefPhone").value = "09990000000";
   const save = h.window.emit("vipprofilechange");
   assert.equal(h.window.isCurrentDriverAuthorized(), false);
-  h.queries[1].resolve(roster());
+  h.queries[1].resolve(roster(false, "+639990000000"));
   await save;
   assert.equal(h.window.isCurrentDriverAuthorized(), true);
   await h.window.emit("storage", { key: "guest_phone" });
@@ -367,4 +371,55 @@ test("view markup, shared assets, and protected passenger controls remain wired"
   assert.match(read("sw.js"), /'\.\/js\/app-mode\.js'/);
   assert.match(read("js/profile.js"), /dispatchEvent\(new Event\('vipprofilechange'\)\)/);
   assert.doesNotMatch(read("js/app-mode.js"), /\.focus\(/);
+});
+
+test("registration queries normalize local phone formats and require complete unique profiles", async () => {
+  const h = harness({ phone: "0917-123-4567" });
+  assert.equal(h.queries[0].phone, "+639171234567");
+  await authorize(h);
+  for (const phone of ["09171234567", "9171234567", "639171234567", "+63 (917) 123 4567"]) {
+    assert.equal(h.window.normalizeFleetPhone(phone), "+639171234567");
+  }
+  assert.equal(h.window.normalizeFleetPhone("not a phone"), "");
+  const check = h.window.checkDriverWhitelist();
+  h.queries.at(-1).resolve(roster(false, "+639171234567", { plate: "" }));
+  assert.equal(await check, false);
+  assert.equal(h.window.getCurrentDriverProfile(), null);
+  assert.equal(h.storage.get("user_role"), "customer");
+  const duplicate = h.window.checkDriverWhitelist();
+  const result = roster();
+  result.docs.push(result.docs[0]);
+  result.size = 2;
+  h.queries.at(-1).resolve(result);
+  assert.equal(await duplicate, false);
+});
+
+test("claims use the approved profile, not hard-coded identity, and profile updates apply to later claims", async () => {
+  const h = harness();
+  h.queries[0].resolve(roster(false, "+639171234567", {
+    id: "approved-real-id", name: "Roster driver", model: "Roster SUV", plate: "ROSTER 5"
+  }));
+  await flush();
+  h.window.toggleAppMode();
+  const claim = async id => {
+    const button = { dataset: { orderId: id } };
+    await h.get("ordersContainer").emit("click", { target: {
+      closest: selector => selector === ".claim-order" ? button : null
+    } });
+    await flush();
+  };
+  await claim("real-order");
+  const saved = h.writes[0].data;
+  assert.equal(saved.driverId, "approved-real-id");
+  assert.equal(saved.driverName, "Roster driver");
+  assert.equal(saved.driverVehicle, "Roster SUV");
+  assert.equal(saved.driverPlate, "ROSTER 5");
+  assert.equal(saved.driverPhone, "+639171234567");
+  h.queries[0].next(roster(false, "+639171234567", { id: "approved-real-id", name: "Updated roster name" }));
+  await claim("next-order");
+  assert.equal(h.writes[1].data.driverName, "Updated roster name");
+  h.orderListeners[0].next(orderSnapshot([{
+    driverId: "unrelated-id", driverName: "Updated roster name", driverPhone: "+639999999999", status: "arrived"
+  }]));
+  assert.equal(h.get("activeTripContainer").classList.contains("hidden"), true, "Same display name does not prove ownership");
 });

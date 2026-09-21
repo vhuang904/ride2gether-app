@@ -231,7 +231,7 @@ function saveProfileToStorage() {
 
 // 全站登入與身分識別以「姓名 + 電話」為核心基準：寫入 guest_name/guest_phone
 // 供其他頁面（如 driver.html）沿用，並同步 Firestore users/{phone}，
-// 比對 drivers 集合以標記角色（customer / driver），全程防呆不阻擋既有下單流程。
+// 司機名冊驗證由 app-mode.js 在 vipprofilechange 後統一處理。
 function syncGuestIdentityAndRole() {
   const name = currentUserProfile.name || "VIP Guest";
   const phone = currentUserProfile.phone || "";
@@ -246,13 +246,6 @@ function syncGuestIdentityAndRole() {
     gender: currentUserProfile.gender || 'male',
     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
   }, { merge: true }).catch(err => console.warn('[Profile] users sync failed:', err));
-
-  db.collection('drivers').where('phone', '==', phone).limit(1).get()
-    .then(snap => {
-      const role = snap.empty ? 'customer' : 'driver';
-      localStorage.setItem('user_role', role);
-    })
-    .catch(err => console.warn('[Profile] driver role lookup failed:', err));
 }
 
 // --- 3.1 會員中心專屬地圖微調與 GPS 邏輯 ---

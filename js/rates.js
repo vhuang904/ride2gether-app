@@ -4,24 +4,111 @@ let currentService = 'RIDE_MOTO';
 let unsubscribeOrder = null;
 let currentOrderId = null;
 
-let RATES = {
-  RIDE_MOTO: { base: 40, baseKm: 2, perKm: 10, commType: 'PERCENT', commVal: 0.15, nameEn: 'Moto Express' },
-  RIDE_CAR:  { base: 70, baseKm: 2, perKm: 18, commType: 'PERCENT', commVal: 0.20, nameEn: 'Executive Sedan' },
-  RIDE_SUV:  { base: 120, baseKm: 2, perKm: 25, commType: 'PERCENT', commVal: 0.20, nameEn: 'Premium SUV' },
-  EXPRESS:   { base: 50, baseKm: 2, perKm: 12, commType: 'FIXED',   commVal: 15,   nameEn: 'Instant Parcel' },
-  PABILI:    { base: 60, baseKm: 2, perKm: 11, commType: 'FIXED',   commVal: 10,   nameEn: 'Pabili Concierge' }
-};
+let RATES = {};
+let ratesReady = false;
+let ratesUnsubscribe = null;
+let ratesListenerGeneration = 0;
+let ratesUnavailableReason = 'Loading current prices...';
+const RATE_SERVICE_IDS = ['RIDE_MOTO', 'RIDE_CAR', 'RIDE_SUV', 'EXPRESS', 'PABILI'];
+
+function validateRate(rule) {
+  if (!rule || typeof rule.nameEn !== 'string' || !rule.nameEn.trim()) return false;
+  if (!['base', 'baseKm', 'perKm', 'surgeFlat', 'convenienceFee', 'commVal'].every(
+    key => typeof rule[key] === 'number' && Number.isFinite(rule[key]) && rule[key] >= 0
+  )) return false;
+  return Number.isFinite(rule.surgeMultiplier) && rule.surgeMultiplier > 0
+    && ['PERCENT', 'FIXED'].includes(rule.commType)
+    && (rule.commType !== 'PERCENT' || rule.commVal <= 1)
+    && (rule.commType !== 'FIXED' || rule.commVal <= rule.base * rule.surgeMultiplier + rule.surgeFlat);
+}
+
+function calculateFare(rule, distance, itemCost, tip) {
+  if (!validateRate(rule) || ![distance, itemCost, tip].every(value => Number.isFinite(value) && value >= 0)) {
+    throw new Error('A valid current price and non-negative amounts are required.');
+  }
+  const round = value => Math.round((value + Number.EPSILON) * 100) / 100;
+  const baseFare = round(rule.base + Math.max(0, distance - rule.baseKm) * rule.perKm);
+  const tripFare = round(baseFare * rule.surgeMultiplier + rule.surgeFlat);
+  const commission = round(rule.commType === 'PERCENT' ? baseFare * rule.commVal : rule.commVal);
+  const convenienceFee = round(rule.convenienceFee);
+  const total = round(tripFare + convenienceFee + itemCost + tip);
+  const driverPayout = round(tripFare - commission + itemCost + tip);
+  if (![total, driverPayout].every(value => Number.isFinite(value) && value >= 0)) {
+    throw new Error('The configured price produces an invalid total or driver payout.');
+  }
+  return { total, driverPayout, convenienceFee, commission, tripFare };
+}
+
+function invalidateRates(message) {
+  ratesReady = false;
+  RATES = {};
+  ratesUnavailableReason = message;
+  updateCardBadges();
+  calculateEstimate();
+}
+
+function startRatesListener() {
+  if (ratesUnsubscribe) return;
+  const generation = ++ratesListenerGeneration;
+  try {
+    ratesUnsubscribe = db.collection('rate_config').doc('current').onSnapshot(
+      { includeMetadataChanges: true },
+      snapshot => {
+        if (generation !== ratesListenerGeneration) return;
+        if (snapshot.metadata.fromCache || snapshot.metadata.hasPendingWrites || navigator.onLine === false) {
+          invalidateRates('Connect online to verify current prices before booking.');
+          return;
+        }
+        const rates = snapshot.exists ? snapshot.data().rates : null;
+        if (!rates || typeof rates !== 'object' || Array.isArray(rates)
+            || !Object.values(rates).every(validateRate)) {
+          console.error('[Rates] Missing or invalid published Rate_Config.');
+          invalidateRates('Current prices are unavailable. Please contact dispatch.');
+          return;
+        }
+        RATES = rates;
+        ratesReady = true;
+        ratesUnavailableReason = '';
+        updateCardBadges();
+        calculateEstimate();
+      },
+      error => {
+        if (generation !== ratesListenerGeneration) return;
+        ratesListenerGeneration += 1;
+        console.error('[Rates] Price listener failed:', error);
+        if (ratesUnsubscribe) ratesUnsubscribe();
+        ratesUnsubscribe = null;
+        invalidateRates('Unable to load current prices. Please retry online.');
+      }
+    );
+  } catch (error) {
+    ratesListenerGeneration += 1;
+    console.error('[Rates] Unable to start price listener:', error);
+    invalidateRates('Unable to load current prices. Please retry online.');
+  }
+}
+
+window.addEventListener('offline', () => invalidateRates('Connect online to verify current prices before booking.'));
+window.addEventListener('online', () => {
+  if (ratesUnsubscribe) ratesUnsubscribe();
+  ratesUnsubscribe = null;
+  startRatesListener();
+});
 
 function updateCardBadges() {
-  const setBadge = (id, base) => {
-    const el = document.getElementById(id);
-    if (el) el.innerText = `From ₱${base}`;
-  };
-  setBadge('badge-RIDE_MOTO', RATES.RIDE_MOTO.base);
-  setBadge('badge-RIDE_CAR', RATES.RIDE_CAR.base);
-  setBadge('badge-RIDE_SUV', RATES.RIDE_SUV.base);
-  setBadge('badge-EXPRESS', RATES.EXPRESS.base);
-  setBadge('badge-PABILI', RATES.PABILI.base);
+  RATE_SERVICE_IDS.forEach(id => {
+    const el = document.getElementById(`badge-${id}`);
+    if (!el) return;
+    const rule = ratesReady && RATES[id];
+    el.innerText = 'Price unavailable';
+    if (rule) {
+      try {
+        el.innerText = `From ₱${calculateFare(rule, 0, 0, 0).total.toFixed(2)}`;
+      } catch (error) {
+        console.error('[Rates] Invalid minimum fare:', id, error);
+      }
+    }
+  });
 }
 
 function switchCategory(cat, opts = {}) {
@@ -113,23 +200,30 @@ function setTip(val) {
 }
 
 function calculateEstimate() {
-  const dist = parseFloat(document.getElementById('distance').value) || 0;
+  const dist = Number(document.getElementById('distance').value || 0);
   document.getElementById('distVal').innerText = `${dist.toFixed(1)} km`;
 
-  const itemCost = (currentService === 'PABILI') ? (parseFloat(document.getElementById('itemCost').value) || 0) : 0;
-  const tip = parseFloat(document.getElementById('priorityTip').value) || 0;
-  const rule = RATES[currentService] || RATES.RIDE_MOTO;
-
-  const extraKm = Math.max(0, dist - rule.baseKm);
-  const surgeMultiplier = rule.surgeMultiplier || 1;
-  const surgeFlat = rule.surgeFlat || 0;
-
-  const deliveryFee = (rule.base + (extraKm * rule.perKm)) * surgeMultiplier + surgeFlat;
-  const totalCustomerPay = deliveryFee + itemCost + tip;
-
-  let commission = (rule.commType === 'PERCENT') ? (deliveryFee * rule.commVal) : rule.commVal;
-  const driverPayout = totalCustomerPay - commission;
-
-  document.getElementById('estTotal').innerText = totalCustomerPay.toFixed(2);
-  document.getElementById('estPayout').innerText = `approx. ₱${driverPayout.toFixed(2)}`;
+  const itemCost = (currentService === 'PABILI') ? Number(document.getElementById('itemCost').value || 0) : 0;
+  const tip = Number(document.getElementById('priorityTip').value || 0);
+  const rule = ratesReady && navigator.onLine !== false && RATES[currentService];
+  let quote = null;
+  let message = ratesUnavailableReason || 'This service is not available at the current price.';
+  if (rule) {
+    try {
+      quote = calculateFare(rule, dist, itemCost, tip);
+    } catch (error) {
+      console.error('[Rates] Unable to calculate current fare:', error);
+      message = 'This price is invalid. Please contact dispatch.';
+    }
+  }
+  document.getElementById('estTotal').innerText = quote ? quote.total.toFixed(2) : '--';
+  document.getElementById('estPayout').innerText = quote ? `approx. ₱${quote.driverPayout.toFixed(2)}` : 'Unavailable';
+  const fee = document.getElementById('estConvenienceFee');
+  if (fee) fee.textContent = quote ? `₱${quote.convenienceFee.toFixed(2)}` : '--';
+  const status = document.getElementById('rateStatus');
+  if (status) {
+    status.textContent = quote ? '' : message;
+    status.classList.toggle('hidden', Boolean(quote));
+  }
+  return quote;
 }

@@ -124,7 +124,12 @@ function harness({ role = "customer", viewer = false, authorized = true, standal
   document.getElementById = get;
   document.createElement = () => element();
   document.createDocumentFragment = () => ({ ...element(), fragment: true });
-  const window = { isViewerMode: viewer, isCurrentDriverAuthorized: () => authorized };
+  const window = {
+    isViewerMode: viewer, isCurrentDriverAuthorized: () => authorized,
+    getCurrentDriverProfile: () => authorized
+      ? { id: "DRV-001", phone: "+639171234567", name: "Test driver", model: "Test sedan", plate: "TEST 001" }
+      : null
+  };
   const errors = [];
   const warnings = [];
   const context = vm.createContext({

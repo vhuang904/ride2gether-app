@@ -1,11 +1,31 @@
 (() => {
   let authorizedPhone = "";
+  let authorizedDriver = null;
   let verificationId = 0;
   let unsubscribeWhitelist = null;
 
+  function normalizeFleetPhone(value) {
+    let phone = String(value ?? "").replace(/[\s()\-]/g, "");
+    if (/^09\d{9}$/.test(phone)) phone = "+63" + phone.slice(1);
+    else if (/^9\d{9}$/.test(phone)) phone = "+63" + phone;
+    else if (/^639\d{9}$/.test(phone)) phone = "+" + phone;
+    return /^\+[1-9]\d{7,14}$/.test(phone) ? phone : "";
+  }
+
   function currentPhone() {
     const input = document.getElementById("prefPhone");
-    return (input ? input.value : localStorage.getItem("guest_phone") || "").trim();
+    return normalizeFleetPhone(input ? input.value : localStorage.getItem("guest_phone"));
+  }
+
+  function readDriverProfile(snapshot, phone) {
+    if (snapshot.size !== 1) throw new Error("A unique approved fleet profile is required.");
+    const doc = snapshot.docs[0];
+    const data = doc.data();
+    if (normalizeFleetPhone(data.phone) !== phone
+        || !["name", "plate", "model"].every(key => typeof data[key] === "string" && data[key].trim())) {
+      throw new Error("The approved fleet profile is incomplete.");
+    }
+    return Object.freeze({ id: doc.id, phone, name: data.name, plate: data.plate, model: data.model });
   }
 
   function setAppMode(driverMode) {
@@ -40,6 +60,8 @@
 
   function revokeDriverAccess() {
     authorizedPhone = "";
+    authorizedDriver = null;
+    localStorage.setItem("user_role", "customer");
     verificationId += 1;
     if (unsubscribeWhitelist) unsubscribeWhitelist();
     unsubscribeWhitelist = null;
@@ -47,6 +69,8 @@
     button?.classList.add("hidden");
     button?.classList.remove("flex");
     setAppMode(false);
+    const status = document.getElementById("driverAccessStatus");
+    if (status) status.textContent = "Fleet registration needs verification.";
   }
 
   function isCurrentDriverAuthorized() {
@@ -57,7 +81,7 @@
   async function checkDriverWhitelist(phone = currentPhone()) {
     revokeDriverAccess();
     const requestId = verificationId;
-    const requestedPhone = String(phone || "").trim();
+    const requestedPhone = normalizeFleetPhone(phone);
     const status = document.getElementById("driverAccessStatus");
     if (status) status.textContent = "Checking driver access...";
     if (!requestedPhone || requestedPhone !== currentPhone()) {
@@ -66,7 +90,7 @@
     }
 
     try {
-      const query = db.collection("drivers").where("phone", "==", requestedPhone).limit(1);
+      const query = db.collection("drivers").where("phone", "==", requestedPhone).limit(2);
       // Never authorize from the locally cached role or an offline roster.
       const snapshot = await query.get({ source: "server" });
       if (requestId !== verificationId || requestedPhone !== currentPhone()) return false;
@@ -75,7 +99,10 @@
         return false;
       }
 
+      authorizedDriver = readDriverProfile(snapshot, requestedPhone);
       authorizedPhone = requestedPhone;
+      localStorage.setItem("user_role", "driver");
+      if (status) status.textContent = "Fleet registration verified.";
       const button = document.getElementById("btnSwitchMode");
       button?.classList.remove("hidden");
       button?.classList.add("flex");
@@ -83,9 +110,23 @@
         { includeMetadataChanges: true },
         (updatedSnapshot) => {
           if (requestId !== verificationId || updatedSnapshot.metadata.fromCache) return;
-          if (updatedSnapshot.empty || updatedSnapshot.metadata.hasPendingWrites) {
+          if (requestedPhone !== currentPhone() || updatedSnapshot.empty || updatedSnapshot.metadata.hasPendingWrites) {
             revokeDriverAccess();
             if (status) status.textContent = "Driver access is no longer available.";
+            return;
+          }
+          try {
+            const profile = readDriverProfile(updatedSnapshot, requestedPhone);
+            if (profile.id !== authorizedDriver.id) {
+              revokeDriverAccess();
+              if (status) status.textContent = "Fleet identity changed. Please verify again.";
+              return;
+            }
+            authorizedDriver = profile;
+          } catch (error) {
+            console.error("[App mode] Invalid fleet profile:", error);
+            revokeDriverAccess();
+            if (status) status.textContent = "Fleet profile is incomplete or duplicated. Please contact dispatch.";
           }
         },
         (error) => {
@@ -123,6 +164,8 @@
   }
 
   window.isCurrentDriverAuthorized = isCurrentDriverAuthorized;
+  window.getCurrentDriverProfile = () => isCurrentDriverAuthorized() ? authorizedDriver : null;
+  window.normalizeFleetPhone = normalizeFleetPhone;
   window.checkDriverWhitelist = checkDriverWhitelist;
   window.toggleAppMode = toggleAppMode;
   window.openAppOrderHistory = openAppOrderHistory;
