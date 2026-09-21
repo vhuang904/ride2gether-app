@@ -11,6 +11,7 @@ const ASSETS_TO_CACHE = [
   './js/config.js',
   './js/driver.js',
   './js/app-mode.js',
+  './js/chat.js',
   './js/tailwind-config.js',
   './manifest.json',
   './icon.svg',

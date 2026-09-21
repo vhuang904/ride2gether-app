@@ -140,11 +140,16 @@ function subscribeToOrder(orderId) {
   }
 
   if (unsubscribeOrder) unsubscribeOrder();
+  window.tripChat?.clearTrip("customer");
 
   unsubscribeOrder = db.collection("ride_orders").doc(orderId).onSnapshot(doc => {
-    if (!doc.exists) return;
+    if (!doc.exists) {
+      if (currentOrderId === orderId) window.tripChat?.clearTrip("customer");
+      return;
+    }
     const data = doc.data();
     const status = String(data.status || "").toLowerCase();
+    if (currentOrderId === orderId) window.tripChat?.updateTrip("customer", orderId, data);
 
     if (data.driverLat && data.driverLng) {
       updateDriverLocationOnMap(data.driverLat, data.driverLng);
@@ -166,6 +171,7 @@ function subscribeToOrder(orderId) {
       // Keep the listener active until the passenger confirms the settlement card.
     }
   }, err => {
+    if (currentOrderId === orderId) window.tripChat?.clearTrip("customer");
     console.error("Realtime listener error:", err);
     const statusText = document.getElementById('dispatchStatusText');
     if (statusText) statusText.innerText = `Live order update failed: ${err.message || 'connection error'}`;
@@ -843,6 +849,7 @@ function stopDispatchTimer() {
 // 供 cancelAndReset() 與 finishTripAndReset() 共用，避免取消訂單後
 // 畫面停留在被 prepareNativeTripView() 隱藏的空白狀態。
 function restoreBookingHomeView() {
+  window.tripChat?.clearTrip("customer");
   const dispatchModal = document.getElementById('dispatchModal');
   if (dispatchModal) {
     dispatchModal.classList.add('hidden');

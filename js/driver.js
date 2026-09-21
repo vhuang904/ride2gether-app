@@ -96,11 +96,13 @@ function showDriverNotice(message) {
 }
 
 function clearActiveTrip() {
+  window.tripChat?.clearTrip("driver");
   activeTrip = null;
   document.getElementById("activeTripContainer").classList.add("hidden");
 }
 
 function renderActiveTrip(order) {
+  window.tripChat?.updateTrip("driver", order.id, order);
   activeTrip = order;
   const container = document.getElementById("activeTripContainer");
   const status = String(order.status || "").toLowerCase();
@@ -179,6 +181,7 @@ function renderOrders(snapshot) {
       return;
     }
     const order = doc.data();
+    if (activeTrip?.id === doc.id) window.tripChat?.updateTrip("driver", doc.id, order);
     const status = String(order.status || "").toLowerCase();
     const createdAtMillis = getCreatedAtMillis(order.createdAt);
     const previousStatus = observedOrderStatuses.get(doc.id);
@@ -380,6 +383,7 @@ function listenForPendingOrders() {
     (error) => {
       if (generation !== listenerGeneration || !hasDriverPanelAccess()) return;
       console.error("[Driver] Pending order listener failed:", error);
+      window.tripChat?.clearTrip("driver");
       document.getElementById("driverStatus").textContent = `Connection error: ${error.message || "Unable to load orders."}`;
     }
   );

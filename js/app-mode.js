@@ -9,6 +9,7 @@
   }
 
   function setAppMode(driverMode) {
+    window.tripChat?.close();
     const passengerView = document.getElementById("passengerView");
     document.body.dataset.appMode = driverMode ? "driver" : "passenger";
     passengerView?.classList.toggle("hidden", driverMode);
