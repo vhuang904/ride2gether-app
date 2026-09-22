@@ -125,6 +125,9 @@ access and the driver must sign in with the new PIN. Removing a row deletes
 both public and private records in one commit. A phone change requires
 operations to replace the registration; the old identity is not retained.
 
+Keep `Service_Name` in English: it is displayed on new trips in both app modes.
+Changing a service label does not change its pricing fields or existing orders.
+
 | Rate_Config column | Firestore rate field |
 | --- | --- |
 | Service_Name | nameEn |
@@ -225,9 +228,9 @@ installed triggers.
 6. Deploy the authenticated backend/rules only after the release gate below.
    Clients must not write `drivers` or `rate_config`. Do not solve permission
    errors by allowing public writes or exposing the full roster.
-   The production GAS order/callback source is not in this repository:
-   its `findDriverProfile` fallback and unauthenticated writes must be
-   reconciled before deployment. This Sheet sync does not change them.
+   Replace legacy order/callback handlers with authenticated `gas/Dispatch.gs`
+   as described in the release checklist. Sheet synchronization alone does
+   not replace those handlers.
 7. Verify that published rates and approved driver profiles are readable
    through the frontend's configured paths before releasing it. A website
    push alone does **not** install GAS triggers or grant Firebase access.
@@ -368,7 +371,7 @@ Before release:
    authorize the GAS operator scopes and run the atomic sync described above.
    Verify first login, unchanged-PIN session retention, rotation, revocation
    and three-failure cooldown in staging. The old manual PIN provisioning CLI
-   is removed; the Sheet is the only PIN source. This local-only version uses
+   is removed; the Sheet is the only PIN source. This version uses
    `driver_auth_secrets`, not the earlier `_driver_credentials` schema. If a
    separate environment used that old schema, explicitly migrate from the
    approved Sheet and retire its old credentials before switching clients;
@@ -376,7 +379,11 @@ Before release:
 3. Replace the legacy GAS dispatch handlers with `gas/Dispatch.gs`, retaining
    the production-only Telegram/project configuration outside Git. Never
    commit the bot token. Deploy the existing web-app deployment ID rather
-   than changing the client webhook URL. `SYNC_ORDER` notifications include
+   than changing the client webhook URL. Preserve the existing manifest
+   `webapp` settings (`executeAs: "USER_DEPLOYING"` and
+   `access: "ANYONE_ANONYMOUS"`) when deploying with clasp; omitting them can
+   remove the web-app entry point. Verify the deployed URL returns rate JSON,
+   not just that the deployment command succeeds. `SYNC_ORDER` notifications include
    a Firebase ID token; GAS calls the backend `dispatchOrder` operation to
    validate the current participant session before reading canonical values.
    It mirrors those values to `Orders_Master` and Telegram and only patches
