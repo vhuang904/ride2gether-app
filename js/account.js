@@ -27,8 +27,9 @@
         <button id="btnSendOtp" type="button" class="rounded-xl bg-blue-600 px-3 py-2 text-xs font-bold text-white disabled:opacity-50">Send verification code</button>
         <button id="btnDriverSignIn" type="button" class="rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-blue-600">Driver PIN login</button>
       </div>
-      <div id="driverPinFields" class="hidden flex gap-2">
-        <input id="driverPin" type="password" inputmode="numeric" maxlength="6" autocomplete="current-password" aria-label="Company PIN" placeholder="6-digit company PIN" class="min-w-0 flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-base">
+      <div id="driverPinFields" class="hidden flex flex-wrap gap-2">
+        <p class="w-full text-xs text-slate-600">請輸入您於營運門市登記的 6 位數司機密碼。密碼變更請洽營運團隊。</p>
+        <input id="driverPin" type="password" inputmode="numeric" maxlength="6" autocomplete="current-password" aria-label="Driver PIN" placeholder="6-digit driver PIN" class="min-w-0 flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-base">
         <button id="btnConfirmPin" type="button" class="rounded-xl bg-blue-600 px-3 py-2 text-xs font-bold text-white disabled:opacity-50">Sign in</button>
       </div>
       <div id="otpFields" class="hidden space-y-2">
@@ -237,6 +238,8 @@
         await signIn(result);
       } catch (error) {
         get("driverPin").value = "";
+        if (error.code === "DRIVER_NOT_APPROVED") error.message = "該門號尚未開通司機權限，請洽營運團隊辦理";
+        if (error.code === "DRIVER_PIN_NOT_READY") error.message = "司機密碼尚未同步，請洽營運團隊確認登記資料";
         if (error.lockedUntil) mergeChallenge({ pinLockedUntil: error.lockedUntil });
         throw error;
       }

@@ -1,6 +1,9 @@
 const { test, before, after } = require("node:test");
+const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
+const vm = require("node:vm");
+const { createDriverPinSync } = require("../../functions/driver-pin-sync");
 const { initializeTestEnvironment, assertSucceeds, assertFails } = require("@firebase/rules-unit-testing");
 const { doc, collection, getDoc, getDocs, setDoc, query, where, serverTimestamp } = require("firebase/firestore");
 let env;
@@ -17,7 +20,7 @@ before(async () => {
       [`_auth_sessions/${sessions.stranger}`]: { uid: "stranger", phone: "+639171234599", role: "customer", revoked: false },
       [`_auth_sessions/${sessions.driver}`]: { uid: "driver", phone, role: "driver", credentialVersion: "v1", revoked: false },
       [`drivers/${phone}`]: { phone, name: "Driver" },
-      [`_driver_credentials/${phone}`]: { enabled: true, version: "v1", hash: "private" },
+      [`driver_auth_secrets/${phone}`]: { enabled: true, version: "v1", hash: "private" },
       [`_driver_work/${phone}`]: { online: true },
       "rate_config/current": { rates: {} },
       "ride_orders/OD-owned1": { customerPhone: "+639171234500", driverId: phone, status: "accepted" },
@@ -42,10 +45,11 @@ test("only public prices and opaque shared snapshots are accessible anonymously"
   await assertFails(getDoc(doc(db("driver", true), "ride_orders/OD-owned1")));
 });
 test("PINs, OTP sessions, app sessions and limits are never client-readable or writable", async () => {
-  for (const key of [`_driver_credentials/${phone}`, `_auth_sessions/${sessions.driver}`, "_auth_challenges/secret", "_auth_limits/private"]) {
+  for (const key of [`driver_auth_secrets/${phone}`, `_auth_sessions/${sessions.driver}`, "_auth_challenges/secret", "_auth_limits/private"]) {
     await assertFails(getDoc(doc(db("driver"), key)));
     await assertFails(setDoc(doc(db("driver"), key), { enabled: true }));
   }
+  await assertFails(getDocs(collection(db("driver"), "driver_auth_secrets")));
 });
 test("scoped queries work, collection scans and unrelated completed trips fail", async () => {
   await assertSucceeds(getDocs(query(collection(db("customer"), "ride_orders"), where("customerPhone", "==", "+639171234500"))));
@@ -75,7 +79,54 @@ test("pause removes pending reads, while PIN rotation revokes even owned-trip re
   await assertFails(getDocs(query(collection(db("driver"), "ride_orders"), where("status", "==", "pending"))));
   await assertSucceeds(getDoc(doc(db("driver"), "ride_orders/OD-owned1")));
   await env.withSecurityRulesDisabled(async context => {
-    await setDoc(doc(context.firestore(), `_driver_credentials/${phone}`), { enabled: true, version: "v2" });
+    await setDoc(doc(context.firestore(), `driver_auth_secrets/${phone}`), { enabled: true, version: "v2" });
   });
   await assertFails(getDoc(doc(db("driver"), "ride_orders/OD-owned1")));
+});
+test("real GAS credential commits preserve timestamps and reject stale PIN verification without partial writes", async () => {
+  const projectId = "demo-ride2gether", syncPhone = "+639171234511";
+  const root = `projects/${projectId}/databases/(default)/documents`;
+  const base = `http://${process.env.FIRESTORE_EMULATOR_HOST}/v1/${root}`;
+  const gas = vm.createContext({});
+  vm.runInContext(fs.readFileSync(path.join(__dirname, "../../gas/SheetSync.gs"), "utf8"), gas);
+  const call = (suffix, body) => fetch(base + suffix, {
+    method: body ? "POST" : "GET",
+    headers: { Authorization: "Bearer owner", "Content-Type": "application/json" },
+    ...(body ? { body: JSON.stringify(body) } : {})
+  });
+  const commit = async writes => {
+    const response = await call(":commit", { writes });
+    assert.equal(response.ok, true, JSON.stringify(await response.json()));
+  };
+  const readSecret = async () => {
+    const response = await call("/driver_auth_secrets/" + syncPhone);
+    assert.equal(response.ok, true);
+    const document = await response.json();
+    return [{ phone: syncPhone, updateTime: document.updateTime,
+      credential: Object.fromEntries(Object.entries(document.fields).map(([key, value]) => [key, Object.values(value)[0]])) }];
+  };
+  const publicWrite = marker => ({ update: { name: root + "/drivers/" + syncPhone,
+    fields: { phone: { stringValue: syncPhone }, marker: { stringValue: marker } } } });
+  const source = pin => ({ projectId, drivers: [{ phone: syncPhone, pin }] });
+  const privateWrites = prepared => gas.sheetSyncSecretWrites_(root, projectId, { [syncPhone]: {} }, prepared);
+  const first = await createDriverPinSync({ projectId, readSecrets: async () => [] })(source("004321"));
+  await commit([publicWrite("before"), ...privateWrites(first)]);
+  const prepare = createDriverPinSync({ projectId, readSecrets: readSecret });
+  const unchanged = await prepare(source("004321"));
+  assert.equal(unchanged.updates.length, 0);
+  assert.ok(unchanged.checks[0].updateTime);
+  await commit(privateWrites(unchanged));
+  assert.equal((await readSecret())[0].updateTime, unchanged.checks[0].updateTime);
+  const rotated = await prepare(source("765432"));
+  await commit(privateWrites(rotated));
+  const rejected = await call(":commit", { writes: [publicWrite("must-not-publish"), ...privateWrites(unchanged)] });
+  assert.equal(rejected.ok, false);
+  assert.equal((await (await call("/drivers/" + syncPhone)).json()).fields.marker.stringValue, "before");
+  const current = await prepare(source("765432"));
+  await commit([publicWrite("after"), ...privateWrites(current)]);
+  assert.equal((await (await call("/drivers/" + syncPhone)).json()).fields.marker.stringValue, "after");
+  const removal = await prepare({ projectId, drivers: [] });
+  await commit([{ delete: root + "/drivers/" + syncPhone }, ...gas.sheetSyncSecretWrites_(root, projectId, {}, removal)]);
+  assert.equal((await call("/driver_auth_secrets/" + syncPhone)).status, 404);
+  assert.equal((await call("/drivers/" + syncPhone)).status, 404);
 });

@@ -11,8 +11,8 @@ service cloud.firestore {
     function driver() {
       return signedIn() && session().role == 'driver'
         && exists(/databases/$(database)/documents/drivers/$(session().phone))
-        && get(/databases/$(database)/documents/_driver_credentials/$(session().phone)).data.enabled == true
-        && get(/databases/$(database)/documents/_driver_credentials/$(session().phone)).data.version == session().credentialVersion;
+        && get(/databases/$(database)/documents/driver_auth_secrets/$(session().phone)).data.enabled == true
+        && get(/databases/$(database)/documents/driver_auth_secrets/$(session().phone)).data.version == session().credentialVersion;
     }
     function validAccount() {
       return signedIn() && ((session().role == 'customer'

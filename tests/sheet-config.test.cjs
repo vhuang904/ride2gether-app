@@ -9,9 +9,9 @@ const plain = (value) => JSON.parse(JSON.stringify(value));
 const rateHeaders = ["Service_ID", "Service_Name", "Base_Fare", "Base_Km", "Per_Km_Rate",
   "Surge_Multiplier", "Flat_Surge_Fee", "Convenience_Fee", "Commission_Type", "Commission_Value"];
 const driverHeaders = ["Driver_Name", "Telegram_Username", "Telegram_ID", "Phone_Number",
-  "Plate_Number", "Vehicle_Model", "WhatsApp", "Viber"];
+  "Plate_Number", "Vehicle_Model", "WhatsApp", "Viber", "Driver_PIN"];
 const rateRow = ["RIDE_MOTO", "Moto Express", 40, 2, 10, 1.5, 20, 30, "PERCENT", 0.15];
-const driverRow = ["Approved Driver", "@approved", "12345", "0917-123-4567", "TEST 001", "Sedan", "", ""];
+const driverRow = ["Approved Driver", "@approved", "12345", "0917-123-4567", "TEST 001", "Sedan", "", "", "654321"];
 const rule = { nameEn: "Moto Express", base: 40, baseKm: 2, perKm: 10,
   surgeMultiplier: 1.5, surgeFlat: 20, convenienceFee: 30, commType: "PERCENT", commVal: 0.15 };
 
@@ -28,13 +28,13 @@ function gasHarness() {
   const requests = [];
   const triggers = [];
   const deletedTriggers = [];
-  const state = { released: 0, listPages: [[]], httpStatus: 200 };
+  const state = { released: 0, listPages: [[]], httpStatus: 200, pinStatus: 200, prepared: null };
   const spreadsheet = {
     getSheetByName: name => data[name] ? { getDataRange: () => ({ getValues: () => data[name] }) } : null
   };
   const h = {
     data, properties, root, requests, triggers, deletedTriggers, state, spreadsheet,
-    writes: () => requests.filter(request => request.method === "post").flatMap(request => request.payload.writes)
+    writes: () => requests.filter(request => request.payload?.writes).flatMap(request => request.payload.writes)
   };
   h.context = vm.createContext({
     SpreadsheetApp: { openById: id => { assert.equal(id, "test-sheet"); return spreadsheet; } },
@@ -47,6 +47,7 @@ function gasHarness() {
     console: { log() {}, error() {} },
     ScriptApp: {
       getOAuthToken: () => "mock-admin-token",
+      getIdentityToken: () => "mock-operator-id-token",
       getProjectTriggers: () => [
         { getHandlerFunction: () => "onSheetConfigurationEdit" },
         { getHandlerFunction: () => "otherBusinessHandler" }
@@ -67,6 +68,16 @@ function gasHarness() {
     },
     UrlFetchApp: {
       fetch(url, options) {
+        if (url.endsWith("/prepareDriverPins")) {
+          assert.equal(options.headers.Authorization, "Bearer mock-operator-id-token");
+          assert.equal(options.followRedirects, false);
+          const payload = JSON.parse(options.payload);
+          requests.push({ url, method: options.method, payload });
+          const response = state.prepared || { projectId: "test-project", checks: [], removals: [],
+            updates: payload.drivers.map(row => ({ phone: row.phone, updateTime: null,
+              credential: { salt: "a".repeat(32), hash: "b".repeat(128), version: "v1", enabled: true } })) };
+          return { getResponseCode: () => state.pinStatus, getContentText: () => JSON.stringify(response) };
+        }
         assert.equal(options.headers.Authorization, "Bearer mock-admin-token");
         const payload = options.payload ? JSON.parse(options.payload) : null;
         requests.push({ url, method: options.method, payload });
@@ -226,14 +237,15 @@ test("GAS atomically mirrors approved registrations, removes revoked docs, and n
     [{ name: h.root + "/drivers/+639171234567", updateTime: "existing-time", fields: {} }]
   ];
   h.context.syncSheetConfiguration();
-  assert.equal(h.requests.filter(request => request.method === "post").length, 1);
+  assert.equal(h.requests.filter(request => request.payload?.writes).length, 1);
   const writes = h.writes();
-  assert.equal(writes.length, 3);
+  assert.equal(writes.length, 4);
   assert.deepEqual(writes[0].currentDocument, { updateTime: "existing-time" });
   assert.equal(writes[0].update.fields.phone.stringValue, "+639171234567");
   assert.deepEqual(writes[1], { delete: h.root + "/drivers/old-driver", currentDocument: { updateTime: "old-time" } });
-  assert.equal(writes[2].update.name, h.root + "/rate_config/current");
-  assert.equal(writes[2].update.fields.rates.mapValue.fields.RIDE_MOTO.mapValue.fields.convenienceFee.doubleValue, 30);
+  assert.equal(writes[2].update.name, h.root + "/driver_auth_secrets/+639171234567");
+  assert.equal(writes[3].update.name, h.root + "/rate_config/current");
+  assert.equal(writes[3].update.fields.rates.mapValue.fields.RIDE_MOTO.mapValue.fields.convenienceFee.doubleValue, 30);
   assert.ok(h.properties.get("SHEET_SYNC_LAST_SUCCESS"));
   assert.equal(h.properties.has("SHEET_SYNC_LAST_ERROR"), false);
   assert.ok(h.requests.every(request => !request.url.includes("ride_orders")));
@@ -247,14 +259,22 @@ test("empty sheets publish empty mirrors and unchanged drivers avoid repeated wr
     name: h.root + "/drivers/+639171234567", updateTime: "time",
     fields: plain(h.context.sheetSyncValue_(profile).mapValue.fields)
   }]];
+  h.state.prepared = { projectId: "test-project", updates: [], removals: [],
+    checks: [{ phone: "+639171234567", updateTime: "pin-time" }] };
   h.context.syncSheetConfiguration();
-  assert.equal(h.writes().length, 1);
+  assert.equal(h.writes().filter(write => !write.updateMask).length, 1);
+  assert.equal(h.writes()[0].update.name, h.root + "/driver_auth_secrets/+639171234567");
+  assert.deepEqual(h.writes()[0].updateMask, { fieldPaths: [] });
+  assert.deepEqual(h.writes()[0].update.fields, {});
   h.requests.length = 0;
   h.data.Rate_Config = [rateHeaders];
   h.data.Drivers_Master = [driverHeaders];
+  h.state.prepared = { projectId: "test-project", updates: [], checks: [],
+    removals: [{ phone: "+639171234567", updateTime: "pin-time" }] };
   h.context.syncSheetConfiguration();
   assert.equal(h.writes()[0].delete, h.root + "/drivers/+639171234567");
-  assert.deepEqual(h.writes()[1].update.fields.rates.mapValue.fields, {});
+  assert.equal(h.writes()[1].delete, h.root + "/driver_auth_secrets/+639171234567");
+  assert.deepEqual(h.writes()[2].update.fields.rates.mapValue.fields, {});
 });
 
 test("HTTP errors and oversized commits fail explicitly without partial publications", () => {
@@ -283,7 +303,54 @@ test("trigger installation preserves unrelated handlers and covers edits, row de
   h.context.onSheetConfigurationEdit({ range: { getSheet: () => ({ getName: () => "Orders_Master" }) } });
   assert.equal(h.requests.length, 0);
   h.context.onSheetConfigurationChange({ changeType: "REMOVE_ROW" });
-  assert.equal(h.writes().length, 2);
+  assert.equal(h.writes().length, 3);
+});
+
+test("Sheet PINs remain private, retain leading zeros and publish only salted credentials", () => {
+  const h = gasHarness();
+  h.data.Drivers_Master[1][8] = "004321";
+  h.context.syncSheetConfiguration();
+  const request = h.requests.find(request => request.url.endsWith("/prepareDriverPins"));
+  assert.deepEqual(request.payload.drivers, [{ phone: "+639171234567", pin: "004321" }]);
+  const [profile, secret] = h.writes();
+  assert.equal(Object.keys(profile.update.fields).some(key => /pin|hash|salt/i.test(key)), false);
+  assert.equal(secret.update.fields.enabled.booleanValue, true);
+  assert.equal(secret.currentDocument.exists, false);
+  assert.equal(JSON.stringify(h.writes()).includes("004321"), false);
+  assert.equal(JSON.stringify([...h.properties]).includes("004321"), false);
+  assert.deepEqual(Object.keys(secret.update.fields).sort(), ["enabled", "hash", "salt", "version"]);
+});
+test("missing or malformed Sheet PINs abort all configuration changes before any network requests", () => {
+  for (const pin of ["", "12345", "1234567", 4321, "123abc"]) {
+    const h = gasHarness();
+    h.data.Drivers_Master[1][8] = pin;
+    assert.throws(() => h.context.syncSheetConfiguration(), /Driver_PIN/);
+    assert.equal(h.requests.length, 0);
+  }
+  const h = gasHarness();
+  h.data.Drivers_Master[0].pop();
+  assert.throws(() => h.context.syncSheetConfiguration(), /Driver_PIN/);
+  assert.equal(h.requests.length, 0);
+});
+test("operator authorization and invalid PIN-preparation responses never publish public or private writes", () => {
+  const h = gasHarness();
+  h.state.pinStatus = 403;
+  assert.throws(() => h.context.syncSheetConfiguration(), /PIN preparation HTTP 403/);
+  assert.equal(h.writes().length, 0);
+  h.state.pinStatus = 200;
+  for (const prepared of [
+    {},
+    { projectId: "different-project", updates: [], checks: [], removals: [] },
+    { projectId: "test-project", updates: [], checks: [], removals: [] },
+    { projectId: "test-project", updates: [], checks: [{ phone: "+639171234567" }], removals: [] },
+    { projectId: "test-project", updates: [], checks: [],
+      removals: [{ phone: "+639171234567", updateTime: "time" }] }
+  ]) {
+    h.state.prepared = prepared;
+    assert.throws(() => h.context.syncSheetConfiguration());
+    assert.equal(h.writes().length, 0);
+    assert.equal(h.properties.has("SHEET_SYNC_LAST_SUCCESS"), false);
+  }
 });
 
 test("pricing preserves included kilometers, fixed platform fee and driver-only surge revenue", () => {

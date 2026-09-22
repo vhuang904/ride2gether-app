@@ -20,7 +20,7 @@ function setup() {
   grant(driver);
   for (const p of [phone, secondPhone]) {
     store.docs.set(`drivers/${p}`, { phone: p, name: "Real roster", plate: "ABC", model: "SUV" });
-    store.docs.set(`_driver_credentials/${p}`, { enabled: true, version: "v1" });
+    store.docs.set(`driver_auth_secrets/${p}`, { enabled: true, version: "v1" });
   }
   let calls = 0, clock = 1_000_000;
   const route = async () => {

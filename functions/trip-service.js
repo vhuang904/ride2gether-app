@@ -2,6 +2,7 @@
 const { randomBytes } = require("node:crypto");
 const { requireValue } = require("./errors");
 const { calculateFare, validateRate } = require("./pricing");
+const { DRIVER_SECRETS } = require("./pin");
 const active = new Set(["accepted", "arrived", "in_progress"]);
 const text = (value, max = 500) => typeof value === "string" && value.trim() && value.length <= max;
 function coordinate(value) {
@@ -16,7 +17,7 @@ function createTripService({ store, route, now = Date.now, stamp = () => new Dat
     return `ride_orders/${id}`;
   };
   const meta = id => `${op(id)}/trip_state/current`;
-  const driverPaths = session => [`drivers/${session.phone}`, `_driver_credentials/${session.phone}`, `_driver_work/${session.phone}`];
+  const driverPaths = session => [`drivers/${session.phone}`, `${DRIVER_SECRETS}/${session.phone}`, `_driver_work/${session.phone}`];
   const checkDriver = (session, get) => {
     requireValue(session.role === "driver", "DRIVER_REQUIRED", "Only an approved driver may do this.", 403);
     const [dp, cp] = driverPaths(session);

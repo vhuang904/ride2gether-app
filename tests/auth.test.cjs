@@ -8,7 +8,7 @@ const phone = "+639171234567";
 function setup({ driver = false } = {}) {
   const store = memoryStore(driver ? {
     [`drivers/${phone}`]: { phone, name: "Approved", model: "SUV", plate: "TEST" },
-    [`_driver_credentials/${phone}`]: { enabled: true, version: "v1" }
+    [`driver_auth_secrets/${phone}`]: { enabled: true, version: "v1" }
   } : {});
   let clock = 1_000_000, counter = 1, resultError = null, providerCalls = 0;
   const identity = {
@@ -113,14 +113,14 @@ test("driver requires both PIN and current whitelist; credentials alone never au
   assert.equal(session.role, "driver");
   h.store.docs.delete(`drivers/${phone}`);
   await assert.rejects(h.service.authorize(token), { code: "DRIVER_REVOKED" });
-  await assert.rejects(h.login(), { code: "INVALID_PIN" });
+  await assert.rejects(h.login(), { code: "DRIVER_NOT_APPROVED" });
 });
 test("PIN rotation or disabled credentials immediately invalidate old sessions", async () => {
   const h = setup({ driver: true }), result = await h.login();
-  h.store.docs.set(`_driver_credentials/${phone}`, { enabled: true, version: "v2" });
+  h.store.docs.set(`driver_auth_secrets/${phone}`, { enabled: true, version: "v2" });
   await assert.rejects(h.service.authorize(result.token), { code: "DRIVER_REVOKED" });
   const second = await h.login();
-  h.store.docs.set(`_driver_credentials/${phone}`, { enabled: false, version: "v2" });
+  h.store.docs.set(`driver_auth_secrets/${phone}`, { enabled: false, version: "v2" });
   await assert.rejects(h.service.authorize(second.token), { code: "DRIVER_REVOKED" });
 });
 test("drivers cannot use passenger OTP or change their phone", async () => {
@@ -160,4 +160,11 @@ test("failed custom-token signing revokes its orphaned session and reports failu
   const sessions = [...h.store.docs].filter(([key]) => key.startsWith("_auth_sessions/"));
   assert.equal(sessions.length, 1);
   assert.equal(sessions[0][1].revoked, true);
+});
+test("approved drivers without a synced PIN cannot self-enroll through login", async () => {
+  const h = setup({ driver: true });
+  h.store.docs.delete(`driver_auth_secrets/${phone}`);
+  await assert.rejects(h.login(), { code: "DRIVER_PIN_NOT_READY" });
+  assert.equal(h.store.docs.has(`driver_auth_secrets/${phone}`), false);
+  assert.equal([...h.store.docs.keys()].some(key => key.startsWith("_auth_sessions/")), false);
 });

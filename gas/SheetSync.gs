@@ -5,7 +5,7 @@ const SHEET_SYNC_RATE_HEADERS = [
 ];
 const SHEET_SYNC_DRIVER_HEADERS = [
   "Driver_Name", "Telegram_Username", "Telegram_ID", "Phone_Number",
-  "Plate_Number", "Vehicle_Model", "WhatsApp", "Viber"
+  "Plate_Number", "Vehicle_Model", "WhatsApp", "Viber", "Driver_PIN"
 ];
 
 function sheetSyncRows_(spreadsheet, name, headers) {
@@ -77,7 +77,7 @@ function sheetSyncReadRates_(spreadsheet) {
   return rates;
 }
 
-function sheetSyncReadDrivers_(spreadsheet) {
+function sheetSyncReadDrivers_(spreadsheet, pins) {
   const drivers = {};
   sheetSyncRows_(spreadsheet, "Drivers_Master", SHEET_SYNC_DRIVER_HEADERS).forEach(row => {
     const phone = sheetSyncPhone_(row.Phone_Number);
@@ -88,6 +88,9 @@ function sheetSyncReadDrivers_(spreadsheet) {
     const plate = String(row.Plate_Number).trim();
     const model = String(row.Vehicle_Model).trim();
     if (!name || !plate || !model) throw new Error("Incomplete driver profile at row " + row._row);
+    const pin = String(row.Driver_PIN == null ? "" : row.Driver_PIN).trim();
+    if (!/^\d{6}$/.test(pin)) throw new Error("Drivers_Master row " + row._row + ": Driver_PIN must contain exactly six digits; preserve leading zeros as text.");
+    if (pins) pins[phone] = pin;
     drivers[phone] = {
       phone: phone, name: name, plate: plate, model: model,
       telegramUsername: String(row.Telegram_Username || "").trim().replace(/^@/, ""),
@@ -100,6 +103,7 @@ function sheetSyncReadDrivers_(spreadsheet) {
 }
 
 function sheetSyncValue_(value) {
+  if (typeof value === "boolean") return { booleanValue: value };
   if (typeof value === "string") return { stringValue: value };
   if (typeof value === "number" && Number.isFinite(value)) return { doubleValue: value };
   if (value && typeof value === "object" && !Array.isArray(value)) {
@@ -123,7 +127,7 @@ function sheetSyncRequest_(url, method, payload) {
   const response = UrlFetchApp.fetch(url, options);
   const status = response.getResponseCode();
   if (status < 200 || status >= 300) {
-    throw new Error("Firestore sync HTTP " + status + ": " + response.getContentText());
+    throw new Error("Firestore sync HTTP " + status + "; publication was not confirmed. Retry synchronization.");
   }
   return JSON.parse(response.getContentText() || "{}");
 }
@@ -148,6 +152,57 @@ function sheetSyncEqual_(left, right) {
     && keys.every(key => Object.prototype.hasOwnProperty.call(right, key) && sheetSyncEqual_(left[key], right[key]));
 }
 
+function sheetSyncPreparePins_(projectId, pins) {
+  const token = ScriptApp.getIdentityToken();
+  if (!token) throw new Error("Authorize the sync operator's openid and userinfo.email scopes first.");
+  const response = UrlFetchApp.fetch("https://asia-southeast1-" + projectId + ".cloudfunctions.net/prepareDriverPins", {
+    method: "post", headers: { Authorization: "Bearer " + token },
+    contentType: "application/json", muteHttpExceptions: true, followRedirects: false,
+    payload: JSON.stringify({ projectId: projectId, drivers: Object.keys(pins).map(phone => ({ phone: phone, pin: pins[phone] })) })
+  });
+  const status = response.getResponseCode();
+  if (status !== 200) throw new Error("Driver PIN preparation HTTP " + status + "; no changes were published.");
+  try { return JSON.parse(response.getContentText()); }
+  catch (_) { throw new Error("Driver PIN preparation returned invalid JSON; no changes were published."); }
+}
+
+function sheetSyncSecretWrites_(root, projectId, drivers, prepared) {
+  if (!prepared || prepared.projectId !== projectId || !["updates", "checks", "removals"].every(key => Array.isArray(prepared[key]))) {
+    throw new Error("Invalid driver PIN preparation response.");
+  }
+  const seen = new Set(), writes = [];
+  function target(record, desired) {
+    const phone = sheetSyncPhone_(record.phone);
+    if (phone !== record.phone || seen.has(phone) || Object.prototype.hasOwnProperty.call(drivers, phone) !== desired) {
+      throw new Error("Driver PIN response does not match Drivers_Master.");
+    }
+    seen.add(phone);
+    return root + "/driver_auth_secrets/" + phone;
+  }
+  function existing(record) {
+    if (typeof record.updateTime !== "string" || !record.updateTime) throw new Error("Missing private record precondition.");
+    return { updateTime: record.updateTime };
+  }
+  prepared.updates.forEach(record => {
+    const name = target(record, true), c = record.credential;
+    if (!c || !/^[a-f0-9]{32}$/.test(c.salt) || !/^[a-f0-9]{128}$/.test(c.hash)
+        || typeof c.version !== "string" || !c.version || c.enabled !== true) throw new Error("Invalid prepared PIN hash.");
+    const fields = sheetSyncValue_({ salt: c.salt, hash: c.hash, version: c.version, enabled: true }).mapValue.fields;
+    writes.push({ update: { name: name, fields: fields },
+      currentDocument: record.updateTime === null ? { exists: false } : existing(record) });
+  });
+  prepared.checks.forEach(record => {
+    // REST has no verify operation; an empty update mask preserves every field.
+    writes.push({ update: { name: target(record, true), fields: {} },
+      updateMask: { fieldPaths: [] }, currentDocument: existing(record) });
+  });
+  prepared.removals.forEach(record => {
+    writes.push({ delete: target(record, false), currentDocument: existing(record) });
+  });
+  if (Object.keys(drivers).some(phone => !seen.has(phone))) throw new Error("Missing prepared driver PIN.");
+  return writes;
+}
+
 function syncSheetConfiguration() {
   const properties = PropertiesService.getScriptProperties();
   const spreadsheetId = properties.getProperty("SHEET_SYNC_SPREADSHEET_ID");
@@ -161,7 +216,8 @@ function syncSheetConfiguration() {
     const spreadsheet = SpreadsheetApp.openById(spreadsheetId);
     // Validate the entire source before making any Firestore writes.
     const rates = sheetSyncReadRates_(spreadsheet);
-    const drivers = sheetSyncReadDrivers_(spreadsheet);
+    const pins = {};
+    const drivers = sheetSyncReadDrivers_(spreadsheet, pins);
     const root = "projects/" + projectId + "/databases/(default)/documents";
     const baseUrl = "https://firestore.googleapis.com/v1/" + root;
     const existing = sheetSyncListDrivers_(baseUrl);
@@ -184,6 +240,9 @@ function syncSheetConfiguration() {
         writes.push({ delete: doc.name, currentDocument: { updateTime: doc.updateTime } });
       }
     });
+    if (writes.length >= 500) throw new Error("Sync exceeds 500 atomic writes; no changes were published.");
+    const prepared = sheetSyncPreparePins_(projectId, pins);
+    writes.push(...sheetSyncSecretWrites_(root, projectId, drivers, prepared));
     writes.push({
       update: {
         name: root + "/rate_config/current",

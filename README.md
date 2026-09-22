@@ -7,10 +7,14 @@ authorized for deployment. Do not push this frontend to production before
 the backend, rules, PIN provisioning and GAS compatibility checks below.**
 
 `index.html` starts in passenger mode. Registered drivers sign in in the
-VIP profile using their registered phone and six-digit company PIN; the same
+VIP profile using their registered phone and six-digit driver PIN; the same
 form is available on `driver.html`. There is no driver self-registration or
 online document/KYC application. Drivers_Master remains the sole approval
-list. PIN hashes live separately, not in the Sheet or public roster.
+list. During in-person approval, operations records the driver's chosen PIN
+in `Drivers_Master.Driver_PIN`. The authenticated sync prepares salted scrypt
+hashes and atomically publishes them to `driver_auth_secrets`, never the public
+roster. There is no mobile PIN setup, activation code or driver SMS step.
+An unapproved phone or a registration without a synced PIN cannot sign in.
 
 `js/app-mode.js` owns the view switch and client-side access guard. Phone edits,
 failed verification, or removal from the live roster revoke access and stop
@@ -21,7 +25,7 @@ timers and map center; the header history button follows the current mode.
 Firebase Auth LOCAL persistence restores sign-in after closing the browser.
 `r2g_bound_identity` in localStorage is a display cache, never an authorization
 credential; neither it nor `user_role` grants access. No plaintext PIN or OTP
-is stored. Both modes lock the verified phone. Drivers have no change-phone
+is stored in the browser. Both modes lock the verified phone. Drivers have no change-phone
 button; operations must handle number changes and PIN rotation. Online/pause
 is saved on the server and affects only new dispatches, not ongoing trips.
 Dismissal is local to the driver; it no longer closes another driver's
@@ -36,7 +40,8 @@ Trip mutations recheck the private session inside their transaction, so a
 concurrent number reset cannot create an order after revocation. Failed token
 signing revokes the unfinished session and reports a retryable sign-in error.
 Driver ID is the normalized phone. Name, phone, vehicle and plate are resolved
-server-side from the current roster. Existing Sheet columns are unchanged.
+server-side from the current roster. Existing Sheet columns retain their names;
+this upgrade adds the required `Driver_PIN` column.
 Legacy history queries are scoped by normalized customerPhone/driverId;
 unscoped collection-scan fallbacks are intentionally removed.
 
@@ -82,6 +87,7 @@ pending or suspended applicants there.
 | Firestore path | Content |
 | --- | --- |
 | `drivers/{normalizedPhone}` | `phone`, `name`, `plate`, `model`, `telegramUsername`, `telegramId`, `whatsapp`, `viber` |
+| `driver_auth_secrets/{normalizedPhone}` | Salted scrypt `salt`/`hash`, credential `version`, `enabled`; never client-readable/writable |
 | `rate_config/current` | `rates` map keyed by Service_ID, plus `updatedAt` formatted in Asia/Manila |
 
 The frontend and GAS module both use `rate_config/current`, matching the
@@ -89,14 +95,29 @@ administrator's published configuration. They do not read
 `system_config/pricing`. Publishing the frontend does not migrate or rewrite
 Firestore configuration.
 
-The existing Sheet columns are not renamed, reordered or modified. Header
+The existing Sheet columns are not renamed. Add `Driver_PIN` to Drivers_Master. Header
 lookup is by exact label. Phone fields are normalized to E.164; Philippine
 `09...`, `9...`, `639...` and `+639...` formats resolve to the same identity.
 Store phone numbers and Telegram IDs as text in Sheets to avoid losing digits.
 Required driver fields are Driver_Name, Phone_Number, Plate_Number and
-Vehicle_Model; blank WhatsApp/Viber use Phone_Number. Telegram fields can be
+Vehicle_Model and Driver_PIN; blank WhatsApp/Viber use Phone_Number. Telegram fields can be
 blank. Missing/duplicate headers, duplicate normalized phones and invalid
-rate cells abort the whole sync with an error.
+rate cells or missing/invalid PINs abort the whole sync with an error.
+
+Format `Driver_PIN` as **plain text before entry**, preserving all six digits,
+including leading zeros (for example `004321`). A six-digit numeric cell can
+be read, but a shortened number is rejected, never padded or guessed.
+The Sheet necessarily retains plaintext PINs under this workflow: restrict
+the entire spreadsheet, bound script, exports and backups to authorized
+operations staff. Hiding/protecting the PIN column does not prevent viewers
+from reading it. Never publish the spreadsheet or return PINs through GAS
+doGet/doPost. PINs must not enter logs, browser storage or public driver docs.
+
+Unchanged PINs retain the same salt/hash/version, preserving long-lived
+sessions. Changing a PIN rotates its credential version; old sessions lose
+access and the driver must sign in with the new PIN. Removing a row deletes
+both public and private records in one commit. A phone change requires
+operations to replace the registration; the old identity is not retained.
 
 | Rate_Config column | Firestore rate field |
 | --- | --- |
@@ -140,7 +161,7 @@ reach the app only after another successful sync, run manually or by the
 installed triggers.
 
 1. Back up the two sheets and the current Firestore drivers collection. This
-   sync owns the **entire drivers collection**: documents not represented in
+   sync owns the **entire drivers and driver_auth_secrets collections**: documents not represented in
    Drivers_Master are deleted, including legacy IDs. The rates map also
    exactly mirrors Rate_Config. A sheet with headers but no data publishes an
    empty roster/rate map. Test against a non-production project first.
@@ -153,7 +174,17 @@ installed triggers.
 3. Enable the Firestore API for the target project. The installing
    administrator must be authorized to access the spreadsheet and have
    Firestore IAM access (for example `roles/datastore.user`) on that project.
-   Requests use the administrator's OAuth token, never anonymous REST writes.
+   Firestore requests use the administrator's OAuth token, never anonymous REST writes.
+   PIN preparation calls the separate `prepareDriverPins` Cloud Function with
+   `ScriptApp.getIdentityToken()`, not the Firestore access token.
+   Before running this upgraded sync, deploy that function to the target
+   staging project with `SHEET_SYNC_OAUTH_CLIENT_ID` set to the bound script's
+   OAuth client ID and `SHEET_SYNC_OPERATOR_EMAILS` set to the explicit
+   comma-separated administrator/trigger-owner emails. The function validates
+   Google's signature, issuer, expiry and exact audience plus verified email
+   membership. Missing configuration fails closed. Do not allow all Google
+   accounts or Firebase app tokens. Its HTTPS endpoint is network-public
+   only so GAS can reach it; operator authentication is mandatory.
    Merge the following settings/scopes into the existing Apps Script manifest;
    preserve any existing scopes needed by Telegram and order handlers:
 
@@ -165,14 +196,16 @@ installed triggers.
        "https://www.googleapis.com/auth/spreadsheets",
        "https://www.googleapis.com/auth/script.external_request",
        "https://www.googleapis.com/auth/datastore",
-       "https://www.googleapis.com/auth/script.scriptapp"
+       "https://www.googleapis.com/auth/script.scriptapp",
+       "openid",
+       "https://www.googleapis.com/auth/userinfo.email"
      ]
    }
    ```
 
 4. Run `syncSheetConfiguration` manually as that administrator and approve
    permissions. Inspect `rate_config/current` and `drivers`, including prices,
-   normalized phones and deletion behavior. Inspect Apps Script Executions
+   normalized phones, private hashes and deletion behavior. Inspect Apps Script Executions
    and the `SHEET_SYNC_LAST_SUCCESS` / `SHEET_SYNC_LAST_ERROR` properties.
    HTTP failures, concurrent document edits and invalid data are reported and
    rethrown; no partial commit is published. Last valid config remains on a
@@ -196,8 +229,17 @@ installed triggers.
    relevant to old clients until they upgrade; the new frontend no longer
    reads doGet.
 
-The sync rejects more than 500 writes in one publication rather than making
-a partially applied roster. Unchanged driver documents are skipped. It does
+The preparation function only computes hashes; it does not publish credentials.
+GAS includes its results with profiles and rates in a single Firestore commit.
+Update-time preconditions retain nanosecond precision; unchanged credentials
+use preconditioned empty-mask updates that preserve every field, so concurrent
+changes abort the publication.
+Failures never publish partial credentials or reset existing driver sessions.
+If a commit response is lost, publication may already have completed; inspect
+Firestore and retry the sync. Repeating the same PIN does not rotate it.
+The sync rejects more than 500 operations (including unchanged-credential checks)
+in one publication rather than making a partially applied roster. Unchanged
+driver profiles and hashes are not rewritten. It does
 not touch Orders_Master, ride_orders, chat messages, or Telegram dispatch.
 Deleting a registration closes the local driver panel after the roster
 listener receives the removal; it does not cancel that driver's trip.
@@ -232,7 +274,7 @@ and reloads. Unrelated origin storage is retained. A passenger must finish
 or cancel an active trip before changing numbers. Drivers cannot use this
 endpoint or passenger OTP to bypass PIN login.
 
-Private collections: `_driver_credentials`, `_auth_sessions`,
+Private collections: `driver_auth_secrets`, `_auth_sessions`,
 `_auth_challenges`, `_auth_limits`, `_ip_limits`, `_customer_work`,
 `_driver_work`. Clients can only read their own driver availability.
 TTL policies remove old challenges and IP rate-limit records; session
@@ -312,11 +354,16 @@ rules, including forbidden reads/writes and spoofed chat senders.
    and the Secret Manager `MAPS_SERVER_KEY` (Directions REST enabled; separate
    from the referrer-restricted browser key). Enable custom-token signing/IAM
    for the Functions service account. Never commit credentials or PINs.
-2. Use Application Default Credentials and an explicit
-   `GOOGLE_CLOUD_PROJECT` with `node functions\provision-pin.js` at an operator
-   terminal. It accepts only an existing approved phone and reads the PIN
-   twice without echo or command-line arguments. Rotation creates a new
-   credential version. Drivers_Master's eight columns remain unchanged.
+2. Add and restrict `Drivers_Master.Driver_PIN`, recording the six-digit PIN
+   selected during in-person approval. Configure/deploy `prepareDriverPins`,
+   authorize the GAS operator scopes and run the atomic sync described above.
+   Verify first login, unchanged-PIN session retention, rotation, revocation
+   and three-failure cooldown in staging. The old manual PIN provisioning CLI
+   is removed; the Sheet is the only PIN source. This local-only version uses
+   `driver_auth_secrets`, not the earlier `_driver_credentials` schema. If a
+   separate environment used that old schema, explicitly migrate from the
+   approved Sheet and retire its old credentials before switching clients;
+   there is no fallback to old credentials.
 3. Obtain and integrate the actual production GAS doPost/Telegram callbacks.
    They must authenticate callers, check the current order atomically, and
    use the same work-lock/phase/snapshot contract. Anonymous legacy writes

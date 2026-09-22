@@ -3,6 +3,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { createAuthService } = require("../../functions/auth-service");
 const { createTripService } = require("../../functions/trip-service");
+const { createDriverPinSync } = require("../../functions/driver-pin-sync");
 const { AppError } = require("../../functions/errors");
 const { memoryStore } = require("../support/store.cjs");
 const phone = "+639171234567";
@@ -20,7 +21,7 @@ function encode(points) {
   }
   return result;
 }
-async function setup(context, { driver = false } = {}) {
+async function setup(context, { driver = false, driverPin = "654321" } = {}) {
   const store = memoryStore();
   const requests = [];
   let clock = Date.now();
@@ -29,7 +30,11 @@ async function setup(context, { driver = false } = {}) {
   store.docs.set("rate_config/current", { rates: { RIDE_MOTO: rate } });
   if (driver) {
     store.docs.set(`drivers/${phone}`, { phone, name: "Roster Driver", model: "Sedan", plate: "TEST 1" });
-    store.docs.set(`_driver_credentials/${phone}`, { enabled: true, version: "v1" });
+    if (driverPin) {
+      const prepare = createDriverPinSync({ projectId: "demo-ride2gether", readSecrets: async () => [] });
+      const result = await prepare({ projectId: "demo-ride2gether", drivers: [{ phone, pin: driverPin }] });
+      store.docs.set(`driver_auth_secrets/${phone}`, result.updates[0].credential);
+    }
   }
   const identity = {
     sendCode: async () => "server-only-session",
@@ -41,7 +46,7 @@ async function setup(context, { driver = false } = {}) {
     createToken: async (uid, claims) => JSON.stringify({ uid, ...claims }),
     verifyToken: async token => JSON.parse(token)
   };
-  const accounts = createAuthService({ store, identity, now: () => clock, checkPin: async (pin, record) => Boolean(record) && pin === "654321" });
+  const accounts = createAuthService({ store, identity, now: () => clock });
   const trips = createTripService({ store, now: () => clock, route: async (origin, destination) => ({
     polyline: typeof origin === "object" ? encode([origin, destination]) : "_p~iF~ps|U_ulLnnqC_mqNvxq`@", distanceMeters: 5000, durationSeconds: 100,
     start: { lat: 38.5, lng: -120.2 }, end: { lat: 43.252, lng: -126.453 }
@@ -101,12 +106,12 @@ async function setup(context, { driver = false } = {}) {
   });
   return { store, requests, tick: ms => { clock += ms; }, trips };
 }
-async function loginDriver(page, entry = "/index.html") {
+async function loginDriver(page, entry = "/index.html", pin = "654321") {
   await page.goto(entry);
   if (entry === "/index.html") await page.evaluate(() => openProfileModal());
   await page.locator("#prefPhone").fill("09171234567");
   await page.locator("#btnDriverSignIn").click();
-  await page.locator("#driverPin").fill("654321");
+  await page.locator("#driverPin").fill(pin);
   await page.locator("#btnConfirmPin").click();
 }
 test("driver PIN, long-lived reload, locked phone in both modes and online/pause without logout", async ({ page, context }) => {
@@ -132,6 +137,62 @@ test("driver PIN, long-lived reload, locked phone in both modes and online/pause
   await expect(page.locator("#accountLoginControls")).toBeHidden();
   expect(h.requests.filter(r => r.action === "driverLogin")).toHaveLength(1);
   expect(await page.evaluate(() => localStorage.getItem("r2g_bound_identity"))).toContain(phone);
+});
+test("first login uses the in-person Sheet PIN including leading zeros and survives reopening the page", async ({ page, context }) => {
+  const h = await setup(context, { driver: true, driverPin: "004321" });
+  await loginDriver(page, "/driver.html", "004321");
+  await expect(page.locator("#driverView")).toBeVisible();
+  await expect(page.locator("#driverPin")).toHaveValue("");
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem("r2g_bound_identity")))).toEqual({ phone, role: "driver" });
+  await page.close();
+  h.tick(86_400_000);
+  const next = await context.newPage();
+  await next.goto("/driver.html");
+  await expect(next.locator("#driverView")).toBeVisible();
+  await expect(next.locator("#prefPhone")).toHaveAttribute("readonly", "");
+  await expect(next.locator("#btnChangePhone")).toBeHidden();
+  expect(h.requests.filter(r => r.action === "driverLogin")).toHaveLength(1);
+  expect(h.requests.some(r => r.action === "otpSend" || /setPin/i.test(r.action))).toBe(false);
+});
+test("three wrong driver PINs lock for 300 seconds across reload before accepting the registered PIN", async ({ page, context }) => {
+  const h = await setup(context, { driver: true });
+  await page.clock.install();
+  await loginDriver(page, "/driver.html", "000000");
+  await expect(page.locator("#accountStatus")).toContainText("incorrect");
+  for (let i = 0; i < 2; i++) {
+    await page.locator("#driverPin").fill("000000");
+    await page.locator("#btnConfirmPin").click();
+    await expect(page.locator("#driverPin")).toHaveValue("");
+  }
+  await expect(page.locator("#btnConfirmPin")).toBeDisabled();
+  await page.reload();
+  await page.locator("#btnDriverSignIn").click();
+  await expect(page.locator("#driverPin")).toBeDisabled();
+  h.tick(299_000);
+  await page.clock.fastForward(299_000);
+  await expect(page.locator("#btnConfirmPin")).toBeDisabled();
+  h.tick(1000);
+  await page.clock.fastForward(1000);
+  await expect(page.locator("#btnConfirmPin")).toBeEnabled();
+  await page.locator("#prefPhone").fill("09171234567");
+  await page.locator("#driverPin").fill("654321");
+  await page.locator("#btnConfirmPin").click();
+  await expect(page.locator("#driverView")).toBeVisible();
+  expect(h.requests.filter(r => r.action === "driverLogin")).toHaveLength(4);
+});
+test("unapproved and approved-but-unsynced phones show red operations errors without mobile enrollment", async ({ page, context }) => {
+  const h = await setup(context);
+  await loginDriver(page);
+  await expect(page.locator("#accountStatus")).toHaveText("該門號尚未開通司機權限，請洽營運團隊辦理");
+  await expect(page.locator("#accountStatus")).toHaveClass(/text-red-600/);
+  await expect(page.locator("#btnSwitchMode")).toBeHidden();
+  h.store.docs.set(`drivers/${phone}`, { phone, name: "Approved", plate: "TEST", model: "Sedan" });
+  await page.locator("#driverPin").fill("654321");
+  await page.locator("#btnConfirmPin").click();
+  await expect(page.locator("#accountStatus")).toHaveText("司機密碼尚未同步，請洽營運團隊確認登記資料");
+  expect(h.store.docs.has(`driver_auth_secrets/${phone}`)).toBe(false);
+  await expect(page.locator('input[type="password"]')).toHaveCount(1);
+  expect(h.requests.some(r => r.action === "otpSend")).toBe(false);
 });
 test("OTP countdown survives reload; third error locks input and resend for full five minutes", async ({ page, context }) => {
   const h = await setup(context);

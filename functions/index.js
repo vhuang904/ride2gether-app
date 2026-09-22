@@ -7,11 +7,16 @@ const { getFirestore, FieldValue } = require("firebase-admin/firestore");
 const { createAuthService } = require("./auth-service");
 const { createTripService } = require("./trip-service");
 const { AppError, requireValue } = require("./errors");
+const { OAuth2Client } = require("google-auth-library");
+const { createDriverPinSync, createDriverPinSyncHandler, firestoreUpdateTime } = require("./driver-pin-sync");
+const { DRIVER_SECRETS } = require("./pin");
 initializeApp();
 const db = getFirestore(), auth = getAuth();
 const mapsKey = defineSecret("MAPS_SERVER_KEY");
 const identityKey = defineString("IDENTITY_WEB_API_KEY");
 const allowedOrigins = defineString("APP_ORIGINS", { default: "https://ride2gether.ph,https://www.ride2gether.ph" });
+const syncAudience = defineString("SHEET_SYNC_OAUTH_CLIENT_ID", { default: "" });
+const syncOperators = defineString("SHEET_SYNC_OPERATOR_EMAILS", { default: "" });
 const store = {
   async get(path) { const doc = await db.doc(path).get(); return doc.exists ? doc.data() : null; },
   async atomic(paths, callback) {
@@ -86,6 +91,26 @@ async function route(origin, destination) {
 }
 const accounts = createAuthService({ store, identity });
 const trips = createTripService({ store, route, stamp: () => FieldValue.serverTimestamp() });
+const operatorAuth = new OAuth2Client();
+exports.prepareDriverPins = onRequest({
+  region: "asia-southeast1", invoker: "public", timeoutSeconds: 300,
+  memory: "512MiB", concurrency: 1, maxInstances: 1
+}, createDriverPinSyncHandler({
+  config: () => ({
+    audience: syncAudience.value(),
+    operators: syncOperators.value().split(",").map(value => value.trim().toLowerCase()).filter(Boolean)
+  }),
+  verifyToken: async (token, audience) => (await operatorAuth.verifyIdToken({ idToken: token, audience })).getPayload(),
+  prepare: input => createDriverPinSync({
+    projectId: process.env.GCLOUD_PROJECT || process.env.GOOGLE_CLOUD_PROJECT,
+    readSecrets: async () => {
+      const snapshot = await db.collection(DRIVER_SECRETS).get();
+      return snapshot.docs.map(doc => ({
+        phone: doc.id, credential: doc.data(), updateTime: firestoreUpdateTime(doc.updateTime)
+      }));
+    }
+  })(input)
+}));
 
 exports.api = onRequest({ region: "asia-southeast1", secrets: [mapsKey], maxInstances: 5, timeoutSeconds: 60 }, async (req, res) => {
   res.set("Cache-Control", "no-store");

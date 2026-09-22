@@ -1,7 +1,7 @@
 "use strict";
 const { randomBytes, createHash } = require("node:crypto");
 const { AppError, requireValue, phoneNumber } = require("./errors");
-const { verifyPin } = require("./pin");
+const { verifyPin, DRIVER_SECRETS } = require("./pin");
 const RESEND_MS = 60_000;
 const WINDOW_MS = 300_000;
 const newId = () => randomBytes(32).toString("hex");
@@ -10,7 +10,7 @@ const hash = value => createHash("sha256").update(value).digest("hex");
 function createAuthService({ store, identity, now = Date.now, id = newId, checkPin = verifyPin }) {
   const limitPath = phone => `_auth_limits/${hash(phone)}`;
   const driverPath = phone => `drivers/${phone}`;
-  const credentialPath = phone => `_driver_credentials/${phone}`;
+  const credentialPath = phone => `${DRIVER_SECRETS}/${phone}`;
   const challengePath = challengeId => {
     requireValue(typeof challengeId === "string" && /^[a-f0-9]{64}$/.test(challengeId), "INVALID_CHALLENGE", "Request a new code.");
     return `_auth_challenges/${challengeId}`;
@@ -165,7 +165,7 @@ function createAuthService({ store, identity, now = Date.now, id = newId, checkP
 
   async function driverLogin({ phone: value, pin }, ip) {
     const phone = phoneNumber(value);
-    requireValue(typeof pin === "string" && /^\d{6}$/.test(pin), "INVALID_PIN_FORMAT", "Enter your six-digit company PIN.");
+    requireValue(typeof pin === "string" && /^\d{6}$/.test(pin), "INVALID_PIN_FORMAT", "Enter your six-digit driver PIN.");
     await ipLimit(ip);
     const lp = limitPath(phone), dp = driverPath(phone), cp = credentialPath(phone);
     const ticket = id();
@@ -174,8 +174,11 @@ function createAuthService({ store, identity, now = Date.now, id = newId, checkP
       requireValue(!(limits.pinLockedUntil > now()), "PIN_COOLDOWN", "Too many attempts. Please wait.", 429,
         { lockedUntil: limits.pinLockedUntil, serverNow: now() });
       requireValue(!(limits.pinVerifyingUntil > now()), "BUSY", "Sign-in is already in progress.", 409);
+      requireValue(get(dp), "DRIVER_NOT_APPROVED", "This phone has not been approved. Contact operations.", 403);
+      requireValue(get(cp), "DRIVER_PIN_NOT_READY", "Your driver PIN has not been synced. Contact operations.", 403);
+      requireValue(get(cp).enabled, "DRIVER_REVOKED", "Driver access was revoked. Contact operations.", 403);
       put(lp, { ...limits, pinTicket: ticket, pinVerifyingUntil: now() + 30_000 });
-      return get(dp) && get(cp)?.enabled ? get(cp) : null;
+      return get(cp);
     });
     let correct, uid;
     try {
