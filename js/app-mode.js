@@ -4,6 +4,14 @@
   let verificationId = 0;
   let unsubscribeWhitelist = null;
 
+  function showDriverAccessError(message = "") {
+    const status = document.getElementById("driverAccessStatus");
+    if (status) {
+      status.textContent = message;
+      status.classList.toggle("hidden", !message);
+    }
+  }
+
   function normalizeFleetPhone(value) {
     let phone = String(value ?? "").replace(/[\s()\-]/g, "");
     if (/^09\d{9}$/.test(phone)) phone = "+63" + phone.slice(1);
@@ -70,9 +78,9 @@
     const button = document.getElementById("btnSwitchMode");
     button?.classList.add("hidden");
     button?.classList.remove("flex");
+    document.getElementById("verifiedDriverBadge")?.classList.add("hidden");
     setAppMode(false);
-    const status = document.getElementById("driverAccessStatus");
-    if (status) status.textContent = "Fleet registration needs verification.";
+    showDriverAccessError();
   }
 
   function isCurrentDriverAuthorized() {
@@ -85,14 +93,11 @@
     revokeDriverAccess();
     const requestId = verificationId;
     const requestedPhone = normalizeFleetPhone(phone);
-    const status = document.getElementById("driverAccessStatus");
     if (!window.accountAuth?.isDriver()) {
-      if (status) status.textContent = "Registered drivers: sign in with your company PIN.";
       return false;
     }
-    if (status) status.textContent = "Checking driver access...";
     if (!requestedPhone || requestedPhone !== currentPhone()) {
-      if (status) status.textContent = "A registered fleet phone is required.";
+      showDriverAccessError("A registered fleet phone is required.");
       return false;
     }
 
@@ -102,14 +107,14 @@
       const snapshot = await query.get({ source: "server" });
       if (requestId !== verificationId || requestedPhone !== currentPhone()) return false;
       if (snapshot.empty || snapshot.metadata.hasPendingWrites) {
-        if (status) status.textContent = "This phone is not registered as a fleet driver.";
+        showDriverAccessError("This phone is not registered as a fleet driver.");
         return false;
       }
 
       authorizedDriver = readDriverProfile(snapshot, requestedPhone);
       authorizedPhone = requestedPhone;
       localStorage.setItem("user_role", "driver");
-      if (status) status.textContent = "Fleet registration verified.";
+      document.getElementById("verifiedDriverBadge")?.classList.remove("hidden");
       const button = document.getElementById("btnSwitchMode");
       button?.classList.remove("hidden");
       button?.classList.add("flex");
@@ -119,28 +124,28 @@
           if (requestId !== verificationId || updatedSnapshot.metadata.fromCache) return;
           if (requestedPhone !== currentPhone() || updatedSnapshot.empty || updatedSnapshot.metadata.hasPendingWrites) {
             revokeDriverAccess();
-            if (status) status.textContent = "Driver access is no longer available.";
+            showDriverAccessError("Driver access is no longer available.");
             return;
           }
           try {
             const profile = readDriverProfile(updatedSnapshot, requestedPhone);
             if (profile.id !== authorizedDriver.id) {
               revokeDriverAccess();
-              if (status) status.textContent = "Fleet identity changed. Please verify again.";
+              showDriverAccessError("Fleet identity changed. Please verify again.");
               return;
             }
             authorizedDriver = profile;
           } catch (error) {
             console.error("[App mode] Invalid fleet profile:", error);
             revokeDriverAccess();
-            if (status) status.textContent = "Fleet profile is incomplete or duplicated. Please contact dispatch.";
+            showDriverAccessError("Fleet profile is incomplete or duplicated. Please contact dispatch.");
           }
         },
         (error) => {
           if (requestId !== verificationId) return;
           console.error("[App mode] Driver roster listener failed:", error);
           revokeDriverAccess();
-          if (status) status.textContent = "Unable to verify driver access. Please try again online.";
+          showDriverAccessError("Unable to verify driver access. Please try again online.");
         }
       );
       if (!document.getElementById("passengerView")) setAppMode(true);
@@ -149,7 +154,7 @@
       if (requestId !== verificationId) return false;
       console.error("[App mode] Driver whitelist verification failed:", error);
       revokeDriverAccess();
-      if (status) status.textContent = "Unable to verify driver access. Please try again online.";
+      showDriverAccessError("Unable to verify driver access. Please try again online.");
       return false;
     }
   }

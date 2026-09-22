@@ -176,6 +176,22 @@ test("unverified and non-roster phones cannot reveal or initialize the driver pa
   assert.equal(h.get("btnSwitchMode").classList.contains("hidden"), true);
 });
 
+test("verified-driver badge follows server verification and revocation without fleet success copy", async () => {
+  const guest = harness({ authenticated: false });
+  assert.equal(guest.get("verifiedDriverBadge").classList.contains("hidden"), true);
+  assert.equal(guest.get("driverAccessStatus").classList.contains("hidden"), true);
+  const h = harness();
+  assert.equal(h.get("verifiedDriverBadge").classList.contains("hidden"), true);
+  await authorize(h);
+  assert.equal(h.get("verifiedDriverBadge").classList.contains("hidden"), false);
+  assert.equal(h.get("driverAccessStatus").textContent, "");
+  assert.equal(h.get("driverAccessStatus").classList.contains("hidden"), true);
+  h.queries[0].next(roster(true));
+  assert.equal(h.get("verifiedDriverBadge").classList.contains("hidden"), true);
+  assert.equal(h.get("driverAccessStatus").classList.contains("hidden"), false);
+  assert.match(h.get("driverAccessStatus").textContent, /no longer available/);
+});
+
 test("authorized switches preserve passenger state and attach only one listener per scoped driver query", async () => {
   const h = harness();
   await authorize(h);

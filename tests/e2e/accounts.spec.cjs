@@ -118,7 +118,11 @@ test("driver PIN, long-lived reload, locked phone in both modes and online/pause
   await loginDriver(page);
   await expect(page.locator("#prefPhone")).toHaveAttribute("readonly", "");
   await expect(page.locator("#btnChangePhone")).toBeHidden();
-  await expect(page.locator("#phoneBindingNotice")).toHaveText("Your phone number is bound to your driver account. Contact the operations team to change it.");
+  await expect(page.locator("#phoneBindingNotice")).toHaveCount(0);
+  await expect(page.locator("#verifiedDriverBadge")).toBeVisible();
+  await expect(page.locator("#verifiedDriverBadge")).toContainText("Verified Driver");
+  await expect(page.locator("#driverAccessStatus")).toBeHidden();
+  await expect(page.getByText("Check fleet registration", { exact: true })).toHaveCount(0);
   await page.evaluate(() => closeProfileModal());
   await page.locator("#btnSwitchMode").click();
   await expect(page.locator("#driverView")).toBeVisible();
@@ -276,6 +280,143 @@ test("passenger verification locks phone and confirmed number change resets only
   expect(await page.evaluate(() => localStorage.getItem("r2g_bound_identity"))).toBeNull();
   expect(await page.evaluate(() => localStorage.getItem("test_firebase_auth"))).toBeNull();
   expect(await page.evaluate(() => localStorage.getItem("unrelated_preference"))).toBe("keep");
+});
+
+async function seedSignOutStorage(page) {
+  await page.evaluate(() => {
+    for (const storage of [localStorage, sessionStorage]) {
+      storage.setItem("r2g_test_token", "old-token");
+      storage.setItem("ride2gether_driver", "old-driver");
+      storage.setItem("guest_private_phone", "+639171234567");
+      storage.setItem("user_role", "driver");
+      storage.setItem("firebase:authUser:obsolete:test", "old-token");
+      storage.setItem("unrelated_preference", "keep");
+    }
+  });
+}
+
+async function expectSignedOutHome(page) {
+  await expect(page).toHaveURL(/\/index\.html$/);
+  await expect(page.locator("#identityBadge")).toHaveText("Guest");
+  await expect(page.locator("#headerMemberName")).toHaveText("VIP Guest");
+  await expect(page.locator("#profileModal")).toBeHidden();
+  await expect(page.locator("#driverView")).toBeHidden();
+  await expect(page.locator("#btnSwitchMode")).toBeHidden();
+  await expect(page.locator("#btnSignOut")).toBeHidden();
+  await expect(page.locator("#verifiedDriverBadge")).toBeHidden();
+  await expect(page.locator("body")).toHaveAttribute("data-app-mode", "passenger");
+  await expect(page.locator("#prefPhone")).toHaveValue("");
+  await expect(page.locator("#prefPhone")).not.toHaveAttribute("readonly", "");
+  expect(await page.evaluate(() => ({
+    session: accountAuth.getSession(), firebaseUser: firebase.auth().currentUser,
+    binding: localStorage.getItem("r2g_bound_identity"), token: localStorage.getItem("test_firebase_auth")
+  }))).toEqual({ session: null, firebaseUser: null, binding: null, token: null });
+  expect(await page.evaluate(() => [localStorage, sessionStorage].map(storage => ({
+    token: storage.getItem("r2g_test_token"), driver: storage.getItem("ride2gether_driver"),
+    phone: storage.getItem("guest_private_phone"), oldAuth: storage.getItem("firebase:authUser:obsolete:test"),
+    driverRole: storage.getItem("user_role") === "driver", unrelated: storage.getItem("unrelated_preference")
+  })))).toEqual(Array(2).fill({ token: null, driver: null, phone: null, oldAuth: null, driverRole: false, unrelated: "keep" }));
+}
+
+test("passenger Sign Out clears device identity and closes the profile without changing driver availability", async ({ page, context }) => {
+  const h = await setup(context);
+  await page.goto("/index.html");
+  await page.evaluate(() => openProfileModal());
+  await expect(page.locator("#btnSignOut")).toBeHidden();
+  await loginPassenger(page);
+  await expect(page.locator("#verifiedDriverBadge")).toBeHidden();
+  await expect(page.locator("#btnSignOut")).toBeVisible();
+  await seedSignOutStorage(page);
+  const reloaded = page.waitForEvent("domcontentloaded");
+  await page.locator("#btnSignOut").click();
+  await reloaded;
+  await expectSignedOutHome(page);
+  expect(h.requests.some(request => ["setOnline", "changePhone", "cancelOrder"].includes(request.action))).toBe(false);
+  await page.reload();
+  await expectSignedOutHome(page);
+});
+
+for (const mode of ["passenger", "driver", "standalone"]) {
+  test(`driver Sign Out from ${mode} confirms offline before clearing credentials and returns to guest home`, async ({ page, context }) => {
+    const h = await setup(context, { driver: true });
+    h.store.docs.set(`_driver_work/${phone}`, { online: true, activeOrderId: "OD-EXISTING-TRIP" });
+    await loginDriver(page, mode === "standalone" ? "/driver.html" : "/index.html");
+    await expect(page.locator("#prefPhone")).toHaveAttribute("readonly", "");
+    if (mode !== "standalone") {
+      await expect(page.locator("#verifiedDriverBadge")).toBeVisible();
+      if (mode === "driver") {
+        await page.evaluate(() => closeProfileModal());
+        await page.locator("#btnSwitchMode").click();
+        await expect(page.locator("#driverView")).toBeVisible();
+        await page.evaluate(() => openProfileModal());
+      }
+    }
+    await seedSignOutStorage(page);
+    const reloaded = page.waitForEvent("domcontentloaded");
+    await page.locator("#btnSignOut").click();
+    await reloaded;
+    await expectSignedOutHome(page);
+    expect(h.store.docs.get(`_driver_work/${phone}`)).toEqual({ online: false, activeOrderId: "OD-EXISTING-TRIP" });
+    expect(h.requests.filter(request => request.action === "setOnline")).toEqual([{ action: "setOnline", payload: { online: false } }]);
+    expect(h.requests.some(request => ["changePhone", "cancelOrder", "advanceTrip"].includes(request.action))).toBe(false);
+    await page.reload();
+    await expectSignedOutHome(page);
+  });
+}
+
+for (const entry of ["/index.html", "/driver.html"]) {
+test(`driver sign-out failure is visible and retryable without bypassing offline acknowledgement (${entry})`, async ({ page, context }) => {
+  const h = await setup(context, { driver: true });
+  h.store.docs.set(`_driver_work/${phone}`, { online: true });
+  await loginDriver(page, entry);
+  await expect(page.locator("#btnSignOut")).toBeVisible();
+  await expect(page.locator("#prefPhone")).toHaveAttribute("readonly", "");
+  let pending;
+  const requested = new Promise(resolve => { pending = resolve; });
+  let attempts = 0;
+  await context.route("https://*.cloudfunctions.net/api", async route => {
+    if (route.request().postDataJSON().action === "setOnline" && attempts++ === 0) {
+      pending(route);
+      return;
+    }
+    await route.fallback();
+  });
+  await page.locator("#btnSignOut").click();
+  const failed = await requested;
+  await expect(page.locator("#btnSignOut")).toBeDisabled();
+  await expect(page.locator("#btnSignOut")).toHaveText("Signing out...");
+  await page.evaluate(() => accountAuth.signOut());
+  expect(attempts).toBe(1);
+  await failed.fulfill({ status: 503, json: { code: "UNAVAILABLE", message: "Offline update failed." } });
+  const notice = page.locator(entry === "/driver.html" ? "#driverNotice" : "#accountStatus");
+  await expect(notice).toBeVisible();
+  await expect(notice).toContainText("Unable to sign out. Reconnect and try again");
+  await expect(page.locator("#btnSignOut")).toBeEnabled();
+  expect(h.store.docs.get(`_driver_work/${phone}`).online).toBe(true);
+  expect(await page.evaluate(() => accountAuth.isDriver())).toBe(true);
+  await seedSignOutStorage(page);
+  const reloaded = page.waitForEvent("domcontentloaded");
+  await page.locator("#btnSignOut").click();
+  await reloaded;
+  await expectSignedOutHome(page);
+  expect(h.store.docs.get(`_driver_work/${phone}`).online).toBe(false);
+});
+}
+
+test("revoked driver credentials remain removable without showing a verified badge", async ({ page, context }) => {
+  const h = await setup(context, { driver: true });
+  await loginDriver(page);
+  await expect(page.locator("#verifiedDriverBadge")).toBeVisible();
+  h.store.docs.delete(`drivers/${phone}`);
+  await page.evaluate(() => window.__refreshFirestore());
+  await expect(page.locator("#verifiedDriverBadge")).toBeHidden();
+  await expect(page.locator("#driverAccessStatus")).toContainText("no longer available");
+  await expect(page.locator("#btnSignOut")).toBeVisible();
+  await seedSignOutStorage(page);
+  const reloaded = page.waitForEvent("domcontentloaded");
+  await page.locator("#btnSignOut").click();
+  await reloaded;
+  await expectSignedOutHome(page);
 });
 test("OTP attempts and cooldown synchronize between tabs without a status-request echo loop", async ({ page, context }) => {
   const h = await setup(context);
@@ -627,7 +768,7 @@ test("passenger-first login switches explicitly without resetting OTP limits or 
   await expect(page.locator("#driverPin")).toBeHidden();
   await expect(page.locator("#prefName")).toBeHidden();
   await expect(page.locator("#prefHome")).toBeHidden();
-  await expect(page.locator("#driverRegistrationControls")).toBeHidden();
+  await expect(page.locator("#driverRegistrationControls")).toHaveCount(0);
   await page.locator("#prefPhone").fill("09171234567");
   await page.locator("#btnSendOtp").click();
   await expect(page.locator("#otpFields")).toBeVisible();
@@ -681,7 +822,7 @@ test("profile and history use available width and the header puts the name above
     currentUserProfile.name = "Wei Lun Huang with a longer family name";
     updateHeaderProfileUI();
   });
-  await expect(page.locator("#driverRegistrationControls")).toBeHidden();
+  await expect(page.locator("#driverRegistrationControls")).toHaveCount(0);
   await expect(page.locator("#prefName")).toBeVisible();
   for (const width of [320, 390, 1280]) {
     await page.setViewportSize({ width, height: 844 });

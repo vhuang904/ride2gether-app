@@ -50,7 +50,17 @@ Firebase Auth LOCAL persistence restores sign-in after closing the browser.
 `r2g_bound_identity` in localStorage is a display cache, never an authorization
 credential; neither it nor `user_role` grants access. No plaintext PIN or OTP
 is stored in the browser. Both modes lock the verified phone. Drivers have no change-phone
-button; operations must handle number changes and PIN rotation. Online/pause
+button; operations must handle number changes and PIN rotation. A compact green
+**Verified Driver** badge beside Mobile Phone reflects live roster verification;
+the redundant binding explanation and manual fleet-check link are removed.
+Profile & Settings has a **Sign Out** button at the bottom, also available on
+the standalone driver page. It signs out Firebase Auth, clears this device's
+application identity/profile/trip caches in both storage areas, and returns to
+the guest homepage. Driver sign-out confirms server-side offline status first,
+even from passenger mode; a network failure reports an error and allows retry
+rather than claiming the driver is offline. Already-revoked credentials can
+still be cleared. Sign-out never cancels an existing server-side trip or
+changes a fare snapshot; signing in again restores any ongoing trip. Online/pause
 is saved on the server and affects only new dispatches, not ongoing trips.
 Dismissal is local to the driver; it no longer closes another driver's
 potential booking globally.

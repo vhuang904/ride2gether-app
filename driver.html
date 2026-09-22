@@ -46,7 +46,7 @@
   <div id="driverAccessPanel" class="mx-auto max-w-3xl space-y-3 px-4 py-6 text-sm text-slate-600">
     <h2 id="accountHeading" class="text-xl font-bold text-slate-900">Driver Sign In</h2>
     <p id="accountDescription">For drivers approved in person by our operations team.</p>
-    <p id="driverAccessStatus" role="status">Checking driver access...</p>
+    <p id="driverAccessStatus" role="status" class="hidden text-red-600"></p>
     <label for="prefPhone" class="block text-xs font-semibold">Registered phone number</label>
     <input id="prefPhone" type="tel" autocomplete="tel" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-base">
     <div id="accountControls" data-login-mode="driver" class="space-y-3"></div>
@@ -122,6 +122,10 @@
       </div>
     </section>
   </main>
+
+  <div class="mx-auto max-w-3xl px-4 pb-6 sm:px-6">
+    <button id="btnSignOut" type="button" class="hidden w-full rounded-xl border border-red-200 bg-white px-4 py-3 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50">Sign Out</button>
+  </div>
 
   <!-- 司機端歷史訂單紀錄 (Order History Drawer) -->
   <div id="driverOrderHistoryModal" role="dialog" aria-modal="true" aria-labelledby="driverHistoryHeading" class="profile-overlay hidden bg-slate-950/70 backdrop-blur-sm">

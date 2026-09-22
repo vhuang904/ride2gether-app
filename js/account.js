@@ -8,6 +8,7 @@
   let challengeRevision = 0;
   let generation = 0;
   let busy = false;
+  let resetting = false;
   let serverOffset = 0;
   let captcha = null;
   let stopPresence = null;
@@ -46,13 +47,13 @@
       <button id="btnDriverSignIn" type="button" class="w-full rounded-xl px-2 py-2 text-sm font-medium text-blue-600 hover:text-blue-700 disabled:opacity-50">Registered Driver? Sign in with PIN</button>
       <button id="btnPassengerSignIn" type="button" class="hidden w-full rounded-xl px-2 py-2 text-sm font-medium text-blue-600 hover:text-blue-700 disabled:opacity-50">Passenger? Sign in with SMS</button>
     </div>
-    <p id="phoneBindingNotice" class="hidden text-xs text-slate-600"></p>
     <button id="btnChangePhone" type="button" class="hidden rounded-xl px-2 py-1 text-xs font-semibold text-blue-600">Change phone number</button>
     <p id="accountStatus" role="status" class="text-xs text-slate-600"></p>`;
   function notice(message, error = false) {
     const node = get("accountStatus");
     if (node) {
       node.textContent = message;
+      node.classList.toggle("hidden", !message);
       node.classList.toggle("text-red-600", error);
       node.classList.toggle("text-slate-600", !error);
     }
@@ -127,14 +128,12 @@
         : "Verify your mobile number with a code sent by SMS.";
     if (get("profileModal")) get("profileModal").dataset.signedIn = String(Boolean(session));
     document.querySelectorAll("[data-profile-settings]").forEach(node => node.classList.toggle("hidden", !session));
-    get("driverRegistrationControls")?.classList.toggle("hidden", session ? session.role !== "driver" : loginMode !== "driver");
     get("btnChangePhone")?.classList.toggle("hidden", !session || session.role === "driver");
-    const binding = get("phoneBindingNotice");
-    if (binding) {
-      binding.classList.toggle("hidden", !session);
-      binding.textContent = session?.role === "driver"
-        ? "Your phone number is bound to your driver account. Contact the operations team to change it."
-        : "Phone verified and bound to your account.";
+    const signOutButton = get("btnSignOut");
+    if (signOutButton) {
+      signOutButton.classList.toggle("hidden", !session && !auth.currentUser);
+      signOutButton.disabled = busy;
+      signOutButton.textContent = resetting ? "Signing out..." : "Sign Out";
     }
     const badge = get("identityBadge");
     if (badge) badge.textContent = session ? "Phone verified" : "Guest";
@@ -201,13 +200,14 @@
     window.dispatchEvent(new Event("accountchange"));
   }
   async function restore(user) {
+    if (resetting) return;
     const request = ++generation;
     if (!user) { applySession(null); return; }
     try {
       const current = await api("session");
       if (request !== generation) return;
       applySession(current);
-      notice("Signed in. Your phone is locked.");
+      notice("");
     } catch (error) {
       if (request !== generation) return;
       applySession(null);
@@ -289,25 +289,58 @@
     if (!window.confirm("Change phone number? This signs you out and clears this device's saved profile, places and trip cache.")) return;
     await perform(async () => {
       await api("changePhone");
+      await resetLocalAccount();
+    });
+  }
+  async function resetLocalAccount() {
+    generation += 1;
+    window.tripChat?.close();
+    window.driverApp?.stop();
+    window.tripMirror?.stopAll();
+    if (typeof unsubscribeOrder === "function") unsubscribeOrder();
+    if (typeof stopDispatchTimer === "function") stopDispatchTimer();
+    await auth.signOut();
+    applySession(null);
+    await db.terminate();
+    await db.clearPersistence();
+    for (const storage of [localStorage, sessionStorage]) {
+      for (const key of Object.keys(storage)) {
+        if (/^(r2g_|ride2gether_|guest_|firebase:authUser:)/.test(key) || key === "user_role") storage.removeItem(key);
+      }
+    }
+    if ("caches" in window) {
+      for (const key of await caches.keys()) if (key.startsWith("ride2gether-cache-")) await caches.delete(key);
+    }
+    if (typeof closeProfileModal === "function") closeProfileModal();
+    window.location.replace(new URL("index.html", window.location.href).href);
+  }
+  async function signOut() {
+    if (!session && !auth.currentUser) return;
+    await perform(async () => {
+      resetting = true;
       generation += 1;
-      window.tripChat?.close();
-      window.driverApp?.stop();
-      window.tripMirror?.stopAll();
-      if (typeof unsubscribeOrder === "function") unsubscribeOrder();
-      if (typeof stopDispatchTimer === "function") stopDispatchTimer();
-      await auth.signOut();
-      await db.terminate();
-      await db.clearPersistence();
-      for (const key of Object.keys(localStorage)) {
-        if (/^(r2g_|ride2gether_|guest_)/.test(key) || key === "user_role") localStorage.removeItem(key);
+      render();
+      try {
+        try {
+          const current = session || await api("session");
+          if (current.role === "driver") await api("setOnline", { online: false });
+        } catch (error) {
+          // Revoked credentials already prevent dispatch; they must still be removable.
+          if (!["SESSION_REVOKED", "SIGN_IN_REQUIRED", "DRIVER_REVOKED", "DRIVER_PIN_REQUIRED"].includes(error.code)) {
+            throw new Error("Unable to sign out. Reconnect and try again so we can confirm your account is offline.", { cause: error });
+          }
+        }
+        await resetLocalAccount();
+      } catch (error) {
+        const driverNotice = driverEntry ? get("driverNotice") : null;
+        if (driverNotice) {
+          driverNotice.textContent = error.message;
+          driverNotice.classList.remove("hidden");
+        }
+        throw error;
+      } finally {
+        resetting = false;
       }
-      for (const key of Object.keys(sessionStorage)) {
-        if (/^(r2g_|ride2gether_|guest_)/.test(key)) sessionStorage.removeItem(key);
-      }
-      if ("caches" in window) {
-        for (const key of await caches.keys()) if (key.startsWith("ride2gether-cache-")) await caches.delete(key);
-      }
-      window.location.replace(new URL("index.html", window.location.href).href);
     });
   }
   async function setOnline() {
@@ -320,7 +353,7 @@
   }
   window.accountAuth = {
     api, getSession: () => session, isDriver: () => session?.role === "driver", isOnline: () => online, serverTime: clock,
-    syncPhone: render, setLoginMode, changePhone, setOnline, notifyDispatch,
+    syncPhone: render, setLoginMode, changePhone, signOut, setOnline, notifyDispatch,
     requireSession() {
       if (!session) {
         if (typeof openProfileModal === "function") openProfileModal();
@@ -335,6 +368,7 @@
   get("btnDriverSignIn")?.addEventListener("click", () => setLoginMode("driver"));
   get("btnPassengerSignIn")?.addEventListener("click", () => setLoginMode("passenger"));
   get("btnChangePhone")?.addEventListener("click", changePhone);
+  get("btnSignOut")?.addEventListener("click", signOut);
   get("btnDriverAvailability")?.addEventListener("click", setOnline);
   window.addEventListener("vipprofilechange", render);
   window.addEventListener("online", () => restore(auth.currentUser));
