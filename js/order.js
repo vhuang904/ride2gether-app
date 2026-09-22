@@ -90,7 +90,7 @@ async function requestOrder() {
       lat: typeof coordinate.lat === 'function' ? coordinate.lat() : coordinate.lat,
       lng: typeof coordinate.lng === 'function' ? coordinate.lng() : coordinate.lng
     } : null;
-    const savedOrder = await window.accountAuth.api("createOrder", {
+    await window.accountAuth.api("createOrder", {
       ...orderData, createdAt: undefined,
       pickupCoordinate: serialize(pickupCoordinate), destinationCoordinate: serialize(destinationCoordinate)
     });
@@ -111,12 +111,7 @@ async function requestOrder() {
     });
     subscribeToOrder(orderId);
 
-    fetch(GAS_WEBHOOK_URL, {
-      method: 'POST',
-      mode: 'no-cors',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'NEW_ORDER', ...savedOrder })
-    }).catch(e => console.warn('Background sync:', e));
+    window.accountAuth.notifyDispatch(orderId).catch(e => console.warn('Background sync:', e));
   } catch (err) {
     console.error("[Passenger] Order dispatch failed:", {
       orderId,
@@ -978,12 +973,7 @@ async function cancelAndReset() {
   }
 
   try {
-    await fetch(GAS_WEBHOOK_URL, {
-      method: 'POST',
-      mode: 'no-cors',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'CANCEL_ORDER', orderId: targetOrderId })
-    });
+    await window.accountAuth.notifyDispatch(targetOrderId);
   } catch (err) {
     console.error('Failed to cancel:', err);
   }

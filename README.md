@@ -2,8 +2,8 @@
 
 ## Passenger / driver views
 
-**The authentication/mirror-map upgrade is local-only until explicitly
-authorized for deployment. Do not push this frontend to production before
+**Production releases require administrator authorization. Do not push
+this frontend to production before completing
 the backend, rules, PIN provisioning and GAS compatibility checks below.**
 
 `index.html` starts in passenger mode. Registered drivers sign in in the
@@ -15,6 +15,8 @@ in `Drivers_Master.Driver_PIN`. The authenticated sync prepares salted scrypt
 hashes and atomically publishes them to `driver_auth_secrets`, never the public
 roster. There is no mobile PIN setup, activation code or driver SMS step.
 An unapproved phone or a registration without a synced PIN cannot sign in.
+Passenger and driver forms, validation messages and confirmation dialogs use
+English. Firebase authentication also uses English for its verification widget.
 
 `js/app-mode.js` owns the view switch and client-side access guard. Phone edits,
 failed verification, or removal from the live roster revoke access and stop
@@ -346,7 +348,10 @@ the actual backend service state machines; it sends no SMS and creates no
 production orders. The emulator independently exercises real Firestore
 rules, including forbidden reads/writes and spoofed chat senders.
 
-**No deployment or main push is authorized yet.** Before release:
+**Production release requires administrator authorization and all checks below.**
+The production frontend uses the existing GitHub Pages `main` deployment;
+do not migrate it to Firebase Hosting or change DNS as part of this release.
+Before release:
 
 1. Obtain Firebase administrator authorization and approve any SMS/Functions/
    Maps billing. Enable Phone Auth, PH SMS region policy and production
@@ -364,14 +369,21 @@ rules, including forbidden reads/writes and spoofed chat senders.
    separate environment used that old schema, explicitly migrate from the
    approved Sheet and retire its old credentials before switching clients;
    there is no fallback to old credentials.
-3. Obtain and integrate the actual production GAS doPost/Telegram callbacks.
-   They must authenticate callers, check the current order atomically, and
-   use the same work-lock/phase/snapshot contract. Anonymous legacy writes
-   will be rejected by these rules; privileged legacy handlers must not
-   overwrite server-authoritative fares or driver ownership. Browser
-   notification and the two-second Telegram button-lock retry are retained,
-   but no-cors notifications are not an authentication boundary or proof of
-   successful delivery. Do not deploy until this integration is verified.
+3. Replace the legacy GAS dispatch handlers with `gas/Dispatch.gs`, retaining
+   the production-only Telegram/project configuration outside Git. Never
+   commit the bot token. Deploy the existing web-app deployment ID rather
+   than changing the client webhook URL. `SYNC_ORDER` notifications include
+   a Firebase ID token; GAS calls the backend `dispatchOrder` operation to
+   validate the current participant session before reading canonical values.
+   It mirrors those values to `Orders_Master` and Telegram and only patches
+   Telegram message metadata in Firestore, never fares, ownership or phases.
+   Cards open `driver.html?order=...`; the driver must sign in, go online and
+   explicitly accept with one GPS fix. Old callback buttons only refresh their
+   known card and show an alert, never claim or advance a trip. Notifications
+   cover booking, claim, cancellation and each phase; the two-second claim
+   retry and a post-send status reread cover delayed Telegram delivery.
+   Browser no-cors completion is not proof of successful delivery; inspect
+   GAS failures and verify the real Telegram card before cutover.
 4. Drain or explicitly migrate old active orders before the cutover: they
    lack the immutable trip snapshot/work locks. Never compute an old driver's
    earnings from today's rates. Reconcile historical raw-phone fields before

@@ -118,8 +118,9 @@ function harness({ standalone = false, phone = "09171234567", authenticated = tr
     }
   };
   const passengerValidator = () => "passenger";
+  window.location = { search: "" };
   const context = vm.createContext({
-    window, document: { body, getElementById: get }, db,
+    window, document: { body, getElementById: get }, db, URLSearchParams,
     localStorage: {
       getItem: (key) => storage.get(key) ?? null,
       setItem: (key, value) => storage.set(key, value)
@@ -140,6 +141,7 @@ function harness({ standalone = false, phone = "09171234567", authenticated = tr
   window.open = (...args) => opened.push(args);
   window.accountAuth = {
     isDriver: () => authenticated, isOnline: () => true,
+    notifyDispatch: async () => {},
     api: async (action, data) => { writes.push({ action, data }); return data; }
   };
   vm.runInContext(read("js/driver.js"), context);

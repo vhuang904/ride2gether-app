@@ -18,6 +18,7 @@ let activeTripState = null;
 let listenerGeneration = 0;
 let driverPanelInitialized = false;
 let historyRequestId = 0;
+const requestedOrderId = new URLSearchParams(window.location.search).get("order");
 
 function hasDriverPanelAccess() {
   return typeof window.isCurrentDriverAuthorized === "function"
@@ -167,6 +168,7 @@ async function advanceActiveTrip() {
   action.textContent = "Updating...";
   try {
     const result = await window.accountAuth.api("advanceTrip", { orderId, status: nextStatus });
+    window.accountAuth.notifyDispatch(orderId).catch(error => console.warn("[Driver] Dispatch status sync failed:", error));
     if (generation !== listenerGeneration || !hasDriverPanelAccess()) return;
     if (nextStatus === "completed" && (!activeTrip || activeTrip.id === orderId)) {
       showSettlement(result);
@@ -239,7 +241,8 @@ function renderOrders(snapshot) {
   });
   if (snapshotActiveTrip) renderActiveTrip(snapshotActiveTrip);
   else if (activeTrip) clearActiveTrip();
-  pendingOrders.sort((a, b) => b.createdAtMillis - a.createdAtMillis);
+  pendingOrders.sort((a, b) => Number(b.id === requestedOrderId) - Number(a.id === requestedOrderId)
+    || b.createdAtMillis - a.createdAtMillis);
 
   count.textContent = `${pendingOrders.length} pending`;
   if (!pendingOrders.length) {
@@ -255,6 +258,7 @@ function renderOrders(snapshot) {
       <div class="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p class="font-mono text-xs font-semibold text-blue-600">${displayValue(order.id)}</p>
+          ${order.id === requestedOrderId ? '<p class="mt-1 text-xs font-semibold text-blue-600">Opened from Telegram — review and accept below.</p>' : ''}
           <h3 class="mt-1 text-base font-bold text-slate-900">${displayValue(order.vehicleType || order.serviceName || order.vehicle, "Standard ride")}</h3>
         </div>
         <div class="flex items-start gap-2">
@@ -287,7 +291,6 @@ function renderOrders(snapshot) {
 async function claimOrder(orderId, button) {
   if (!requireDriverPanelAccess()) return;
   if (!window.accountAuth.isOnline()) { showDriverNotice("Go online before accepting an order."); return; }
-  const profile = window.getCurrentDriverProfile();
   if (!isValidOrderId(orderId)) {
     console.warn("[Driver] Ignoring claim request: invalid orderId.", orderId);
     return;
@@ -318,25 +321,13 @@ async function claimOrder(orderId, button) {
       } catch (err) {
         console.warn('[Driver] Unable to read telegramMessageId:', err);
       }
-      fetch(GAS_WEBHOOK_URL, {
-        method: 'POST',
-        mode: 'no-cors',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'ORDER_ACCEPTED_WEB', orderId, driverName: profile.name, telegramMessageId })
-      }).catch(err => console.warn('[Driver] GAS claim notify failed:', err));
+      window.accountAuth.notifyDispatch(orderId).catch(err => console.warn('[Driver] GAS claim notify failed:', err));
 
       // 若 Telegram 訊息尚未建立 (telegramMessageId 為空)，延遲 2 秒補發鎖定請求以防競態延遲
       if (!telegramMessageId) {
         setTimeout(async () => {
           try {
-            const retrySnap = await db.collection(DRIVER_ORDERS_COLLECTION).doc(orderId).get();
-            const delayedMsgId = retrySnap.data()?.telegramMessageId || null;
-            fetch(GAS_WEBHOOK_URL, {
-              method: 'POST',
-              mode: 'no-cors',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ action: 'ORDER_ACCEPTED_WEB', orderId, driverName: profile.name, telegramMessageId: delayedMsgId })
-            }).catch(err => console.warn('[Driver] GAS retry claim notify failed:', err));
+            await window.accountAuth.notifyDispatch(orderId);
           } catch (err) {
             console.warn('[Driver] Retry check for telegramMessageId failed:', err);
           }
@@ -471,6 +462,7 @@ function initializeDriverPanel() {
       console.warn("[Driver] Ignoring invalid dismissed order cache:", error);
     }
   }
+  if (requestedOrderId && dismissedOrderIds.delete(requestedOrderId)) persistDismissedOrderIds();
   if (!driverPanelInitialized) {
     document.getElementById("ordersContainer").addEventListener("click", handleDriverOrderClick);
     document.getElementById("activeTripAction").addEventListener("click", advanceActiveTrip);

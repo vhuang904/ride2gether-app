@@ -219,6 +219,17 @@ function createTripService({ store, route, now = Date.now, stamp = () => new Dat
       return { token };
     });
   }
-  return { createOrder, setOnline, claimOrder, advance, cancel, share };
+  async function dispatchOrder(session, { orderId }) {
+    const path = op(orderId), mp = meta(orderId);
+    return transaction(session, [path, mp], get => {
+      const order = get(path);
+      requireValue(order && (customer(session, order)
+        || (session.role === "driver" && order.driverId === session.phone)),
+      "FORBIDDEN", "Only a trip participant may synchronize dispatch.", 403);
+      requireValue(get(mp), "LEGACY_TRIP", "This trip needs dispatch assistance.");
+      return { order };
+    });
+  }
+  return { createOrder, setOnline, claimOrder, advance, cancel, share, dispatchOrder };
 }
 module.exports = { createTripService, coordinate };

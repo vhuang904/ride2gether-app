@@ -1,5 +1,6 @@
 (() => {
   const auth = firebase.auth();
+  auth.languageCode = "en";
   const BINDING_KEY = "r2g_bound_identity";
   const CHALLENGE_KEY = "r2g_otp_challenge";
   let session = null;
@@ -28,7 +29,7 @@
         <button id="btnDriverSignIn" type="button" class="rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-blue-600">Driver PIN login</button>
       </div>
       <div id="driverPinFields" class="hidden flex flex-wrap gap-2">
-        <p class="w-full text-xs text-slate-600">請輸入您於營運門市登記的 6 位數司機密碼。密碼變更請洽營運團隊。</p>
+        <p class="w-full text-xs text-slate-600">Enter the 6-digit driver PIN registered at our office. Contact the operations team to change your PIN.</p>
         <input id="driverPin" type="password" inputmode="numeric" maxlength="6" autocomplete="current-password" aria-label="Driver PIN" placeholder="6-digit driver PIN" class="min-w-0 flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-base">
         <button id="btnConfirmPin" type="button" class="rounded-xl bg-blue-600 px-3 py-2 text-xs font-bold text-white disabled:opacity-50">Sign in</button>
       </div>
@@ -89,6 +90,17 @@
     }
     return result;
   }
+  async function notifyDispatch(orderId) {
+    if (!session || !auth.currentUser) throw new Error("Sign in before synchronizing dispatch.");
+    if (typeof GAS_WEBHOOK_URL === "undefined" || !GAS_WEBHOOK_URL) throw new Error("Dispatch is not configured.");
+    const idToken = await auth.currentUser.getIdToken();
+    await fetch(GAS_WEBHOOK_URL, {
+      method: "POST", mode: "no-cors",
+      headers: { "Content-Type": "text/plain;charset=UTF-8" },
+      body: JSON.stringify({ action: "SYNC_ORDER", orderId, idToken }),
+      signal: AbortSignal.timeout(30_000)
+    });
+  }
   function render() {
     const phone = get("prefPhone");
     const lockedUntil = Math.max(challenge?.lockedUntil || 0, challenge?.pinLockedUntil || 0);
@@ -104,7 +116,8 @@
     if (binding) {
       binding.classList.toggle("hidden", !session);
       binding.textContent = session?.role === "driver"
-        ? "司機帳號綁定，變更門號請洽營運團隊辦理" : "Phone verified and bound to your account.";
+        ? "Your phone number is bound to your driver account. Contact the operations team to change it."
+        : "Phone verified and bound to your account.";
     }
     const badge = get("identityBadge");
     if (badge) badge.textContent = session ? "Phone verified" : "Guest";
@@ -221,9 +234,9 @@
         mergeChallenge(error);
         if (["EXPIRED", "SIGN_IN_UNAVAILABLE"].includes(error.code)) mergeChallenge({ active: false, expiresAt: clock() });
         if (error.code === "INVALID_CODE") {
-          error.message = error.attemptsLeft === 2 ? "驗證碼錯誤，剩餘 2 次機會"
-            : error.attemptsLeft === 1 ? "驗證碼錯誤，剩餘 1 次機會，再次錯誤將作廢"
-              : "驗證碼已作廢，請於 5 分鐘後重新驗證";
+          error.message = error.attemptsLeft === 2 ? "Incorrect verification code. 2 attempts remaining."
+            : error.attemptsLeft === 1 ? "Incorrect verification code. 1 attempt remaining. Another incorrect attempt will invalidate this code."
+              : "Verification code invalidated. Please try again in 5 minutes.";
           if (error.attemptsLeft === 0) get("otpCode").value = "";
         }
         throw error;
@@ -238,8 +251,8 @@
         await signIn(result);
       } catch (error) {
         get("driverPin").value = "";
-        if (error.code === "DRIVER_NOT_APPROVED") error.message = "該門號尚未開通司機權限，請洽營運團隊辦理";
-        if (error.code === "DRIVER_PIN_NOT_READY") error.message = "司機密碼尚未同步，請洽營運團隊確認登記資料";
+        if (error.code === "DRIVER_NOT_APPROVED") error.message = "This phone number is not approved for Driver Mode. Contact the operations team.";
+        if (error.code === "DRIVER_PIN_NOT_READY") error.message = "Your driver PIN has not been synced yet. Contact the operations team to confirm your registration.";
         if (error.lockedUntil) mergeChallenge({ pinLockedUntil: error.lockedUntil });
         throw error;
       }
@@ -281,7 +294,7 @@
   }
   window.accountAuth = {
     api, getSession: () => session, isDriver: () => session?.role === "driver", isOnline: () => online, serverTime: clock,
-    syncPhone: render, changePhone, setOnline,
+    syncPhone: render, changePhone, setOnline, notifyDispatch,
     requireSession() {
       if (!session) {
         if (typeof openProfileModal === "function") openProfileModal();

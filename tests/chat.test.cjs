@@ -126,6 +126,7 @@ function harness({ role = "customer", viewer = false, authorized = true, standal
   document.createElement = () => element();
   document.createDocumentFragment = () => ({ ...element(), fragment: true });
   const window = {
+    location: { search: "" },
     addEventListener() {}, accountAuth: { isOnline: () => false },
     isViewerMode: viewer, isCurrentDriverAuthorized: () => authorized,
     getCurrentDriverProfile: () => authorized
@@ -135,7 +136,7 @@ function harness({ role = "customer", viewer = false, authorized = true, standal
   const errors = [];
   const warnings = [];
   const context = vm.createContext({
-    window, document, db: server.db,
+    window, document, db: server.db, URLSearchParams,
     firebase: { firestore: { FieldValue: { serverTimestamp: () => "SERVER_TIMESTAMP" } } },
     console: { log() {}, error: (...args) => errors.push(args), warn: (...args) => warnings.push(args) },
     localStorage: { getItem: () => null, setItem() {} },

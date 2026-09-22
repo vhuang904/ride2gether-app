@@ -119,7 +119,7 @@ test("driver PIN, long-lived reload, locked phone in both modes and online/pause
   await loginDriver(page);
   await expect(page.locator("#prefPhone")).toHaveAttribute("readonly", "");
   await expect(page.locator("#btnChangePhone")).toBeHidden();
-  await expect(page.locator("#phoneBindingNotice")).toContainText("司機帳號綁定");
+  await expect(page.locator("#phoneBindingNotice")).toHaveText("Your phone number is bound to your driver account. Contact the operations team to change it.");
   await page.evaluate(() => closeProfileModal());
   await page.locator("#btnSwitchMode").click();
   await expect(page.locator("#driverView")).toBeVisible();
@@ -137,6 +137,22 @@ test("driver PIN, long-lived reload, locked phone in both modes and online/pause
   await expect(page.locator("#accountLoginControls")).toBeHidden();
   expect(h.requests.filter(r => r.action === "driverLogin")).toHaveLength(1);
   expect(await page.evaluate(() => localStorage.getItem("r2g_bound_identity"))).toContain(phone);
+});
+test("passenger and driver account forms and verification widgets use English", async ({ page, context }) => {
+  await setup(context);
+  for (const entry of ["/index.html", "/driver.html"]) {
+    await page.goto(entry);
+    if (entry === "/index.html") await page.evaluate(() => openProfileModal());
+    await expect(page.locator("#btnDriverSignIn")).toHaveText("Driver PIN login");
+    await page.locator("#btnDriverSignIn").click();
+    await expect(page.locator("#driverPinFields")).toContainText(
+      "Enter the 6-digit driver PIN registered at our office. Contact the operations team to change your PIN.");
+    await expect(page.locator("#driverPin")).toHaveAttribute("placeholder", "6-digit driver PIN");
+    await expect(page.locator("#btnSendOtp")).toHaveText("Send verification code");
+    await expect(page.locator("#btnChangePhone")).toHaveText("Change phone number");
+    expect(await page.locator("#accountControls").textContent()).not.toMatch(/\p{Script=Han}/u);
+    expect(await page.evaluate(() => firebase.auth().languageCode)).toBe("en");
+  }
 });
 test("first login uses the in-person Sheet PIN including leading zeros and survives reopening the page", async ({ page, context }) => {
   const h = await setup(context, { driver: true, driverPin: "004321" });
@@ -183,13 +199,13 @@ test("three wrong driver PINs lock for 300 seconds across reload before acceptin
 test("unapproved and approved-but-unsynced phones show red operations errors without mobile enrollment", async ({ page, context }) => {
   const h = await setup(context);
   await loginDriver(page);
-  await expect(page.locator("#accountStatus")).toHaveText("該門號尚未開通司機權限，請洽營運團隊辦理");
+  await expect(page.locator("#accountStatus")).toHaveText("This phone number is not approved for Driver Mode. Contact the operations team.");
   await expect(page.locator("#accountStatus")).toHaveClass(/text-red-600/);
   await expect(page.locator("#btnSwitchMode")).toBeHidden();
   h.store.docs.set(`drivers/${phone}`, { phone, name: "Approved", plate: "TEST", model: "Sedan" });
   await page.locator("#driverPin").fill("654321");
   await page.locator("#btnConfirmPin").click();
-  await expect(page.locator("#accountStatus")).toHaveText("司機密碼尚未同步，請洽營運團隊確認登記資料");
+  await expect(page.locator("#accountStatus")).toHaveText("Your driver PIN has not been synced yet. Contact the operations team to confirm your registration.");
   expect(h.store.docs.has(`driver_auth_secrets/${phone}`)).toBe(false);
   await expect(page.locator('input[type="password"]')).toHaveCount(1);
   expect(h.requests.some(r => r.action === "otpSend")).toBe(false);
@@ -206,7 +222,7 @@ test("OTP countdown survives reload; third error locks input and resend for full
   await page.reload();
   await page.evaluate(() => openProfileModal());
   await expect(page.locator("#btnSendOtp")).toBeDisabled();
-  for (const text of ["剩餘 2 次", "剩餘 1 次", "已作廢"]) {
+  for (const text of ["2 attempts remaining.", "1 attempt remaining.", "Verification code invalidated."]) {
     await page.locator("#otpCode").fill("000000");
     await page.locator("#btnConfirmOtp").click();
     await expect(page.locator("#accountStatus")).toContainText(text);
@@ -232,7 +248,10 @@ test("passenger verification locks phone and confirmed number change resets only
   await page.locator("#btnConfirmOtp").click();
   await expect(page.locator("#btnChangePhone")).toBeVisible();
   await expect(page.locator("#prefPhone")).toHaveAttribute("readonly", "");
-  page.once("dialog", dialog => dialog.accept());
+  page.once("dialog", async dialog => {
+    expect(dialog.message()).toBe("Change phone number? This signs you out and clears this device's saved profile, places and trip cache.");
+    await dialog.accept();
+  });
   const reloaded = page.waitForEvent("domcontentloaded");
   await page.locator("#btnChangePhone").click();
   await reloaded;
@@ -260,7 +279,7 @@ test("OTP attempts and cooldown synchronize between tabs without a status-reques
   await second.goto("/index.html");
   await second.evaluate(() => openProfileModal());
   await expect(second.locator("#otpCode")).toBeEnabled();
-  for (const text of ["剩餘 2 次", "剩餘 1 次", "已作廢"]) {
+  for (const text of ["2 attempts remaining.", "1 attempt remaining.", "Verification code invalidated."]) {
     await page.locator("#otpCode").fill("000000");
     await page.locator("#btnConfirmOtp").click();
     await expect(page.locator("#accountStatus")).toContainText(text);
@@ -332,4 +351,28 @@ test("claim performs one GPS read; paused active driver completes both phases wi
   expect(await page.evaluate(() => window.__gpsCalls)).toBe(1);
   expect(h.requests.filter(r => r.action === "claimOrder")).toHaveLength(1);
   expect(h.requests.filter(r => r.action === "advanceTrip").map(r => r.payload.status)).toEqual(["arrived", "in_progress", "completed"]);
+});
+test("Telegram links preserve PIN and online gates and never claim or request GPS automatically", async ({ page, context }) => {
+  const h = await setup(context, { driver: true });
+  const customer = { uid: "passenger", phone: "+639171234599", role: "customer", sessionId: "d".repeat(64), revoked: false };
+  h.store.docs.set(`_auth_sessions/${customer.sessionId}`, customer);
+  await h.trips.createOrder(customer, {
+    orderId: "OD-telegram1", category: "mobility", serviceId: "RIDE_MOTO", origin: "Pickup", destination: "Airport",
+    itemCost: 0, tip: 0, totalPay: 155
+  });
+  await page.goto("/driver.html?order=OD-telegram1");
+  await expect(page.locator("#driverView")).toBeHidden();
+  expect(await page.evaluate(() => window.__gpsCalls)).toBe(0);
+  await loginDriver(page, "/driver.html?order=OD-telegram1");
+  await expect(page.locator("#driverView")).toBeVisible();
+  await expect(page.locator("#btnDriverAvailability")).toContainText("Paused");
+  await expect(page.locator(".claim-order")).toHaveCount(0);
+  await page.locator("#btnDriverAvailability").click();
+  await expect(page.locator('[data-order-card-id="OD-telegram1"]')).toContainText("Opened from Telegram");
+  expect(h.requests.filter(r => r.action === "claimOrder")).toHaveLength(0);
+  expect(await page.evaluate(() => window.__gpsCalls)).toBe(0);
+  await page.locator(".claim-order").click();
+  await expect(page.locator("#activeTripContainer")).toBeVisible();
+  expect(h.requests.filter(r => r.action === "claimOrder")).toHaveLength(1);
+  expect(await page.evaluate(() => window.__gpsCalls)).toBe(1);
 });

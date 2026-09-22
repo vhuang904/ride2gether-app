@@ -48,6 +48,21 @@ test("booking snapshots platform fee, all driver surge revenue and included kilo
   assert.equal(again.totalPay, 155);
   assert.equal(h.calls(), 1, "idempotent booking must not request another route");
 });
+test("dispatch reads require a current participant session and return only the canonical order", async () => {
+  const h = setup();
+  await h.create();
+  await assert.rejects(h.service.dispatchOrder(driver, { orderId: h.input.orderId }), { code: "FORBIDDEN" });
+  assert.equal((await h.service.dispatchOrder(customer, { orderId: h.input.orderId })).order.totalPay, 155);
+  await h.service.setOnline(driver, true);
+  await h.claim();
+  const result = await h.service.dispatchOrder(driver, { orderId: h.input.orderId, totalPay: 1, status: "completed" });
+  assert.equal(result.order.totalPay, 155);
+  assert.equal(result.order.status, "accepted");
+  h.store.docs.get(`_auth_sessions/${driver.sessionId}`).revoked = true;
+  await assert.rejects(h.service.dispatchOrder(driver, { orderId: h.input.orderId }), { code: "SESSION_REVOKED" });
+  h.store.docs.delete(`ride_orders/${h.input.orderId}/trip_state/current`);
+  await assert.rejects(h.service.dispatchOrder(customer, { orderId: h.input.orderId }), { code: "LEGACY_TRIP" });
+});
 test("edited prices, negative amounts, invalid service and duplicate customer bookings are rejected", async () => {
   const h = setup();
   await assert.rejects(h.service.createOrder(customer, { ...h.input, totalPay: 1 }), { code: "PRICE_CHANGED" });

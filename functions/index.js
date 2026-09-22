@@ -147,6 +147,7 @@ exports.api = onRequest({ region: "asia-southeast1", secrets: [mapsKey], maxInst
         claimOrder: () => trips.claimOrder(session, payload),
         advanceTrip: () => trips.advance(session, payload),
         cancelOrder: () => trips.cancel(session, payload),
+        dispatchOrder: () => trips.dispatchOrder(session, payload),
         shareTrip: () => trips.share(session, payload)
       };
       requireValue(Object.hasOwn(actions, action), "UNKNOWN_ACTION", "Unknown operation.", 404);
