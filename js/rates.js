@@ -8,8 +8,24 @@ let RATES = {};
 let ratesReady = false;
 let ratesUnsubscribe = null;
 let ratesListenerGeneration = 0;
+let ratesRetryTimer = null;
+let ratesRetryDelay = 1000;
 let ratesUnavailableReason = 'Loading current prices...';
 const RATE_SERVICE_IDS = ['RIDE_MOTO', 'RIDE_CAR', 'RIDE_SUV', 'EXPRESS', 'PABILI'];
+
+function clearRatesRetry() {
+  if (ratesRetryTimer !== null) clearTimeout(ratesRetryTimer);
+  ratesRetryTimer = null;
+}
+
+function scheduleRatesRetry() {
+  if (ratesRetryTimer !== null || navigator.onLine === false) return;
+  ratesRetryTimer = setTimeout(() => {
+    ratesRetryTimer = null;
+    startRatesListener();
+  }, ratesRetryDelay);
+  ratesRetryDelay = Math.min(ratesRetryDelay * 2, 30_000);
+}
 
 function invalidateRates(message) {
   ratesReady = false;
@@ -21,6 +37,11 @@ function invalidateRates(message) {
 
 function startRatesListener() {
   if (ratesUnsubscribe) return;
+  clearRatesRetry();
+  if (navigator.onLine === false) {
+    invalidateRates('Connect online to verify current prices before booking.');
+    return;
+  }
   const generation = ++ratesListenerGeneration;
   try {
     ratesUnsubscribe = db.collection('rate_config').doc('current').onSnapshot(
@@ -40,6 +61,7 @@ function startRatesListener() {
         }
         RATES = rates;
         ratesReady = true;
+        ratesRetryDelay = 1000;
         ratesUnavailableReason = '';
         updateCardBadges();
         calculateEstimate();
@@ -50,18 +72,25 @@ function startRatesListener() {
         console.error('[Rates] Price listener failed:', error);
         if (ratesUnsubscribe) ratesUnsubscribe();
         ratesUnsubscribe = null;
-        invalidateRates('Unable to load current prices. Please retry online.');
+        invalidateRates('Reconnecting to current prices...');
+        scheduleRatesRetry();
       }
     );
   } catch (error) {
     ratesListenerGeneration += 1;
     console.error('[Rates] Unable to start price listener:', error);
-    invalidateRates('Unable to load current prices. Please retry online.');
+    invalidateRates('Reconnecting to current prices...');
+    scheduleRatesRetry();
   }
 }
 
-window.addEventListener('offline', () => invalidateRates('Connect online to verify current prices before booking.'));
+window.addEventListener('offline', () => {
+  clearRatesRetry();
+  invalidateRates('Connect online to verify current prices before booking.');
+});
 window.addEventListener('online', () => {
+  clearRatesRetry();
+  ratesRetryDelay = 1000;
   if (ratesUnsubscribe) ratesUnsubscribe();
   ratesUnsubscribe = null;
   startRatesListener();
@@ -190,8 +219,6 @@ function calculateEstimate() {
   }
   document.getElementById('estTotal').innerText = quote ? quote.total.toFixed(2) : '--';
   document.getElementById('estPayout').innerText = quote ? `approx. ₱${quote.driverPayout.toFixed(2)}` : 'Unavailable';
-  const fee = document.getElementById('estConvenienceFee');
-  if (fee) fee.textContent = quote ? `₱${quote.convenienceFee.toFixed(2)}` : '--';
   const status = document.getElementById('rateStatus');
   if (status) {
     status.textContent = quote ? '' : message;

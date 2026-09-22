@@ -186,7 +186,7 @@ test("authorized switches preserve passenger state and attach only one listener 
   h.window.toggleAppMode();
   assert.equal(h.body.dataset.appMode, "driver");
   assert.equal(h.get("passengerView").classList.contains("hidden"), true);
-  assert.equal(h.get("switchModeText").textContent, "Passenger");
+  assert.equal(h.get("btnSwitchMode")["aria-label"], "Switch to Passenger Mode");
   h.window.driverApp.initialize();
   assert.equal(h.activeListeners(), 2);
   h.window.toggleAppMode();
@@ -205,7 +205,7 @@ test("authorized switches preserve passenger state and attach only one listener 
   }
   assert.equal(h.get("ordersContainer").listeners.get("click").length, 1);
   assert.equal(h.get("activeTripAction").listeners.get("click").length, 1);
-  assert.equal(h.get("switchModeText").textContent, "Driver Mode");
+  assert.equal(h.get("btnSwitchMode")["aria-label"], "Switch to Driver Mode");
   assert.equal(h.writes.length, 0);
 });
 
@@ -367,7 +367,7 @@ test("a phase snapshot arriving before its HTTP response cannot leave the next t
   finish({ status: "arrived" });
   await pending;
   assert.equal(h.get("activeTripAction").disabled, false);
-  assert.equal(h.get("activeTripAction").textContent, "Start Trip");
+  assert.equal(h.get("activeTripAction").textContent, "Passenger on board / Start Trip");
 });
 
 test("view markup, shared assets, and protected passenger controls remain wired", () => {

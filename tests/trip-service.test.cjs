@@ -108,6 +108,7 @@ test("paused driver can advance owned trip; invalid order, foreign driver and sk
   await h.service.setOnline(driver, true);
   await h.claim();
   await h.service.setOnline(driver, false);
+  await assert.rejects(h.service.advance(driver, { orderId: h.input.orderId, status: "in_progress" }), { code: "INVALID_TRANSITION" });
   await assert.rejects(h.service.advance(driver, { orderId: h.input.orderId, status: "completed" }), { code: "INVALID_TRANSITION" });
   const other = h.grant({ ...driver, phone: secondPhone, sessionId: "c".repeat(64) });
   await assert.rejects(h.service.advance(other, { orderId: h.input.orderId, status: "arrived" }), { code: "FORBIDDEN" });
@@ -117,6 +118,10 @@ test("paused driver can advance owned trip; invalid order, foreign driver and sk
     assert.equal(h.state().phase, phase);
     assert.equal(result.totalFare, 155);
     assert.equal(result.driverEarnings, 114.5);
+    const startedAt = h.state().phaseStartedAt;
+    h.tick(1000);
+    await h.service.advance(driver, { orderId: h.input.orderId, status });
+    assert.equal(h.state().phaseStartedAt, startedAt, "repeated taps must not restart a phase");
   }
   assert.equal(h.store.docs.get(`_driver_work/${phone}`).activeOrderId, null);
   assert.equal(h.store.docs.get("_customer_work/customer").activeOrderId, null);

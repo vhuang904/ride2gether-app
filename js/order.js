@@ -196,6 +196,7 @@ function subscribeToOrder(orderId) {
 }
 
 function renderPendingOrderView(orderId) {
+  updateTripArrivalNotice('pending');
   prepareNativeTripView();
   const card = document.getElementById('activeTripPanel');
   const state = document.getElementById('activeTripStateLabel');
@@ -346,6 +347,7 @@ function renderNativeTripRoute(status, data) {
 }
 
 function renderNativeTripView(status, data) {
+  updateTripArrivalNotice(status);
   // Stage 4/5 生命週期修復：若行程於「氣泡最小化」狀態下轉為 completed，
   // 必須在呼叫 prepareNativeTripView() 之前就先解除最小化狀態，
   // 否則 prepareNativeTripView() 會依舊誤判為最小化中，導致 #step2Panel（含地圖與結算卡）
@@ -571,6 +573,14 @@ function setLayer1Visible(visible) {
   const sections = mainEl.querySelectorAll('section');
   if (sections[0]) sections[0].classList.toggle('hidden', !visible);
   if (sections[2]) sections[2].classList.toggle('hidden', !visible);
+}
+
+function updateTripArrivalNotice(status) {
+  const notice = document.getElementById('tripArrivalNotice');
+  if (!notice) return;
+  const message = status === 'arrived' ? 'Your driver has arrived at the pickup point. Please proceed to your ride.' : '';
+  if (notice.textContent !== message) notice.textContent = message;
+  notice.classList.toggle('hidden', !message);
 }
 
 function showDriverNoticeToPassenger(message) {
@@ -860,6 +870,7 @@ function stopDispatchTimer() {
 // 供 cancelAndReset() 與 finishTripAndReset() 共用，避免取消訂單後
 // 畫面停留在被 prepareNativeTripView() 隱藏的空白狀態。
 function restoreBookingHomeView() {
+  updateTripArrivalNotice(null);
   window.tripChat?.clearTrip("customer");
   const dispatchModal = document.getElementById('dispatchModal');
   if (dispatchModal) {
@@ -1231,6 +1242,7 @@ window.addEventListener("DOMContentLoaded", safeInvoke(checkActiveOrderOnLoad, "
 window.addEventListener("accountchange", () => {
   if (window.accountAuth.getSession()) checkActiveOrderOnLoad();
   else {
+    updateTripArrivalNotice(null);
     if (unsubscribeOrder) unsubscribeOrder();
     unsubscribeOrder = null;
     window.tripMirror?.stop("customer");

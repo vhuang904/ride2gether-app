@@ -37,10 +37,12 @@
     document.getElementById("driverHeaderControls")?.classList.toggle("hidden", !driverMode);
     document.getElementById("driverAccessPanel")?.classList.toggle("hidden", driverMode);
     const icon = document.getElementById("switchModeIcon");
-    const text = document.getElementById("switchModeText");
     if (icon) icon.textContent = driverMode ? "👤" : "🚘";
-    if (text) text.textContent = driverMode ? "Passenger" : "Driver Mode";
-    document.getElementById("btnSwitchMode")?.setAttribute("aria-pressed", String(driverMode));
+    const button = document.getElementById("btnSwitchMode");
+    const label = driverMode ? "Switch to Passenger Mode" : "Switch to Driver Mode";
+    button?.setAttribute("aria-pressed", String(driverMode));
+    button?.setAttribute("aria-label", label);
+    button?.setAttribute("title", label);
 
     if (driverMode) {
       window.driverApp.initialize();

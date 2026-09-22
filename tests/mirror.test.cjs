@@ -88,6 +88,9 @@ test("two map clients use the same phase snapshots, switch routes, snap on arriv
   for (const client of [customer, driver]) {
     client.publish({ ...state, phase: "waiting" });
     assert.deepEqual(client.markers[0].position, pickup);
+    assert.equal(client.frames.size, 0, "arrival must stop all scheduled movement immediately");
+    client.tick(1_010_000);
+    assert.deepEqual(client.markers[0].position, pickup, "waiting must remain snapped without polling");
     client.publish({ ...state, phase: "delivery", phaseStartedAt: 1_000_000 });
     client.tick(1_100_000);
     assert.deepEqual(client.lines[0].points, Motion.decodePolyline(state.delivery.polyline));

@@ -116,9 +116,9 @@ function renderActiveTrip(order) {
   document.getElementById("activeTripFare").textContent = formatFare(order.estimatedFare ?? order.fare ?? order.totalPay);
   action.disabled = advancing;
   action.textContent = status === "accepted"
-    ? "Arrived at Pickup"
+    ? "I have arrived at pickup"
     : status === "arrived"
-      ? "Start Trip"
+      ? "Passenger on board / Start Trip"
       : "Complete Trip";
   container.classList.remove("hidden");
   const nav = document.getElementById("driverPickupNavigation");

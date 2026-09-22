@@ -73,7 +73,8 @@
           lng: oldPosition.lng + (position.lng - oldPosition.lng) * t };
       }
       b.marker.setPosition(position);
-      if (["pickup", "delivery"].includes(state.phase) || transition < 1) b.frame = requestAnimationFrame(tick);
+      if (["pickup", "delivery"].includes(state.phase)
+          || (state.phase !== "waiting" && transition < 1)) b.frame = requestAnimationFrame(tick);
     }
     tick();
   }

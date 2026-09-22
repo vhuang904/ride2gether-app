@@ -36,6 +36,9 @@ The trip map stays collapsed while idle (online or paused) and after a trip
 ends; an active trip retains its map even when new-order availability is paused.
 
 The header displays the member name above a secondary verification badge.
+Only a signed-in driver verified against the live roster sees the compact
+44px mode-switch icon beside the header account controls. Guests and passengers
+have no mode switch; the PIN entry remains in the sign-in dialog.
 Signed-in Profile & Settings and Ride History use responsive, full-width
 panels; profile fields and saved places share two columns on wider screens.
 Profile, history and saved-address map overlays isolate background interaction
@@ -172,9 +175,21 @@ customer total of 155 and driver payout of 114.50, before tips/items.
 `js/rates.js` listens to the published config document. Cached/offline prices
 do not authorize new bookings, and missing services are unavailable rather
 than replaced with another service's rate. Errors appear in the pricing
-panel with a reconnect button. A booking recalculates from the latest received
+panel, inside Estimated Total, without a separate fee card or manual reconnect
+button. The platform fee remains included in the total and is not itemized.
+Failed price listeners retry automatically with backoff (1 second up to 30
+seconds); reconnecting online retries immediately. A booking recalculates from the latest received
 validated prices, not the amount displayed in the DOM. Rate changes refresh
 unsent estimates only; existing order amounts remain unchanged.
+
+The existing trip sequence remains `accepted -> arrived -> in_progress ->
+completed` (`IN_TRIP` is stored as `in_progress`). Accepted drivers see pickup
+navigation and **I have arrived at pickup**; arrival changes the primary action
+to **Passenger on board / Start Trip**. Both map markers snap to pickup and stop
+animation while waiting. A persistent passenger arrival alert remains visible
+even when trip details are minimized, and clears on departure, cancellation or
+reset. Starting the trip switches both clients to the saved destination route;
+no extra GPS reads or periodic Firestore writes are introduced.
 
 ### GAS setup and ongoing synchronization
 

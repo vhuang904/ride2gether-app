@@ -125,9 +125,14 @@ function ratesHarness() {
   const events = {};
   const writes = [];
   const errors = [];
+  const timers = new Map();
+  let timerId = 0;
+  const listenerState = { failStarts: 0 };
   const context = vm.createContext({
     document: { getElementById: get },
     navigator: { onLine: true },
+    setTimeout(callback, delay) { const id = ++timerId; timers.set(id, { callback, delay }); return id; },
+    clearTimeout(id) { timers.delete(id); },
     window: {
       addEventListener: (name, callback) => { events[name] = callback; },
       accountAuth: {
@@ -153,6 +158,10 @@ function ratesHarness() {
           doc(id) {
             return {
               onSnapshot(options, next, error) {
+                if (listenerState.failStarts > 0) {
+                  listenerState.failStarts--;
+                  throw new Error("Listener startup failed");
+                }
                 assert.equal(collection, "rate_config");
                 assert.equal(id, "current");
                 assert.equal(options.includeMetadataChanges, true);
@@ -173,7 +182,14 @@ function ratesHarness() {
   vm.runInContext(read("functions/pricing.js"), context);
   vm.runInContext(read("js/rates.js"), context);
   const h = {
-    context, get, events, listeners, writes, errors,
+    context, get, events, listeners, writes, errors, timers, listenerState,
+    runRetry() {
+      assert.equal(timers.size, 1);
+      const [id, timer] = [...timers][0];
+      timers.delete(id);
+      timer.callback();
+      return timer.delay;
+    },
     emit(rates = { RIDE_MOTO: rule }, metadata = {}) {
       listeners.at(-1).next({
         exists: rates !== null, data: () => ({ rates }),
@@ -379,7 +395,7 @@ test("only server-confirmed prices allow quotes; updates and service removal imm
   assert.equal(h.context.calculateEstimate(), null);
   h.emit();
   assert.equal(h.get("estTotal").innerText, "155.00");
-  assert.equal(h.get("estConvenienceFee").textContent, "\u20b130.00");
+  assert.equal(h.context.calculateEstimate().convenienceFee, 30, "platform fee stays in the fare calculation");
   h.emit({ RIDE_MOTO: { ...rule, surgeMultiplier: 2, convenienceFee: 45 } });
   assert.equal(h.get("estTotal").innerText, "205.00");
   h.emit({});
@@ -403,8 +419,8 @@ test("offline, pending local writes and listener errors cannot authorize booking
   assert.equal(h.context.calculateEstimate(), null);
   h.listeners.at(-1).error(new Error("permission denied"));
   assert.equal(h.listeners.filter(listener => listener.active).length, 0);
-  assert.match(h.get("rateStatus").textContent, /retry online/);
-  h.context.startRatesListener();
+  assert.match(h.get("rateStatus").textContent, /Reconnecting/);
+  assert.equal(h.runRetry(), 1000);
   h.emit();
   assert.equal(h.context.calculateEstimate().total, 155);
   h.listeners[0].next({
@@ -412,6 +428,55 @@ test("offline, pending local writes and listener errors cannot authorize booking
     metadata: { fromCache: false, hasPendingWrites: false }
   });
   assert.equal(h.context.calculateEstimate().total, 155, "Stale listeners must not overwrite current rates");
+});
+
+test("price listener failures retry once with capped backoff and reset after a verified snapshot", () => {
+  const h = ratesHarness();
+  h.context.startRatesListener();
+  for (const delay of [1000, 2000, 4000, 8000, 16000, 30000, 30000]) {
+    const failed = h.listeners.at(-1);
+    failed.error(new Error("unavailable"));
+    failed.error(new Error("late duplicate error"));
+    assert.equal(h.context.calculateEstimate(), null);
+    assert.equal(h.listeners.filter(listener => listener.active).length, 0);
+    assert.equal(h.runRetry(), delay);
+    assert.equal(h.listeners.filter(listener => listener.active).length, 1);
+  }
+  h.emit();
+  assert.equal(h.context.calculateEstimate().total, 155);
+  assert.equal(h.get("rateStatus").classList.contains("hidden"), true);
+  h.listeners.at(-1).error(new Error("unavailable"));
+  assert.equal(h.runRetry(), 1000);
+});
+
+test("offline cancels pending price retries and reconnect creates only one fresh listener", () => {
+  const h = ratesHarness();
+  h.context.startRatesListener();
+  h.listeners.at(-1).error(new Error("unavailable"));
+  h.context.navigator.onLine = false;
+  h.events.offline();
+  assert.equal(h.timers.size, 0);
+  h.context.startRatesListener();
+  assert.equal(h.listeners.length, 1);
+  assert.equal(h.context.calculateEstimate(), null);
+  h.context.navigator.onLine = true;
+  h.events.online();
+  h.context.startRatesListener();
+  assert.equal(h.timers.size, 0);
+  assert.equal(h.listeners.filter(listener => listener.active).length, 1);
+  h.emit();
+  assert.equal(h.context.calculateEstimate().total, 155);
+});
+
+test("synchronous price subscription failures recover automatically without allowing stale prices", () => {
+  const h = ratesHarness();
+  h.listenerState.failStarts = 1;
+  h.context.startRatesListener();
+  assert.equal(h.errors.length, 1);
+  assert.equal(h.context.calculateEstimate(), null);
+  assert.equal(h.runRetry(), 1000);
+  h.emit();
+  assert.equal(h.context.calculateEstimate().total, 155);
 });
 
 test("new orders use validated prices rather than edited DOM totals; published changes never reprice saved orders", async () => {

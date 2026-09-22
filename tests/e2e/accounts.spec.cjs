@@ -21,8 +21,7 @@ function encode(points) {
   }
   return result;
 }
-async function setup(context, { driver = false, driverPin = "654321" } = {}) {
-  const store = memoryStore();
+async function setup(context, { driver = false, driverPin = "654321", store = memoryStore(), customerPhone = phone } = {}) {
   const requests = [];
   let clock = Date.now();
   const rate = { nameEn: "Moto Express", base: 40, baseKm: 2, perKm: 10, surgeMultiplier: 1.5,
@@ -40,7 +39,7 @@ async function setup(context, { driver = false, driverPin = "654321" } = {}) {
     sendCode: async () => "server-only-session",
     confirmCode: async (_, code) => {
       if (code !== "123456") throw new AppError("INVALID_CODE", "Incorrect code.");
-      return { uid: "customer", phone };
+      return { uid: "customer", phone: customerPhone };
     },
     driverUid: async () => "driver",
     createToken: async (uid, claims) => JSON.stringify({ uid, ...claims }),
@@ -394,16 +393,21 @@ test("claim performs one GPS read; paused active driver completes both phases wi
   await page.locator("#btnDriverAvailability").click();
   await page.locator(".claim-order").click();
   await expect(page.locator("#activeTripContainer")).toBeVisible();
+  await expect(page.locator("#activeTripAction")).toHaveText("I have arrived at pickup");
+  await expect(page.locator("#driverPickupNavigation")).toBeVisible();
   await expect(page.locator("#driverPickupNavigation")).toHaveAttribute("href", /destination=38.5,-120.2/);
   await expect.poll(() => page.evaluate(() => window.__mapPaths.at(-1)?.length)).toBe(2);
   await page.locator("#btnDriverAvailability").click();
   await expect(page.locator("#btnDriverAvailability")).toContainText("Paused");
   await page.locator("#activeTripAction").click();
   await expect(page.locator("#activeTripStatus")).toHaveText("arrived");
+  await expect(page.locator("#activeTripAction")).toHaveText("Passenger on board / Start Trip");
+  await expect(page.locator("#driverPickupNavigation")).toBeHidden();
   await expect.poll(() => page.evaluate(() => window.__vehiclePosition)).toEqual({ lat: 38.5, lng: -120.2 });
   await page.evaluate(() => { window.open = () => null; });
   await page.locator("#activeTripAction").click();
   await expect(page.locator("#activeTripStatus")).toHaveText("in progress");
+  await expect(page.locator("#activeTripAction")).toHaveText("Complete Trip");
   await expect.poll(() => page.evaluate(() => window.__mapPaths.at(-1)?.length)).toBe(3);
   await page.locator("#activeTripAction").click();
   await expect(page.locator("#driverSettlement")).toBeVisible();
@@ -440,15 +444,180 @@ test("Telegram links preserve PIN and online gates and never claim or request GP
   expect(await page.evaluate(() => window.__gpsCalls)).toBe(1);
 });
 
-async function loginPassenger(page) {
+async function loginPassenger(page, customerPhone = phone) {
   await page.goto("/index.html");
   await page.evaluate(() => openProfileModal());
-  await page.locator("#prefPhone").fill("09171234567");
+  await page.locator("#prefPhone").fill(customerPhone);
   await page.locator("#btnSendOtp").click();
   await page.locator("#otpCode").fill("123456");
   await page.locator("#btnConfirmOtp").click();
   await expect(page.locator("#accountLoginControls")).toBeHidden();
 }
+
+test("booking shows only the inclusive total and automatically reconnects prices without a fee card", async ({ page, context }) => {
+  await setup(context);
+  let reads = 0;
+  await context.route("**/__test/firestore?**", async route => {
+    if (new URL(route.request().url()).searchParams.get("path") === "rate_config/current" && ++reads === 1) {
+      await route.fulfill({ status: 503, body: "Temporary test outage" });
+    } else await route.fallback();
+  });
+  await page.clock.install();
+  await page.goto("/index.html");
+  await expect(page.locator("#rateStatus")).toHaveText("Reconnecting to current prices...");
+  await expect(page.locator("#estTotal")).toHaveText("--");
+  await page.clock.fastForward(1000);
+  await expect(page.locator("#estTotal")).toHaveText("110.00");
+  await expect(page.locator("#rateStatus")).toBeHidden();
+  expect(reads).toBe(2);
+  await expect(page.locator("#estConvenienceFee")).toHaveCount(0);
+  await expect(page.getByText(/Platform booking fee|Refresh connection/)).toHaveCount(0);
+  expect(await page.locator("#estTotal").evaluate(node =>
+    node.closest("section").nextElementSibling.id)).toBe("btnSubmit");
+  await page.evaluate(() => { document.getElementById("distance").value = "5"; calculateEstimate(); });
+  await expect(page.locator("#estTotal")).toHaveText("155.00");
+  expect(await page.evaluate(() => calculateEstimate().convenienceFee)).toBe(30);
+});
+
+test("only an authenticated roster driver sees a one-row 44px header mode icon", async ({ page, context }) => {
+  const h = await setup(context);
+  await page.addInitScript(() => localStorage.setItem("user_role", "driver"));
+  await page.goto("/index.html");
+  await expect(page.locator("#btnSwitchMode")).toBeHidden();
+  await loginPassenger(page);
+  await page.evaluate(() => closeProfileModal());
+  await expect(page.locator("#btnSwitchMode")).toBeHidden();
+
+  h.store.docs.set(`drivers/${phone}`, { phone, name: "Roster Driver", model: "Sedan", plate: "TEST 1" });
+  await page.evaluate(() => checkDriverWhitelist());
+  await expect(page.locator("#btnSwitchMode")).toBeHidden();
+  const prepare = createDriverPinSync({ projectId: "demo-ride2gether", readSecrets: async () => [] });
+  const prepared = await prepare({ projectId: "demo-ride2gether", drivers: [{ phone, pin: "654321" }] });
+  h.store.docs.set(`driver_auth_secrets/${phone}`, prepared.updates[0].credential);
+  await page.evaluate(() => firebase.auth().signOut());
+  await loginDriver(page);
+  await page.evaluate(() => {
+    closeProfileModal();
+    currentUserProfile.name = "Wei Lun Huang with a longer family name";
+    updateHeaderProfileUI();
+  });
+  await expect(page.locator("#btnSwitchMode")).toBeVisible();
+  await expect(page.locator("#btnSwitchMode")).toHaveAccessibleName("Switch to Driver Mode");
+  for (const width of [320, 390, 1280]) {
+    await page.setViewportSize({ width, height: 844 });
+    const bounds = await page.evaluate(() => {
+      const rect = selector => document.querySelector(selector).getBoundingClientRect().toJSON();
+      return { mode: rect("#btnSwitchMode"), avatar: rect(".header-profile-button"),
+        identity: rect(".header-identity"), actions: rect(".header-account-actions"),
+        inHeader: Boolean(document.querySelector("body > header #btnSwitchMode")) };
+    });
+    expect(bounds.inHeader).toBe(true);
+    expect(bounds.mode.width).toBe(44);
+    expect(bounds.mode.height).toBe(44);
+    expect(bounds.mode.top).toBe(bounds.avatar.top);
+    expect(bounds.mode.left).toBeGreaterThanOrEqual(bounds.identity.right);
+    expect(bounds.avatar.right).toBeLessThanOrEqual(bounds.actions.right + 1);
+    expect(bounds.actions.right).toBeLessThanOrEqual(width);
+  }
+  await page.locator("#btnSwitchMode").click();
+  await expect(page.locator("#driverView")).toBeVisible();
+  await expect(page.locator("#btnSwitchMode")).toHaveAccessibleName("Switch to Passenger Mode");
+  await page.locator("#btnSwitchMode").click();
+  h.store.docs.delete(`drivers/${phone}`);
+  await page.evaluate(() => window.__refreshFirestore());
+  await expect(page.locator("#btnSwitchMode")).toBeHidden();
+  await expect(page.locator("#passengerView")).toBeVisible();
+});
+
+async function mockTripMap(page, passenger = false) {
+  await page.evaluate(passenger => {
+    window.__mapPaths = [];
+    window.__vehiclePosition = null;
+    window.google = { maps: {
+      Map: class { fitBounds() {} panToBounds() {} setOptions() {} },
+      LatLngBounds: class { extend() {} },
+      event: { trigger() {} },
+      Polyline: class {
+        setPath(points) { window.__mapPaths.push(points); }
+        setMap() {}
+      },
+      Marker: class {
+        getPosition() { return window.__vehiclePosition ? { toJSON: () => window.__vehiclePosition } : null; }
+        setPosition(point) { window.__vehiclePosition = point; }
+        setMap() {}
+      }
+    } };
+    if (passenger) mapInstance = new google.maps.Map();
+    window.open = () => null;
+  }, passenger);
+}
+
+test("ARRIVED snaps both clients, notifies a minimized passenger, and requires Start Trip before delivery", async ({ page, context, browser }) => {
+  const h = await setup(context, { driver: true });
+  const customerPhone = "+639171234599";
+  const passengerContext = await browser.newContext({ baseURL: "http://127.0.0.1:4175", serviceWorkers: "block" });
+  try {
+    await setup(passengerContext, { store: h.store, customerPhone });
+    const passenger = await passengerContext.newPage();
+    await loginPassenger(passenger, customerPhone);
+    await passenger.evaluate(() => closeProfileModal());
+    await mockTripMap(passenger, true);
+    const customer = { uid: "customer", phone: customerPhone, role: "customer", sessionId: "e".repeat(64), revoked: false };
+    h.store.docs.set(`_auth_sessions/${customer.sessionId}`, customer);
+    await h.trips.createOrder(customer, {
+      orderId: "OD-arrival1", category: "mobility", serviceId: "RIDE_MOTO", origin: "Pickup", destination: "Airport",
+      itemCost: 0, tip: 0, totalPay: 155
+    });
+    await passenger.evaluate(() => { currentOrderId = "OD-arrival1"; subscribeToOrder(currentOrderId); });
+    await loginDriver(page, "/driver.html");
+    await mockTripMap(page);
+    await page.locator("#btnDriverAvailability").click();
+    await page.locator(".claim-order").click();
+    await expect(page.locator("#activeTripAction")).toHaveText("I have arrived at pickup");
+    await expect(page.locator("#driverPickupNavigation")).toHaveAttribute("href", /destination=38.5,-120.2/);
+    await passenger.evaluate(() => window.__refreshFirestore());
+    await expect(passenger.locator("#activeTripTitle")).toHaveText("Driver accepted your trip");
+    for (const client of [page, passenger]) {
+      await expect.poll(() => client.evaluate(() => window.__mapPaths.at(-1)?.length)).toBe(2);
+    }
+    await passenger.locator("#btnMinimizeTrip").click();
+    await expect(passenger.locator("#activeTripPanel")).toBeHidden();
+    await page.locator("#activeTripAction").click();
+    await expect(page.locator("#activeTripStatus")).toHaveText("arrived");
+    await expect(page.locator("#activeTripAction")).toHaveText("Passenger on board / Start Trip");
+    await expect(page.locator("#driverPickupNavigation")).toBeHidden();
+    await passenger.evaluate(() => window.__refreshFirestore());
+    await expect(passenger.locator("#tripArrivalNotice")).toBeVisible();
+    await expect(passenger.getByRole("alert")).toHaveText("Your driver has arrived at the pickup point. Please proceed to your ride.");
+    await expect(passenger.locator("#activeTripPanel")).toBeHidden();
+    for (const client of [page, passenger]) {
+      await expect.poll(() => client.evaluate(() => window.__vehiclePosition)).toEqual({ lat: 38.5, lng: -120.2 });
+    }
+    expect(h.store.docs.get("ride_orders/OD-arrival1/trip_state/current").phase).toBe("waiting");
+    expect(h.requests.filter(r => r.action === "advanceTrip").map(r => r.payload.status)).toEqual(["arrived"]);
+    await passenger.locator("#tripFloatingBubble").click();
+    await expect(passenger.locator("#activeTripPanel")).toBeVisible();
+    await expect(passenger.locator("#tripArrivalNotice")).toBeVisible();
+    await page.locator("#activeTripAction").click();
+    await expect(page.locator("#activeTripStatus")).toHaveText("in progress");
+    await passenger.evaluate(() => window.__refreshFirestore());
+    await expect(passenger.locator("#tripArrivalNotice")).toBeHidden();
+    await expect(passenger.locator("#activeTripTitle")).toHaveText("Heading to destination");
+    for (const client of [page, passenger]) {
+      await expect.poll(() => client.evaluate(() => window.__mapPaths.at(-1)?.length)).toBe(3);
+    }
+    await page.locator("#activeTripAction").click();
+    await expect(page.locator("#driverSettlement")).toBeVisible();
+    await passenger.evaluate(() => window.__refreshFirestore());
+    await expect(passenger.locator("#activeTripTitle")).toHaveText("Trip Completed");
+    await expect(passenger.locator("#tripArrivalNotice")).toBeHidden();
+    expect(h.requests.filter(r => r.action === "advanceTrip").map(r => r.payload.status)).toEqual(["arrived", "in_progress", "completed"]);
+    expect(await page.evaluate(() => window.__gpsCalls)).toBe(1);
+    expect(await passenger.evaluate(() => window.__gpsCalls)).toBe(0);
+  } finally {
+    await passengerContext.close();
+  }
+});
 
 test("passenger-first login switches explicitly without resetting OTP limits or revealing driver access", async ({ page, context }) => {
   const h = await setup(context);
