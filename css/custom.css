@@ -159,6 +159,7 @@
 
     body[data-app-mode="driver"] {
       background-color: #f8fafc;
+      justify-content: flex-start;
     }
     body[data-app-mode="driver"] #mascotCapsule,
     body[data-app-mode="driver"] #tripFloatingBubble,

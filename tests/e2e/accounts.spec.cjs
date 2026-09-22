@@ -316,6 +316,53 @@ test("fake localStorage driver role never reveals driver mode without backend si
   await expect(page.locator("#driverView")).toBeHidden();
   await expect(page.locator("#accountLoginControls")).toBeVisible();
 });
+for (const entry of ["/index.html", "/driver.html"]) {
+  test(`idle driver controls stay below the header without reserving map space (${entry})`, async ({ page, context }) => {
+    await setup(context, { driver: true });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await loginDriver(page, entry);
+    if (entry === "/index.html") {
+      await page.evaluate(() => closeProfileModal());
+      await page.locator("#btnSwitchMode").click();
+    }
+    await expect(page.locator("#driverView")).toBeVisible();
+    // External Tailwind is mocked; reproduce its root flex utilities for this layout regression.
+    await page.addStyleTag({ content: `
+      body { margin: 0; }
+      :where(body).min-h-screen { min-height: 100vh; }
+      :where(body).flex { display: flex; }
+      :where(body).flex-col { flex-direction: column; }
+      :where(body).justify-between { justify-content: space-between; }
+      body > header svg { width: 20px; height: 20px; }
+      body > header img { width: 40px; height: 40px; }
+    ` });
+    for (const width of [390, 1280]) {
+      await page.setViewportSize({ width, height: 844 });
+      for (const state of ["Paused", "Online", "Paused"]) {
+        if (await page.locator("#btnDriverAvailability").getAttribute("aria-pressed") !== String(state === "Online")) {
+          await page.locator("#btnDriverAvailability").click();
+        }
+        await expect(page.locator("#btnDriverAvailability")).toContainText(state);
+        await expect(page.locator("#activeTripContainer")).toBeHidden();
+        await expect(page.locator("#driverTripMap")).toBeHidden();
+        const bounds = await page.evaluate(() => ({
+          gap: document.getElementById("btnDriverAvailability").getBoundingClientRect().top
+            - document.querySelector("body > header").getBoundingClientRect().bottom,
+          mapHeight: document.getElementById("driverTripMap").getBoundingClientRect().height
+        }));
+        expect(bounds.gap).toBeGreaterThanOrEqual(0);
+        expect(bounds.gap).toBeLessThanOrEqual(32);
+        expect(bounds.mapHeight).toBe(0);
+      }
+    }
+    expect(await page.evaluate(() => window.__gpsCalls)).toBe(0);
+    if (entry === "/index.html") {
+      await page.evaluate(() => toggleAppMode());
+      await expect(page.locator("#passengerView")).toBeVisible();
+      expect(await page.evaluate(() => getComputedStyle(document.body).justifyContent)).toBe("space-between");
+    }
+  });
+}
 test("claim performs one GPS read; paused active driver completes both phases with fixed settlement", async ({ page, context }) => {
   const h = await setup(context, { driver: true });
   const customer = { uid: "passenger", phone: "+639171234599", role: "customer", sessionId: "c".repeat(64), revoked: false };
@@ -360,6 +407,8 @@ test("claim performs one GPS read; paused active driver completes both phases wi
   await expect.poll(() => page.evaluate(() => window.__mapPaths.at(-1)?.length)).toBe(3);
   await page.locator("#activeTripAction").click();
   await expect(page.locator("#driverSettlement")).toBeVisible();
+  await expect(page.locator("#activeTripContainer")).toBeHidden();
+  await expect(page.locator("#driverTripMap")).toBeHidden();
   await expect(page.locator("#settlementTotal")).toHaveText("₱155.00");
   await expect(page.locator("#settlementEarnings")).toHaveText("₱114.50");
   expect(await page.evaluate(() => window.__gpsCalls)).toBe(1);

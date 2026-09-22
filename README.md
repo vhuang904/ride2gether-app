@@ -30,6 +30,10 @@ failed verification, or removal from the live roster revoke access and stop
 the driver order listener. Both `index.html` and the existing `driver.html`
 use this guard. Returning to passenger mode preserves its form, trip tracking,
 timers and map center; the header history button follows the current mode.
+Driver mode aligns its availability controls and order list directly below
+the header instead of distributing unused viewport height between them.
+The trip map stays collapsed while idle (online or paused) and after a trip
+ends; an active trip retains its map even when new-order availability is paused.
 
 The header displays the member name above a secondary verification badge.
 Signed-in Profile & Settings and Ride History use responsive, full-width
