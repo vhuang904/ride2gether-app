@@ -110,7 +110,7 @@ async function loginDriver(page, entry = "/index.html", pin = "654321") {
   await page.goto(entry);
   if (entry === "/index.html") await page.evaluate(() => openProfileModal());
   await page.locator("#prefPhone").fill("09171234567");
-  await page.locator("#btnDriverSignIn").click();
+  if (entry === "/index.html") await page.locator("#btnDriverSignIn").click();
   await page.locator("#driverPin").fill(pin);
   await page.locator("#btnConfirmPin").click();
 }
@@ -127,6 +127,14 @@ test("driver PIN, long-lived reload, locked phone in both modes and online/pause
   await expect(page.locator("#btnDriverAvailability")).toContainText("Online");
   await page.locator("#btnDriverAvailability").click();
   await expect(page.locator("#btnDriverAvailability")).toContainText("Paused");
+  await page.evaluate(() => openProfileModal());
+  await page.getByRole("button", { name: "Ride History", exact: true }).click();
+  await expect(page.locator("#driverOrderHistoryModal")).toBeVisible();
+  await expect(page.locator("#driverOrderHistoryList")).not.toHaveText("Loading order history...");
+  await page.locator("#driverOrderHistoryModal").getByRole("button", { name: "Close history" }).click();
+  await expect(page.locator("#driverView")).toHaveAttribute("inert", "");
+  await page.evaluate(() => closeProfileModal());
+  await expect(page.locator("#driverView")).not.toHaveAttribute("inert", "");
   await page.locator("#btnSwitchMode").click();
   await page.evaluate(() => openProfileModal());
   await expect(page.locator("#prefPhone")).toHaveValue(phone);
@@ -143,8 +151,14 @@ test("passenger and driver account forms and verification widgets use English", 
   for (const entry of ["/index.html", "/driver.html"]) {
     await page.goto(entry);
     if (entry === "/index.html") await page.evaluate(() => openProfileModal());
-    await expect(page.locator("#btnDriverSignIn")).toHaveText("Driver PIN login");
-    await page.locator("#btnDriverSignIn").click();
+    if (entry === "/index.html") {
+      await expect(page.locator("#accountHeading")).toHaveText("Passenger Sign In");
+      await expect(page.locator("#driverPin")).toBeHidden();
+      await expect(page.locator("#btnDriverSignIn")).toHaveText("Registered Driver? Sign in with PIN");
+      await page.locator("#btnDriverSignIn").click();
+    }
+    await expect(page.locator("#accountHeading")).toHaveText("Driver Sign In");
+    await expect(page.locator("#btnSendOtp")).toBeHidden();
     await expect(page.locator("#driverPinFields")).toContainText(
       "Enter the 6-digit driver PIN registered at our office. Contact the operations team to change your PIN.");
     await expect(page.locator("#driverPin")).toHaveAttribute("placeholder", "6-digit driver PIN");
@@ -182,7 +196,7 @@ test("three wrong driver PINs lock for 300 seconds across reload before acceptin
   }
   await expect(page.locator("#btnConfirmPin")).toBeDisabled();
   await page.reload();
-  await page.locator("#btnDriverSignIn").click();
+  await expect(page.locator("#driverPin")).toBeVisible();
   await expect(page.locator("#driverPin")).toBeDisabled();
   h.tick(299_000);
   await page.clock.fastForward(299_000);
@@ -376,3 +390,236 @@ test("Telegram links preserve PIN and online gates and never claim or request GP
   expect(h.requests.filter(r => r.action === "claimOrder")).toHaveLength(1);
   expect(await page.evaluate(() => window.__gpsCalls)).toBe(1);
 });
+
+async function loginPassenger(page) {
+  await page.goto("/index.html");
+  await page.evaluate(() => openProfileModal());
+  await page.locator("#prefPhone").fill("09171234567");
+  await page.locator("#btnSendOtp").click();
+  await page.locator("#otpCode").fill("123456");
+  await page.locator("#btnConfirmOtp").click();
+  await expect(page.locator("#accountLoginControls")).toBeHidden();
+}
+
+test("passenger-first login switches explicitly without resetting OTP limits or revealing driver access", async ({ page, context }) => {
+  const h = await setup(context);
+  await page.goto("/index.html");
+  await page.evaluate(() => openProfileModal());
+  await expect(page.locator("#accountHeading")).toHaveText("Passenger Sign In");
+  await expect(page.locator("#driverPin")).toBeHidden();
+  await expect(page.locator("#prefName")).toBeHidden();
+  await expect(page.locator("#prefHome")).toBeHidden();
+  await expect(page.locator("#driverRegistrationControls")).toBeHidden();
+  await page.locator("#prefPhone").fill("09171234567");
+  await page.locator("#btnSendOtp").click();
+  await expect(page.locator("#otpFields")).toBeVisible();
+  const challenge = await page.evaluate(() => localStorage.getItem("r2g_otp_challenge"));
+  await page.locator("#btnDriverSignIn").click();
+  await expect(page.locator("#accountHeading")).toHaveText("Driver Sign In");
+  await expect(page.locator("#btnSendOtp")).toBeHidden();
+  await expect(page.locator("#otpCode")).toBeHidden();
+  await page.locator("#driverPin").fill("004321");
+  await page.locator("#btnPassengerSignIn").click();
+  await expect(page.locator("#driverPin")).toHaveValue("");
+  await expect(page.locator("#driverPin")).toBeHidden();
+  await expect(page.locator("#btnSendOtp")).toBeDisabled();
+  expect(await page.evaluate(() => localStorage.getItem("r2g_otp_challenge"))).toBe(challenge);
+  expect(h.requests.filter(r => r.action === "otpSend")).toHaveLength(1);
+  expect(h.requests.some(r => r.action === "driverLogin")).toBe(false);
+  await page.evaluate(() => { closeProfileModal(); toggleAppMode(); });
+  await expect(page.locator("#accountHeading")).toHaveText("Driver Sign In");
+  await expect(page.locator("#driverView")).toBeHidden();
+  await page.evaluate(() => { closeProfileModal(); openProfileModal(); });
+  await expect(page.locator("#accountHeading")).toHaveText("Passenger Sign In");
+});
+
+test("pending SMS verification cannot switch forms or issue a PIN request", async ({ page, context }) => {
+  const h = await setup(context);
+  await page.goto("/index.html");
+  await page.evaluate(() => {
+    openProfileModal();
+    firebase.auth.RecaptchaVerifier = class {
+      verify() { return new Promise(resolve => { window.__finishCaptcha = resolve; }); }
+      clear() {}
+    };
+  });
+  await page.locator("#prefPhone").fill("09171234567");
+  await page.locator("#btnSendOtp").click();
+  await expect(page.locator("#btnDriverSignIn")).toBeDisabled();
+  await page.evaluate(() => {
+    accountAuth.setLoginMode("driver");
+    document.getElementById("btnConfirmPin").click();
+    window.__finishCaptcha("captcha");
+  });
+  await expect(page.locator("#otpFields")).toBeVisible();
+  await expect(page.locator("#accountHeading")).toHaveText("Passenger Sign In");
+  expect(h.requests.some(r => r.action === "driverLogin")).toBe(false);
+});
+
+test("profile and history use available width and the header puts the name above verification", async ({ page, context }) => {
+  await setup(context);
+  await loginPassenger(page);
+  await page.evaluate(() => {
+    currentUserProfile.name = "Wei Lun Huang with a longer family name";
+    updateHeaderProfileUI();
+  });
+  await expect(page.locator("#driverRegistrationControls")).toBeHidden();
+  await expect(page.locator("#prefName")).toBeVisible();
+  for (const width of [320, 390, 1280]) {
+    await page.setViewportSize({ width, height: 844 });
+    const bounds = await page.evaluate(() => {
+      const rect = selector => document.querySelector(selector).getBoundingClientRect().toJSON();
+      const grid = document.querySelector(".profile-grid");
+      return { viewport: innerWidth, panel: rect("#profileModal .profile-panel"),
+        name: rect("#headerMemberName"), badge: rect("#identityBadge"),
+        actions: rect(".header-account-actions"),
+        columns: getComputedStyle(grid).gridTemplateColumns.split(" ").length,
+        overflow: grid.scrollWidth > grid.clientWidth };
+    });
+    expect(bounds.name.bottom).toBeLessThanOrEqual(bounds.badge.top + 1);
+    expect(bounds.actions.right).toBeLessThanOrEqual(width);
+    expect(bounds.panel.x).toBeGreaterThanOrEqual(15);
+    expect(bounds.panel.right).toBeLessThanOrEqual(width - 15);
+    expect(bounds.panel.width).toBeGreaterThanOrEqual(width < 640 ? width - 33 : 740);
+    expect(bounds.columns).toBe(width < 640 ? 1 : 2);
+    expect(bounds.overflow).toBe(false);
+  }
+  await page.getByRole("button", { name: "Ride History", exact: true }).click();
+  await expect(page.locator("#orderHistoryModal")).toBeVisible();
+  expect(await page.locator("#orderHistoryModal .profile-panel").evaluate(node => node.getBoundingClientRect().width)).toBeGreaterThan(740);
+  await page.evaluate(() => closeOrderHistoryModal());
+  await expect(page.locator("#passengerView")).toHaveAttribute("inert", "");
+  await page.evaluate(() => closeProfileModal());
+  await expect(page.locator("#passengerView")).not.toHaveAttribute("inert", "");
+});
+
+async function mockProfilePlaces(page, deferred = false) {
+  await page.evaluate(deferred => {
+    window.__autocomplete = {};
+    window.__backgroundMoves = 0;
+    document.body.addEventListener("touchmove", () => window.__backgroundMoves++);
+    document.body.addEventListener("wheel", () => window.__backgroundMoves++);
+    window.google = { maps: {
+      Geocoder: class {}, DirectionsService: class {},
+      Size: class {}, Point: class {},
+      Map: class { setCenter() {} setZoom() {} },
+      Marker: class { setMap() {} addListener() {} },
+      event: { addDomListener: (node, type, callback) => node.addEventListener(type, callback) },
+      places: { Autocomplete: class {
+        constructor(input) {
+          this.listeners = {};
+          window.__autocomplete[input.id] = this;
+          const create = () => {
+            const list = document.createElement("div");
+            list.className = "pac-container pac-logo";
+            list.id = "test-pac-" + input.id;
+            list.style.cssText = "position:absolute;left:900px;top:900px;width:900px;display:none";
+            for (let i = 0; i < 12; i++) {
+              const item = document.createElement("div");
+              item.className = "pac-item";
+              item.textContent = "Davao saved address " + i;
+              item.addEventListener("click", () => {
+                this.listeners.place_changed?.();
+                list.style.display = "none";
+              });
+              list.appendChild(item);
+            }
+            document.body.appendChild(list);
+            if (deferred === true) input.setAttribute("aria-controls", list.id);
+            input.addEventListener("input", () => {
+              if (deferred === "unlinked") {
+                const rect = input.getBoundingClientRect();
+                list.style.left = `${rect.left + scrollX}px`;
+                list.style.top = `${rect.bottom + scrollY}px`;
+                list.style.width = `${rect.width}px`;
+              }
+              list.style.display = "block";
+            });
+          };
+          if (deferred) setTimeout(create, 0);
+          else create();
+        }
+        addListener(event, callback) { this.listeners[event] = callback; }
+        getPlace() { return { name: "Saved Home", formatted_address: "Davao City",
+          geometry: { location: { lat: () => 7.1, lng: () => 125.6 } } }; }
+      } }
+    } };
+    initAutocomplete();
+  }, deferred);
+}
+
+for (const deferred of [false, true, "unlinked"]) {
+  test(`saved-place suggestions stay attached through scrolling and preserve selection (${deferred === "unlinked" ? "deferred without ARIA" : deferred ? "deferred" : "immediate"} Google portal)`, async ({ page, context }) => {
+    await setup(context);
+    await page.setViewportSize({ width: 390, height: 640 });
+    await loginPassenger(page);
+    await mockProfilePlaces(page, deferred);
+    await expect(page.locator("#test-pac-prefHome")).toHaveCount(1);
+    await page.locator("#prefHome").fill("Davao");
+    const list = page.locator('[data-profile-input="prefHome"]');
+    await expect(list).toHaveCount(1);
+    expect(await list.evaluate(node => node.parentElement.contains(document.getElementById("prefHome")))).toBe(true);
+    expect(await page.locator("#test-pac-pickupLoc").evaluate(node => node.parentElement === document.body)).toBe(true);
+    await expect(list).toBeVisible();
+    const assertAnchored = async () => {
+      const bounds = await page.evaluate(() => {
+        const input = document.getElementById("prefHome").getBoundingClientRect();
+        const list = document.querySelector('[data-profile-input="prefHome"]').getBoundingClientRect();
+        return { gap: list.top - input.bottom, left: list.left - input.left, width: list.width - input.width };
+      });
+      expect(Math.abs(bounds.gap - 2)).toBeLessThan(2);
+      expect(Math.abs(bounds.left)).toBeLessThan(2);
+      expect(Math.abs(bounds.width)).toBeLessThan(2);
+    };
+    await assertAnchored();
+    await page.locator("#profileModal .profile-panel").evaluate(node => { node.scrollTop += 60; });
+    await assertAnchored();
+    await page.setViewportSize({ width: 390, height: 440 });
+    await assertAnchored();
+    await list.evaluate(node => {
+      node.style.top = "2000px";
+      node.style.left = "2000px";
+      node.dispatchEvent(new Event("touchmove", { bubbles: true }));
+      node.dispatchEvent(new WheelEvent("wheel", { bubbles: true }));
+    });
+    await assertAnchored();
+    expect(await page.evaluate(() => window.__backgroundMoves)).toBe(0);
+    await expect(page.locator("#passengerView")).toHaveAttribute("inert", "");
+    await page.setViewportSize({ width: 390, height: 844 });
+    await list.scrollIntoViewIfNeeded();
+    const box = await list.boundingBox();
+    const panelScroll = await page.locator("#profileModal .profile-panel").evaluate(node => node.scrollTop);
+    const backgroundScroll = await page.evaluate(() => scrollY);
+    const touch = await context.newCDPSession(page);
+    await touch.send("Emulation.setTouchEmulationEnabled", { enabled: true, maxTouchPoints: 1 });
+    const x = box.x + box.width / 2, y = box.y + box.height - 20;
+    await touch.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x, y }] });
+    for (let step = 1; step <= 8; step++) {
+      await touch.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x, y: y - step * 18 }] });
+    }
+    await touch.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+    await expect.poll(() => list.evaluate(node => node.scrollTop)).toBeGreaterThan(40);
+    expect(await page.locator("#profileModal .profile-panel").evaluate(node => node.scrollTop)).toBe(panelScroll);
+    expect(await page.evaluate(() => scrollY)).toBe(backgroundScroll);
+    expect(await page.evaluate(() => window.__backgroundMoves)).toBe(0);
+    await touch.detach();
+    await list.locator(".pac-item").first().click();
+    await expect(page.locator("#pickerMapModal")).toBeVisible();
+    await expect(list).toBeHidden();
+    await expect.poll(() => page.evaluate(() => temporaryPickerPos)).toEqual({ lat: 7.1, lng: 125.6 });
+    await page.evaluate(() => confirmPickerLocation());
+    expect(await page.evaluate(() => currentUserProfile.home)).toEqual({
+      address: "Saved Home, Davao City", lat: 7.1, lng: 125.6
+    });
+    await expect(page.locator("#passengerView")).toHaveAttribute("inert", "");
+    await page.evaluate(() => openAddPlaceForm());
+    const custom = page.locator('[data-profile-input="newPlaceAddress"]');
+    await page.locator("#newPlaceAddress").fill("Office");
+    await expect(custom).toBeVisible();
+    expect(await custom.evaluate(node => node.parentElement.contains(document.getElementById("newPlaceAddress")))).toBe(true);
+    await page.evaluate(() => closeProfileModal());
+    await expect(custom).toBeHidden();
+    await expect(page.locator("#passengerView")).not.toHaveAttribute("inert", "");
+    await expect(page.locator("html")).not.toHaveClass(/profile-overlay-open/);
+  });
+}

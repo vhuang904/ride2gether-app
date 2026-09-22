@@ -155,6 +155,7 @@
   function toggleAppMode() {
     if (!isCurrentDriverAuthorized()) {
       console.warn("Unauthorized access: Not a registered fleet driver.");
+      if (typeof openProfileModal === "function") openProfileModal("driver");
       return;
     }
     setAppMode(document.body.dataset.appMode !== "driver");

@@ -592,7 +592,7 @@ function initAutocomplete() {
     const prefHomeInput = document.getElementById("prefHome");
     if (prefHomeInput && window.google && window.google.maps && window.google.maps.places) {
       try {
-        const homeAuto = new google.maps.places.Autocomplete(prefHomeInput, options);
+        const homeAuto = createProfileAutocomplete(prefHomeInput, options);
         homeAuto.addListener("place_changed", () => {
           const place = homeAuto.getPlace();
           if (place && place.geometry && place.geometry.location) {
@@ -611,7 +611,7 @@ function initAutocomplete() {
     const newPlaceAddressInput = document.getElementById("newPlaceAddress");
     if (newPlaceAddressInput && window.google && window.google.maps && window.google.maps.places) {
       try {
-        const customAuto = new google.maps.places.Autocomplete(newPlaceAddressInput, options);
+        const customAuto = createProfileAutocomplete(newPlaceAddressInput, options);
         customAuto.addListener("place_changed", () => {
           const place = customAuto.getPlace();
           if (place && place.geometry && place.geometry.location) {

@@ -22,25 +22,29 @@
     return /^\+[1-9]\d{7,14}$/.test(phone) ? phone : "";
   };
   const controls = get("accountControls");
+  const driverEntry = controls?.dataset.loginMode === "driver";
+  let loginMode = driverEntry ? "driver" : "passenger";
   if (controls) controls.innerHTML = `
     <div id="accountLoginControls" class="space-y-3">
-      <div class="flex gap-2">
-        <button id="btnSendOtp" type="button" class="rounded-xl bg-blue-600 px-3 py-2 text-xs font-bold text-white disabled:opacity-50">Send verification code</button>
-        <button id="btnDriverSignIn" type="button" class="rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-blue-600">Driver PIN login</button>
-      </div>
       <div id="driverPinFields" class="hidden flex flex-wrap gap-2">
         <p class="w-full text-xs text-slate-600">Enter the 6-digit driver PIN registered at our office. Contact the operations team to change your PIN.</p>
         <input id="driverPin" type="password" inputmode="numeric" maxlength="6" autocomplete="current-password" aria-label="Driver PIN" placeholder="6-digit driver PIN" class="min-w-0 flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-base">
         <button id="btnConfirmPin" type="button" class="rounded-xl bg-blue-600 px-3 py-2 text-xs font-bold text-white disabled:opacity-50">Sign in</button>
+        <p id="driverPinCountdown" class="w-full text-xs text-slate-600"></p>
       </div>
-      <div id="otpFields" class="hidden space-y-2">
-        <div class="flex gap-2">
-          <input id="otpCode" type="text" inputmode="numeric" maxlength="6" autocomplete="one-time-code" aria-label="Verification code" placeholder="6-digit code" class="min-w-0 flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-base">
-          <button id="btnConfirmOtp" type="button" class="rounded-xl bg-blue-600 px-3 py-2 text-xs font-bold text-white disabled:opacity-50">Verify</button>
+      <div id="passengerSignInFields" class="space-y-3">
+        <button id="btnSendOtp" type="button" class="w-full rounded-xl bg-blue-600 px-3 py-2 text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-50">Send verification code</button>
+        <div id="otpFields" class="hidden space-y-2">
+          <div class="flex gap-2">
+            <input id="otpCode" type="text" inputmode="numeric" maxlength="6" autocomplete="one-time-code" aria-label="Verification code" placeholder="6-digit code" class="min-w-0 flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-base">
+            <button id="btnConfirmOtp" type="button" class="rounded-xl bg-blue-600 px-3 py-2 text-xs font-bold text-white disabled:opacity-50">Verify</button>
+          </div>
+          <p id="otpCountdown" class="text-xs text-slate-600"></p>
         </div>
-        <p id="otpCountdown" class="text-xs text-slate-600"></p>
+        <div id="authCaptcha"></div>
       </div>
-      <div id="authCaptcha"></div>
+      <button id="btnDriverSignIn" type="button" class="w-full rounded-xl px-2 py-2 text-sm font-medium text-blue-600 hover:text-blue-700 disabled:opacity-50">Registered Driver? Sign in with PIN</button>
+      <button id="btnPassengerSignIn" type="button" class="hidden w-full rounded-xl px-2 py-2 text-sm font-medium text-blue-600 hover:text-blue-700 disabled:opacity-50">Passenger? Sign in with SMS</button>
     </div>
     <p id="phoneBindingNotice" class="hidden text-xs text-slate-600"></p>
     <button id="btnChangePhone" type="button" class="hidden rounded-xl px-2 py-1 text-xs font-semibold text-blue-600">Change phone number</button>
@@ -111,6 +115,19 @@
       phone.disabled = !session && (busy || locked || Boolean(challenge?.challengeId && challenge.expiresAt > clock()));
     }
     get("accountLoginControls")?.classList.toggle("hidden", Boolean(session));
+    get("driverPinFields")?.classList.toggle("hidden", loginMode !== "driver");
+    get("passengerSignInFields")?.classList.toggle("hidden", loginMode !== "passenger");
+    get("btnDriverSignIn")?.classList.toggle("hidden", loginMode !== "passenger");
+    get("btnPassengerSignIn")?.classList.toggle("hidden", loginMode !== "driver" || driverEntry);
+    for (const id of ["btnDriverSignIn", "btnPassengerSignIn"]) if (get(id)) get(id).disabled = busy;
+    if (get("accountHeading")) get("accountHeading").textContent = session ? "Profile & Settings"
+      : loginMode === "driver" ? "Driver Sign In" : "Passenger Sign In";
+    if (get("accountDescription")) get("accountDescription").textContent = session ? "Manage your profile and saved places."
+      : loginMode === "driver" ? "For drivers approved in person by our operations team."
+        : "Verify your mobile number with a code sent by SMS.";
+    if (get("profileModal")) get("profileModal").dataset.signedIn = String(Boolean(session));
+    document.querySelectorAll("[data-profile-settings]").forEach(node => node.classList.toggle("hidden", !session));
+    get("driverRegistrationControls")?.classList.toggle("hidden", session ? session.role !== "driver" : loginMode !== "driver");
     get("btnChangePhone")?.classList.toggle("hidden", !session || session.role === "driver");
     const binding = get("phoneBindingNotice");
     if (binding) {
@@ -121,6 +138,7 @@
     }
     const badge = get("identityBadge");
     if (badge) badge.textContent = session ? "Phone verified" : "Guest";
+    if (get("identityIndicator")) get("identityIndicator").classList.toggle("is-verified", Boolean(session));
     const resend = Math.ceil(Math.max(0, (challenge?.resendAt || 0) - clock()) / 1000);
     const cooldown = Math.ceil(Math.max(0, lockedUntil - clock()) / 1000);
     const expiry = Math.ceil(Math.max(0, (challenge?.expiresAt || 0) - clock()) / 1000);
@@ -134,6 +152,7 @@
     if (get("btnConfirmOtp")) get("btnConfirmOtp").disabled = busy || locked || expiry === 0 || challenge?.active === false;
     if (get("driverPin")) get("driverPin").disabled = busy || locked;
     if (get("btnConfirmPin")) get("btnConfirmPin").disabled = busy || locked;
+    if (get("driverPinCountdown")) get("driverPinCountdown").textContent = locked ? `Try again in ${cooldown}s.` : "";
     if (get("otpCountdown")) get("otpCountdown").textContent = locked ? `Try again in ${cooldown}s.`
       : expiry ? `Code expires in ${expiry}s.` : "Code expired. Request a new code.";
     const availability = get("btnDriverAvailability");
@@ -142,6 +161,13 @@
       availability.textContent = online ? "🟢 Online — listening" : "🚫 Paused — not accepting";
       availability.setAttribute("aria-pressed", String(online));
     }
+  }
+  function setLoginMode(mode) {
+    if (session || busy) return;
+    loginMode = mode === "driver" || driverEntry ? "driver" : "passenger";
+    if (get("driverPin")) get("driverPin").value = "";
+    notice("");
+    render();
   }
   function applySession(value) {
     session = value ? Object.freeze(value) : null;
@@ -204,7 +230,7 @@
     } finally { busy = false; render(); }
   }
   async function sendOtp() {
-    if (get("btnSendOtp")?.disabled) return;
+    if (session || loginMode !== "passenger" || get("btnSendOtp")?.disabled) return;
     const phone = normalize(get("prefPhone")?.value);
     if (!phone) { notice("Enter a valid phone number.", true); return; }
     mergeChallenge({ phone, resendAt: clock() + 60_000 });
@@ -226,7 +252,7 @@
     });
   }
   async function confirmOtp() {
-    if (get("btnConfirmOtp")?.disabled) return;
+    if (session || loginMode !== "passenger" || get("btnConfirmOtp")?.disabled) return;
     await perform(async () => {
       try {
         await signIn(await api("otpConfirm", { challengeId: challenge?.challengeId, code: get("otpCode").value.trim() }, true));
@@ -244,7 +270,7 @@
     });
   }
   async function loginDriver() {
-    if (get("btnConfirmPin")?.disabled) return;
+    if (session || loginMode !== "driver" || get("btnConfirmPin")?.disabled) return;
     await perform(async () => {
       try {
         const result = await api("driverLogin", { phone: normalize(get("prefPhone").value), pin: get("driverPin").value }, true);
@@ -294,11 +320,11 @@
   }
   window.accountAuth = {
     api, getSession: () => session, isDriver: () => session?.role === "driver", isOnline: () => online, serverTime: clock,
-    syncPhone: render, changePhone, setOnline, notifyDispatch,
+    syncPhone: render, setLoginMode, changePhone, setOnline, notifyDispatch,
     requireSession() {
       if (!session) {
         if (typeof openProfileModal === "function") openProfileModal();
-        throw new Error("Verify your phone or sign in with your driver PIN first.");
+        throw new Error("Verify your phone to continue.");
       }
       return session;
     }
@@ -306,7 +332,8 @@
   get("btnSendOtp")?.addEventListener("click", sendOtp);
   get("btnConfirmOtp")?.addEventListener("click", confirmOtp);
   get("btnConfirmPin")?.addEventListener("click", loginDriver);
-  get("btnDriverSignIn")?.addEventListener("click", () => get("driverPinFields").classList.toggle("hidden"));
+  get("btnDriverSignIn")?.addEventListener("click", () => setLoginMode("driver"));
+  get("btnPassengerSignIn")?.addEventListener("click", () => setLoginMode("passenger"));
   get("btnChangePhone")?.addEventListener("click", changePhone);
   get("btnDriverAvailability")?.addEventListener("click", setOnline);
   window.addEventListener("vipprofilechange", render);

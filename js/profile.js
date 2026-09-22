@@ -1,5 +1,6 @@
 // --- 3. VIP 會員與自訂常用地點核心 ---
-function openProfileModal() {
+function openProfileModal(loginMode = 'passenger') {
+  window.accountAuth?.setLoginMode(loginMode);
   const modal = document.getElementById('profileModal');
   if (modal) modal.classList.remove('hidden');
 }
@@ -8,6 +9,103 @@ function closeProfileModal() {
   const modal = document.getElementById('profileModal');
   if (modal) modal.classList.add('hidden');
 }
+
+function initializeProfileOverlays() {
+  const modals = ['profileModal', 'pickerMapModal', 'orderHistoryModal', 'driverOrderHistoryModal']
+    .map(id => document.getElementById(id)).filter(Boolean);
+  if (!modals.length) return;
+  const background = [document.querySelector('body > header'),
+    document.getElementById('passengerView'), document.getElementById('driverView')].filter(Boolean);
+  const inertBeforeOpen = new Map();
+  const update = () => {
+    const visible = modals.filter(modal => !modal.classList.contains('hidden') && getComputedStyle(modal).display !== 'none');
+    const open = visible.length > 0;
+    document.documentElement.classList.toggle('profile-overlay-open', open);
+    background.forEach(node => {
+      if (open) {
+        if (!inertBeforeOpen.has(node)) inertBeforeOpen.set(node, node.inert);
+        node.inert = true;
+      } else if (inertBeforeOpen.has(node)) {
+        node.inert = inertBeforeOpen.get(node);
+        inertBeforeOpen.delete(node);
+      }
+    });
+    if (document.getElementById('profileModal').classList.contains('hidden')
+        || visible.some(modal => modal.id !== 'profileModal')) {
+      document.querySelectorAll('.profile-places-suggestions').forEach(node => node.classList.add('profile-suggestions-hidden'));
+    }
+  };
+  const observer = new MutationObserver(update);
+  observer.observe(document.body, { attributes: true, attributeFilter: ['data-app-mode'] });
+  modals.forEach(modal => {
+    observer.observe(modal, { attributes: true, attributeFilter: ['class'] });
+    modal.addEventListener('touchmove', event => {
+      event.stopPropagation();
+      if (event.target === modal) event.preventDefault();
+    }, { passive: false });
+    modal.addEventListener('wheel', event => {
+      event.stopPropagation();
+      if (event.target === modal) event.preventDefault();
+    }, { passive: false });
+  });
+  const resize = () => {
+    const viewport = window.visualViewport;
+    document.documentElement.style.setProperty('--profile-viewport-height', `${viewport?.height || window.innerHeight}px`);
+    document.documentElement.style.setProperty('--profile-viewport-top', `${viewport?.offsetTop || 0}px`);
+  };
+  window.visualViewport?.addEventListener('resize', resize);
+  window.visualViewport?.addEventListener('scroll', resize);
+  window.addEventListener('resize', resize);
+  resize();
+  update();
+}
+
+function createProfileAutocomplete(input, options) {
+  const existing = new Set(document.querySelectorAll('.pac-container'));
+  let suggestions = null;
+  const attach = (duringConstruction = false) => {
+    const ownedIds = `${input.getAttribute('aria-controls') || ''} ${input.getAttribute('aria-owns') || ''}`.trim().split(/\s+/);
+    const linked = ownedIds.map(id => document.getElementById(id)).find(node => node?.classList.contains('pac-container'));
+    const added = [...document.querySelectorAll('.pac-container')].filter(node => !existing.has(node) && !node.dataset.profileInput);
+    const inputRect = input.getBoundingClientRect();
+    const aligned = document.activeElement === input ? added.filter(node => {
+      const rect = node.getBoundingClientRect();
+      return rect.height > 0 && Math.abs(rect.left - inputRect.left) < 2
+        && Math.abs(rect.width - inputRect.width) <= 2 && Math.abs(rect.top - inputRect.bottom) < 12;
+    }) : [];
+    // An unrelated autocomplete can also create a portal later; a new node alone is not ownership.
+    const container = linked || (duringConstruction && added.length === 1 ? added[0]
+      : aligned.length === 1 ? aligned[0] : null);
+    if (!container || (container.dataset.profileInput && container.dataset.profileInput !== input.id)) return;
+    suggestions = container;
+    observer.disconnect();
+    container.dataset.profileInput = input.id;
+    container.classList.add('profile-places-suggestions');
+    // Keep Google's own list/items and attribution, but anchor its portal to the scrolling input.
+    input.parentElement.appendChild(container);
+    container.addEventListener('touchmove', event => event.stopPropagation(), { passive: true });
+    container.addEventListener('wheel', event => event.stopPropagation(), { passive: true });
+  };
+  const observer = new MutationObserver(() => attach());
+  observer.observe(document.body, { childList: true, subtree: true, attributes: true,
+    attributeFilter: ['style', 'aria-controls', 'aria-owns'] });
+  observer.observe(input, { attributes: true, attributeFilter: ['aria-controls', 'aria-owns'] });
+  let autocomplete;
+  try {
+    autocomplete = new google.maps.places.Autocomplete(input, options);
+    attach(true);
+  } catch (error) {
+    observer.disconnect();
+    throw error;
+  }
+  for (const event of ['focus', 'input']) input.addEventListener(event, () => {
+    if (!suggestions) attach();
+    suggestions?.classList.remove('profile-suggestions-hidden');
+  });
+  return autocomplete;
+}
+
+initializeProfileOverlays();
 
 let currentUserProfile = {
   name: "VIP Guest",

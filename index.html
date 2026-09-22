@@ -35,7 +35,7 @@
 <body class="bg-[#0F172A] min-h-screen flex flex-col justify-between selection:bg-royal selection:text-white">
 
   <!-- Header: 頂部導航欄 (純英文、VIP 會員頭像中心) -->
-  <header class="sticky top-0 z-40 glass-nav border-b border-slate-200/80 px-5 py-3 flex flex-wrap gap-y-2 items-center justify-between shadow-sm">
+  <header class="app-header sticky top-0 z-40 glass-nav border-b border-slate-200/80 px-5 py-3 flex flex-wrap gap-y-2 items-center justify-between shadow-sm">
     <div class="flex flex-col items-start">
       <div class="flex items-center space-x-1.5">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 80" class="w-8 h-8 flex-shrink-0 drop-shadow-md -mt-1" fill="none">
@@ -57,24 +57,24 @@
     </div>
     
     <!-- VIP Profile Button -->
-    <div class="flex items-center space-x-2.5">
+    <div class="header-account-actions">
       <button type="button" id="btnSwitchMode" onclick="toggleAppMode()" aria-controls="passengerView driverView" aria-pressed="false"
               class="hidden items-center space-x-1 px-3 py-1.5 rounded-full bg-slate-50 border border-slate-200 text-slate-700 hover:border-royal hover:text-royal text-[11px] font-bold tracking-wider uppercase shadow-sm active:scale-95 transition">
         <span id="switchModeIcon">🚘</span>
         <span id="switchModeText">Driver Mode</span>
       </button>
       <button type="button" onclick="openAppOrderHistory()" aria-label="Order History" title="Order History"
-              class="w-9 h-9 rounded-full bg-slate-50 border border-slate-200 text-slate-600 flex items-center justify-center shadow-sm active:scale-95 transition">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="w-4.5 h-4.5 stroke-current fill-none stroke-[1.8]"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+              class="header-history-button rounded-xl bg-slate-50 border border-slate-200 text-slate-600 flex items-center justify-center shadow-sm active:scale-95 transition">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="w-5 h-5 stroke-current fill-none stroke-[1.8]"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
       </button>
-      <div class="flex flex-col items-end">
+      <div class="header-identity">
+        <span id="headerMemberName" class="font-bold text-slate-900">VIP Guest</span>
         <div class="flex items-center space-x-1.5">
-          <span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.6)]"></span>
-          <span id="identityBadge" class="text-[10px] text-slate-500 font-semibold tracking-wider uppercase">Guest</span>
+          <span id="identityIndicator" class="identity-indicator" aria-hidden="true"></span>
+          <span id="identityBadge" class="text-xs text-slate-600 font-medium">Guest</span>
         </div>
-        <span id="headerMemberName" class="text-xs font-bold text-navy-900 leading-tight">Vincent</span>
       </div>
-      <button type="button" onclick="openProfileModal()" class="w-9 h-9 rounded-full bg-royal-soft border border-royal/30 text-royal font-bold text-xs flex items-center justify-center shadow-sm active:scale-95 transition">
+      <button type="button" onclick="openProfileModal()" aria-label="Profile and sign in" class="header-profile-button rounded-xl bg-blue-50 border border-slate-200 text-blue-600 font-bold text-sm flex items-center justify-center shadow-sm active:scale-95 transition">
         <span id="memberAvatarText">V</span>
       </button>
     </div>
@@ -452,28 +452,29 @@
   </main>
 
   <!-- VIP 會員資料彈窗 (Profile Modal) -->
-  <div id="profileModal" class="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4 hidden">
-    <div class="bg-white w-full max-w-sm rounded-3xl p-5 shadow-2xl border border-slate-100 space-y-4 max-h-[90vh] overflow-y-auto">
+  <div id="profileModal" role="dialog" aria-modal="true" aria-labelledby="accountHeading" data-signed-in="false" class="profile-overlay bg-slate-950/70 backdrop-blur-sm hidden">
+    <div class="profile-panel bg-white rounded-2xl shadow-sm border border-slate-100 space-y-4">
       <div class="flex items-center justify-between border-b border-slate-100 pb-3">
         <div class="flex items-center space-x-2">
           <div class="w-9 h-9 rounded-full bg-royal-soft text-royal font-bold flex items-center justify-center">
             👑
           </div>
           <div>
-            <h3 class="font-bold text-sm text-navy-900">VIP Member Center</h3>
-            <p class="text-[10px] text-slate-400">Manage profile & saved places</p>
+            <h3 id="accountHeading" class="font-bold text-lg text-slate-900">Passenger Sign In</h3>
+            <p id="accountDescription" class="text-sm text-slate-600">Verify your mobile number with a code sent by SMS.</p>
           </div>
         </div>
-        <button type="button" onclick="closeProfileModal()" class="text-slate-400 hover:text-slate-600 text-lg font-bold p-1">✕</button>
+        <button type="button" onclick="closeProfileModal()" aria-label="Close profile" class="profile-close text-slate-600 hover:text-blue-700 text-lg font-bold">✕</button>
       </div>
 
-      <div class="space-y-3 text-xs">
-        <div>
-          <label class="text-[11px] text-navy-800 font-semibold block mb-1">Guest Name</label>
-          <input type="text" id="prefName" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-navy-900 font-medium focus:border-royal focus:outline-none">
+      <div class="profile-grid">
+      <div class="profile-details space-y-4">
+        <div data-profile-settings class="hidden">
+          <label for="prefName" class="text-sm text-slate-900 font-semibold block mb-1">Guest Name</label>
+          <input type="text" id="prefName" autocomplete="name" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-base text-slate-900 font-medium focus:border-blue-600 focus:outline-none">
         </div>
         <!-- 稱謂選擇 (決定地圖上車圖釘造型：預設 Mr. 男客) -->
-        <div>
+        <div data-profile-settings class="hidden">
           <label class="text-[11px] text-navy-800 font-semibold block mb-1">Title / Honorific</label>
           <div class="grid grid-cols-2 gap-2">
             <button type="button" id="titleBtnMale" onclick="setGuestTitle('male')" 
@@ -489,30 +490,34 @@
           </div>
         </div>
         <div>
-          <label for="prefPhone" class="text-[11px] text-navy-800 font-semibold block mb-1">Mobile Phone</label>
-          <input type="tel" id="prefPhone" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm font-mono text-navy-900 focus:border-royal focus:outline-none">
+          <label for="prefPhone" class="text-sm text-slate-900 font-semibold block mb-1">Mobile Phone</label>
+          <input type="tel" id="prefPhone" autocomplete="tel" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-base text-slate-900 focus:border-blue-600 focus:outline-none">
           <div id="accountControls" class="mt-3 space-y-3"></div>
+          <div id="driverRegistrationControls" class="hidden">
           <p id="driverAccessStatus" role="status" class="mt-2 text-xs text-slate-600">Checking fleet registration...</p>
           <button type="button" onclick="checkDriverWhitelist()" class="mt-1 rounded-xl px-2 py-1 text-xs font-semibold text-blue-600 transition hover:text-blue-700 active:scale-95">Check fleet registration</button>
+          </div>
         </div>
+      </div>
 
-        <div class="pt-2 border-t border-slate-100 space-y-1.5">
+      <div data-profile-settings class="profile-places hidden space-y-4">
+        <div class="space-y-2">
           <div class="flex justify-between items-center">
-            <label class="text-[11px] text-navy-800 font-bold uppercase tracking-wider">🏠 Saved Home</label>
+            <label for="prefHome" class="text-sm text-slate-900 font-semibold">🏠 Saved Home</label>
             <button type="button" onclick="useCurrentGpsForHome()" 
                     class="px-2.5 py-1 rounded-full bg-blue-50 hover:bg-blue-100 text-royal font-bold text-[11px] border border-blue-200 flex items-center space-x-1 active:scale-95 transition shadow-sm">
               <span>📍 Use Current GPS</span>
             </button>
           </div>
-          <div class="relative flex items-center">
+          <div class="profile-address-field relative flex items-center">
             <input type="text" id="prefHome" placeholder="Search village, condo, or street..." 
-                   class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-3 pr-16 py-2.5 text-xs text-navy-900 focus:border-royal focus:bg-white focus:outline-none transition">
+                   class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-3 pr-16 py-2.5 text-base text-slate-900 focus:border-blue-600 focus:bg-white focus:outline-none transition">
             <button type="button" onclick="openPickerFor('home')" 
-                    class="absolute right-1.5 px-2 py-1 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-[10px] font-semibold flex items-center space-x-1 active:scale-95 transition shadow-sm">
+                    class="absolute right-1.5 px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold flex items-center space-x-1 active:scale-95 transition shadow-sm">
               <span>🗺️ Pin</span>
             </button>
           </div>
-          <p class="text-[10px] text-slate-400">Tip: Click GPS if you're home, or type to search & adjust on map.</p>
+          <p class="text-xs text-slate-600">Use GPS if you're home, or search and adjust the pin on the map.</p>
         </div>
 
         <div class="pt-2 border-t border-slate-100 space-y-2">
@@ -524,9 +529,9 @@
           </div>
 
           <div id="addPlaceBox" class="hidden bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2">
-            <input type="text" id="newPlaceLabel" placeholder="Label name (e.g. Office, Conrado's)" class="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-navy-900 focus:outline-none focus:border-royal">
-            <div class="relative">
-              <input type="text" id="newPlaceAddress" placeholder="Search location..." class="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-navy-900 focus:outline-none focus:border-royal">
+            <input type="text" id="newPlaceLabel" aria-label="Place label" placeholder="Label name (e.g. Office, Conrado's)" class="w-full bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 text-base text-slate-900 focus:outline-none focus:border-blue-600">
+            <div class="profile-address-field relative">
+              <input type="text" id="newPlaceAddress" aria-label="Saved place address" placeholder="Search location..." class="w-full bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 text-base text-slate-900 focus:outline-none focus:border-blue-600">
             </div>
             <div class="flex space-x-2 pt-1">
               <button type="button" onclick="confirmSaveNewPlace()" class="flex-1 py-1.5 bg-royal text-white rounded-lg text-xs font-bold hover:bg-blue-700">Save</button>
@@ -537,22 +542,28 @@
           <div id="customPlacesList" class="space-y-1.5 max-h-36 overflow-y-auto"></div>
         </div>
       </div>
+      </div>
 
-      <button type="button" onclick="saveProfile()" class="w-full py-3 rounded-xl bg-navy-900 hover:bg-royal text-white font-bold text-xs tracking-wider transition shadow-md">
+      <div data-profile-settings class="profile-actions hidden">
+      <button type="button" onclick="openAppOrderHistory()" class="w-full py-3 rounded-xl border border-slate-200 bg-slate-50 text-blue-600 hover:text-blue-700 font-semibold text-sm">
+        Ride History
+      </button>
+      <button type="button" onclick="saveProfile()" class="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm transition shadow-sm">
         SAVE VIP PREFERENCES
       </button>
+      </div>
     </div>
   </div>
 
   <!-- 歷史訂單紀錄 (Order History Drawer) -->
-  <div id="orderHistoryModal" class="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4 hidden">
-    <div class="bg-white w-full max-w-sm rounded-3xl p-5 shadow-2xl border border-slate-100 space-y-3 max-h-[85vh] flex flex-col">
+  <div id="orderHistoryModal" role="dialog" aria-modal="true" aria-labelledby="orderHistoryHeading" class="profile-overlay bg-slate-950/70 backdrop-blur-sm hidden">
+    <div class="profile-panel history-panel bg-white rounded-2xl shadow-sm border border-slate-100 space-y-3 flex flex-col">
       <div class="flex items-center justify-between border-b border-slate-100 pb-3 flex-shrink-0">
         <div>
-          <h3 class="font-bold text-sm text-navy-900">Order History</h3>
+          <h3 id="orderHistoryHeading" class="font-bold text-lg text-slate-900">Ride History</h3>
           <p class="text-[10px] text-slate-400">Your past trips & deliveries</p>
         </div>
-        <button type="button" onclick="closeOrderHistoryModal()" class="text-slate-400 hover:text-slate-600 text-lg font-bold p-1">✕</button>
+        <button type="button" onclick="closeOrderHistoryModal()" aria-label="Close history" class="profile-close text-slate-600 hover:text-blue-700 text-lg font-bold">✕</button>
       </div>
       <div id="orderHistoryList" class="space-y-2 overflow-y-auto flex-1">
         <p class="text-center text-xs text-slate-400 py-6">Loading order history...</p>
@@ -561,7 +572,7 @@
   </div>
 
   <!-- 會員中心專屬微調地圖彈窗 -->
-  <div id="pickerMapModal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex flex-col items-center justify-center p-4 hidden">
+  <div id="pickerMapModal" class="profile-overlay bg-slate-950/80 backdrop-blur-md hidden">
     <div class="bg-white w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl border border-slate-700 flex flex-col h-[520px]">
       <div class="p-3 bg-slate-900 text-white flex items-center justify-between">
         <div>
@@ -764,14 +775,14 @@
     </div>
   </template>
 
-  <div id="driverOrderHistoryModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-950/70 backdrop-blur-sm p-4">
-    <div class="flex max-h-[85vh] w-full max-w-sm flex-col space-y-3 rounded-3xl border border-slate-100 bg-white p-5 shadow-2xl">
+  <div id="driverOrderHistoryModal" role="dialog" aria-modal="true" aria-labelledby="driverHistoryHeading" class="profile-overlay hidden bg-slate-950/70 backdrop-blur-sm">
+    <div class="profile-panel history-panel flex flex-col space-y-3 rounded-2xl border border-slate-100 bg-white shadow-sm">
       <div class="flex flex-shrink-0 items-center justify-between border-b border-slate-100 pb-3">
         <div>
-          <h3 class="text-sm font-bold text-slate-900">Order History</h3>
+          <h3 id="driverHistoryHeading" class="text-lg font-bold text-slate-900">Ride History</h3>
           <p class="text-[10px] text-slate-400">Your completed & cancelled trips</p>
         </div>
-        <button type="button" onclick="closeDriverOrderHistory()" class="p-1 text-lg font-bold text-slate-400 hover:text-slate-600">✕</button>
+        <button type="button" onclick="closeDriverOrderHistory()" aria-label="Close history" class="profile-close text-lg font-bold text-slate-600 hover:text-blue-700">✕</button>
       </div>
       <div id="driverOrderHistoryList" class="flex-1 space-y-2 overflow-y-auto">
         <p class="py-6 text-center text-xs text-slate-400">Loading order history...</p>

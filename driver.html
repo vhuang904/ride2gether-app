@@ -44,11 +44,13 @@
   </header>
 
   <div id="driverAccessPanel" class="mx-auto max-w-3xl space-y-3 px-4 py-6 text-sm text-slate-600">
+    <h2 id="accountHeading" class="text-xl font-bold text-slate-900">Driver Sign In</h2>
+    <p id="accountDescription">For drivers approved in person by our operations team.</p>
     <p id="driverAccessStatus" role="status">Checking driver access...</p>
     <label for="prefPhone" class="block text-xs font-semibold">Registered phone number</label>
     <input id="prefPhone" type="tel" autocomplete="tel" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-base">
-    <div id="accountControls" class="space-y-3"></div>
-    <a href="index.html" class="font-semibold text-blue-600 hover:text-blue-700">Return to VIP profile</a>
+    <div id="accountControls" data-login-mode="driver" class="space-y-3"></div>
+    <a href="index.html" class="inline-block py-3 font-semibold text-blue-600 hover:text-blue-700">Return to passenger mode</a>
   </div>
 
   <main id="driverView" class="hidden mx-auto w-full max-w-3xl space-y-5 px-4 py-6 sm:px-6">
@@ -122,14 +124,14 @@
   </main>
 
   <!-- 司機端歷史訂單紀錄 (Order History Drawer) -->
-  <div id="driverOrderHistoryModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-950/70 backdrop-blur-sm p-4">
-    <div class="flex max-h-[85vh] w-full max-w-sm flex-col space-y-3 rounded-3xl border border-slate-100 bg-white p-5 shadow-2xl">
+  <div id="driverOrderHistoryModal" role="dialog" aria-modal="true" aria-labelledby="driverHistoryHeading" class="profile-overlay hidden bg-slate-950/70 backdrop-blur-sm">
+    <div class="profile-panel history-panel flex flex-col space-y-3 rounded-2xl border border-slate-100 bg-white shadow-sm">
       <div class="flex flex-shrink-0 items-center justify-between border-b border-slate-100 pb-3">
         <div>
-          <h3 class="text-sm font-bold text-slate-900">Order History</h3>
+          <h3 id="driverHistoryHeading" class="text-lg font-bold text-slate-900">Ride History</h3>
           <p class="text-[10px] text-slate-400">Your completed & cancelled trips</p>
         </div>
-        <button type="button" onclick="closeDriverOrderHistory()" class="p-1 text-lg font-bold text-slate-400 hover:text-slate-600">✕</button>
+        <button type="button" onclick="closeDriverOrderHistory()" aria-label="Close history" class="profile-close text-lg font-bold text-slate-600 hover:text-blue-700">✕</button>
       </div>
       <div id="driverOrderHistoryList" class="flex-1 space-y-2 overflow-y-auto">
         <p class="py-6 text-center text-xs text-slate-400">Loading order history...</p>

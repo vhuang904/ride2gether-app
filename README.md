@@ -6,9 +6,12 @@
 this frontend to production before completing
 the backend, rules, PIN provisioning and GAS compatibility checks below.**
 
-`index.html` starts in passenger mode. Registered drivers sign in in the
-VIP profile using their registered phone and six-digit driver PIN; the same
-form is available on `driver.html`. There is no driver self-registration or
+`index.html` starts in passenger mode. Its account dialog defaults to
+**Passenger Sign In**, with phone/SMS verification only. Registered drivers
+choose **Registered Driver? Sign in with PIN** for the separate phone/PIN
+form. `driver.html`, including Telegram claim links, opens **Driver Sign In**
+directly. Switching forms preserves pending OTP deadlines and cooldowns.
+There is no driver self-registration or
 online document/KYC application. Drivers_Master remains the sole approval
 list. During in-person approval, operations records the driver's chosen PIN
 in `Drivers_Master.Driver_PIN`. The authenticated sync prepares salted scrypt
@@ -27,6 +30,14 @@ failed verification, or removal from the live roster revoke access and stop
 the driver order listener. Both `index.html` and the existing `driver.html`
 use this guard. Returning to passenger mode preserves its form, trip tracking,
 timers and map center; the header history button follows the current mode.
+
+The header displays the member name above a secondary verification badge.
+Signed-in Profile & Settings and Ride History use responsive, full-width
+panels; profile fields and saved places share two columns on wider screens.
+Profile, history and saved-address map overlays isolate background interaction
+without changing the trip map's gesture settings. Saved Home/custom-place
+suggestions are anchored inside their input wrappers and scroll natively
+without passing touch/wheel events to the background map.
 
 Firebase Auth LOCAL persistence restores sign-in after closing the browser.
 `r2g_bound_identity` in localStorage is a display cache, never an authorization

@@ -59,6 +59,104 @@
       filter: invert(1) hue-rotate(180deg) !important;
     }
 
+    .header-account-actions {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 44px 44px;
+      gap: 8px 12px;
+      align-items: center;
+      width: 100%;
+      min-width: 0;
+    }
+    .header-identity { grid-area: 1 / 1; min-width: 0; }
+    #headerMemberName {
+      display: block;
+      font-size: 1rem;
+      font-weight: 700;
+      line-height: 1.4;
+      overflow-wrap: anywhere;
+    }
+    .header-history-button { grid-area: 1 / 2; }
+    .header-profile-button { grid-area: 1 / 3; }
+    .header-history-button, .header-profile-button, .profile-close {
+      width: 44px;
+      height: 44px;
+      flex-shrink: 0;
+    }
+    .header-account-actions #btnSwitchMode { grid-area: 2 / 1 / auto / -1; justify-content: center; min-height: 44px; }
+    .identity-indicator { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #64748b; }
+    .identity-indicator.is-verified { background: #15803d; }
+    html.profile-overlay-open, html.profile-overlay-open body { overflow: hidden; overscroll-behavior: none; }
+    .profile-overlay {
+      position: fixed;
+      left: 0;
+      right: 0;
+      top: var(--profile-viewport-top, 0px);
+      bottom: auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      z-index: 50;
+      height: var(--profile-viewport-height, 100dvh);
+      box-sizing: border-box;
+      overscroll-behavior: contain;
+    }
+    .profile-panel {
+      box-sizing: border-box;
+      width: 100%;
+      max-width: 48rem;
+      padding: 20px;
+      max-height: calc(var(--profile-viewport-height, 100dvh) - 32px);
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      min-width: 0;
+    }
+    .profile-overlay.hidden, .profile-actions.hidden { display: none; }
+    #pickerMapModal > div { max-height: calc(var(--profile-viewport-height, 100dvh) - 32px); }
+    #profileModal[data-signed-in="false"] .profile-panel { max-width: 28rem; }
+    .profile-grid, .profile-actions { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; }
+    .profile-grid > * { min-width: 0; }
+    .profile-actions { gap: 12px; }
+    .profile-grid input { box-sizing: border-box; width: 100%; min-width: 0; max-width: 100%; min-height: 44px; font-size: 16px; }
+    .profile-panel button, #accountControls button, #accountControls input { min-height: 44px; }
+    .profile-address-field { position: relative; display: flex; align-items: center; }
+    .profile-address-field > button { position: absolute; right: 6px; }
+    .history-panel > div:last-child { min-height: 0; overscroll-behavior: contain; }
+    .profile-places-suggestions.pac-container {
+      position: absolute !important;
+      inset: 100% 0 auto !important;
+      width: 100% !important;
+      box-sizing: border-box;
+      margin-top: 2px !important;
+      max-height: min(16rem, calc(var(--profile-viewport-height, 100dvh) * 0.45));
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      touch-action: pan-y;
+      background: #fff !important;
+      border-color: #e2e8f0 !important;
+      border-radius: 12px !important;
+      box-shadow: 0 8px 20px -8px rgb(15 23 42 / 20%) !important;
+    }
+    .profile-places-suggestions.profile-suggestions-hidden { display: none !important; }
+    .profile-places-suggestions .pac-item {
+      white-space: normal;
+      min-height: 44px;
+      border-color: #f1f5f9 !important;
+      color: #475569 !important;
+    }
+    .profile-places-suggestions .pac-item-query { color: #0f172a !important; }
+    .profile-places-suggestions .pac-matched { color: #2563eb !important; }
+    .profile-places-suggestions .pac-item:hover,
+    .profile-places-suggestions .pac-item-selected { background: #eff6ff !important; }
+    .profile-places-suggestions .pac-icon { filter: none !important; }
+    @media (min-width: 640px) {
+      #profileModal[data-signed-in="true"] .profile-grid, .profile-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (min-width: 768px) {
+      .header-account-actions { display: flex; width: auto; max-width: 65%; }
+      .header-identity { flex: 1; }
+    }
+
     body[data-app-mode="driver"] {
       background-color: #f8fafc;
     }
