@@ -17,6 +17,10 @@ roster. There is no mobile PIN setup, activation code or driver SMS step.
 An unapproved phone or a registration without a synced PIN cannot sign in.
 Passenger and driver forms, validation messages and confirmation dialogs use
 English. Firebase authentication also uses English for its verification widget.
+The Firebase SDK key in `js/config.js` is a public browser configuration key,
+restricted to the production website/Firebase app domains and the Authentication,
+Secure Token, Firestore and Firebase Installations APIs. Server keys remain
+separate and must never be copied into frontend configuration.
 
 `js/app-mode.js` owns the view switch and client-side access guard. Phone edits,
 failed verification, or removal from the live roster revoke access and stop

@@ -15,7 +15,7 @@ if ('serviceWorker' in navigator) {
 
 // --- 2. FIREBASE CONFIG ---
 const firebaseConfig = {
-  apiKey: "AIzaSyB5vPG43r4ULBFe66cYAceyE5nfFoAwSEs",
+  apiKey: "AIzaSyA-syUvpM92iL0mO4i-sSuPQWCkOlmQ4Mc",
   authDomain: "gen-lang-client-0194528491.firebaseapp.com",
   projectId: "gen-lang-client-0194528491",
   storageBucket: "gen-lang-client-0194528491.firebasestorage.app",
