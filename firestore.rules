@@ -1,0 +1,77 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function session() {
+      return get(/databases/$(database)/documents/_auth_sessions/$(request.auth.token.appSessionId)).data;
+    }
+    function signedIn() {
+      return request.auth != null && 'appSessionId' in request.auth.token
+        && session().uid == request.auth.uid && session().revoked == false;
+    }
+    function driver() {
+      return signedIn() && session().role == 'driver'
+        && exists(/databases/$(database)/documents/drivers/$(session().phone))
+        && get(/databases/$(database)/documents/_driver_credentials/$(session().phone)).data.enabled == true
+        && get(/databases/$(database)/documents/_driver_credentials/$(session().phone)).data.version == session().credentialVersion;
+    }
+    function validAccount() {
+      return signedIn() && ((session().role == 'customer'
+        && !exists(/databases/$(database)/documents/drivers/$(session().phone))) || driver());
+    }
+    function ownOrder(data) {
+      return validAccount() && (data.customerPhone == session().phone
+        || (driver() && 'driverId' in data && data.driverId == session().phone));
+    }
+    function pendingAccess(data) {
+      return driver() && data.status == 'pending'
+        && get(/databases/$(database)/documents/_driver_work/$(session().phone)).data.online == true;
+    }
+    match /rate_config/current {
+      allow read: if true;
+      allow write: if false;
+    }
+    match /drivers/{phone} {
+      allow read: if driver() && resource.data.phone == session().phone;
+      allow write: if false;
+    }
+    match /_driver_work/{phone} {
+      allow get: if driver() && phone == session().phone;
+      allow list, write: if false;
+    }
+    match /users/{phone} {
+      allow read: if validAccount() && phone == session().phone;
+      allow create, update: if validAccount() && phone == session().phone
+        && request.resource.data.keys().hasOnly(['name', 'phone', 'gender', 'updatedAt'])
+        && request.resource.data.phone == session().phone
+        && request.resource.data.name is string && request.resource.data.name.size() <= 100
+        && request.resource.data.gender in ['male', 'female']
+        && request.resource.data.updatedAt == request.time;
+      allow delete: if false;
+    }
+    match /ride_orders/{orderId} {
+      allow read: if ownOrder(resource.data) || pendingAccess(resource.data);
+      allow write: if false;
+      match /trip_state/current {
+        allow get: if ownOrder(get(/databases/$(database)/documents/ride_orders/$(orderId)).data);
+        allow list, write: if false;
+      }
+      match /chat_messages/{messageId} {
+        function order() { return get(/databases/$(database)/documents/ride_orders/$(orderId)).data; }
+        allow read: if ownOrder(order());
+        allow create: if ownOrder(order()) && order().status in ['accepted', 'arrived', 'in_progress']
+          && request.resource.data.keys().hasOnly(['sender', 'text', 'timestamp'])
+          && request.resource.data.text is string
+          && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 2000
+          && request.resource.data.timestamp == request.time
+          && ((request.resource.data.sender == 'customer' && order().customerPhone == session().phone)
+            || (request.resource.data.sender == 'driver' && driver() && order().driverId == session().phone));
+        allow update, delete: if false;
+      }
+    }
+    match /trip_shares/{token} {
+      allow get: if token.matches('^[a-f0-9]{64}$') && resource.data.expiresAt > request.time.toMillis();
+      allow list, write: if false;
+    }
+    match /{document=**} { allow read, write: if false; }
+  }
+}

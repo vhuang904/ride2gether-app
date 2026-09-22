@@ -1,0 +1,11 @@
+node_modules/
+functions/node_modules/
+.env
+.env.*
+!.env.example
+functions/.env.*
+functions/.secret.local
+.firebase/
+*-debug.log
+playwright-report/
+test-results/

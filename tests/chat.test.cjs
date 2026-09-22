@@ -66,6 +66,7 @@ function backend() {
       collection(name) {
         assert.equal(name, "ride_orders", "Chat must never modify another collection");
         return {
+          where() { return this; },
           onSnapshot(next, error) {
             const listener = { next, error, active: true };
             driverListeners.push(listener);
@@ -125,6 +126,7 @@ function harness({ role = "customer", viewer = false, authorized = true, standal
   document.createElement = () => element();
   document.createDocumentFragment = () => ({ ...element(), fragment: true });
   const window = {
+    addEventListener() {}, accountAuth: { isOnline: () => false },
     isViewerMode: viewer, isCurrentDriverAuthorized: () => authorized,
     getCurrentDriverProfile: () => authorized
       ? { id: "DRV-001", phone: "+639171234567", name: "Test driver", model: "Test sedan", plate: "TEST 001" }

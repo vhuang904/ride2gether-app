@@ -1,7 +1,12 @@
 // --- 6. 叫車下單與 Firestore 連線 ---
+let bookingInFlight = false;
 async function requestOrder() {
   const submitBtn = document.getElementById('btnSubmit');
+  if (submitBtn?.disabled || bookingInFlight) return;
   clearOrderValidationError();
+  let account;
+  try { account = window.accountAuth.requireSession(); }
+  catch (error) { showOrderValidationError(error.message); return; }
   let from = "", to = "", notes = "";
   if (currentCategory === 'mobility') {
     from = document.getElementById('pickupLoc')?.value.trim() || "";
@@ -30,7 +35,7 @@ async function requestOrder() {
   }
 
   const custName = currentUserProfile?.name || "VIP Guest";
-  const custPhone = currentUserProfile?.phone || "0917-000-0000";
+  const custPhone = account.phone;
 
   const dist = parseFloat(document.getElementById('distance')?.value) || 0;
   const itemCost = (currentService === 'PABILI') ? (parseFloat(document.getElementById('itemCost')?.value) || 0) : 0;
@@ -49,14 +54,10 @@ async function requestOrder() {
     submitBtn.disabled = true;
     submitBtn.classList.add('opacity-60', 'pointer-events-none');
   }
+  bookingInFlight = true;
 
-  const orderId = 'OD-' + Math.floor(100000 + Math.random() * 900000);
-  currentOrderId = orderId;
-  localStorage.setItem('r2g_active_order_id', orderId); // 任務3：記憶訂單狀態
-  renderPendingOrderView(orderId);
-  dispatchStage = 1;
-  dispatchStartTime = Date.now();
-  startDispatchTimeoutChecker();
+  const orderId = localStorage.getItem('r2g_booking_request_id') || 'OD-' + crypto.randomUUID();
+  localStorage.setItem('r2g_booking_request_id', orderId);
 
   const orderData = {
     orderId: orderId,
@@ -83,7 +84,23 @@ async function requestOrder() {
   };
 
   try {
-    await db.collection("ride_orders").doc(orderId).set(orderData);
+    const pickupCoordinate = currentCategory === 'mobility' ? mobilityPickupCoord : conciergePickupCoord;
+    const destinationCoordinate = currentCategory === 'mobility' ? mobilityDropoffCoord : conciergeDropoffCoord;
+    const serialize = coordinate => coordinate ? {
+      lat: typeof coordinate.lat === 'function' ? coordinate.lat() : coordinate.lat,
+      lng: typeof coordinate.lng === 'function' ? coordinate.lng() : coordinate.lng
+    } : null;
+    const savedOrder = await window.accountAuth.api("createOrder", {
+      ...orderData, createdAt: undefined,
+      pickupCoordinate: serialize(pickupCoordinate), destinationCoordinate: serialize(destinationCoordinate)
+    });
+    localStorage.removeItem('r2g_booking_request_id');
+    currentOrderId = orderId;
+    localStorage.setItem('r2g_active_order_id', orderId);
+    renderPendingOrderView(orderId);
+    dispatchStage = 1;
+    dispatchStartTime = Date.now();
+    startDispatchTimeoutChecker();
     console.log("[Passenger] Order written to Firestore:", {
       orderId,
       collection: "ride_orders",
@@ -98,7 +115,7 @@ async function requestOrder() {
       method: 'POST',
       mode: 'no-cors',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'NEW_ORDER', ...orderData })
+      body: JSON.stringify({ action: 'NEW_ORDER', ...savedOrder })
     }).catch(e => console.warn('Background sync:', e));
   } catch (err) {
     console.error("[Passenger] Order dispatch failed:", {
@@ -107,10 +124,18 @@ async function requestOrder() {
       message: err?.message || "connection error",
       error: err
     });
-    localStorage.removeItem('r2g_active_order_id');
-    stopDispatchTimer();
-    finishTripAndReset();
-    showOrderValidationError(`Unable to send order${err?.code ? ` · ${err.code}` : ""}. Please try again later.`);
+    if (err.code === "PRICE_CHANGED") {
+      localStorage.removeItem('r2g_booking_request_id');
+      document.getElementById('distance').value = String(err.distance);
+      calculateEstimate();
+    }
+    showOrderValidationError(err.message || "Unable to confirm your booking. Reconnect and retry; the same booking reference will be reused.");
+  } finally {
+    bookingInFlight = false;
+    if (submitBtn) {
+      submitBtn.disabled = !ratesReady;
+      submitBtn.classList.remove('opacity-60', 'pointer-events-none');
+    }
   }
 }
 
@@ -151,10 +176,6 @@ function subscribeToOrder(orderId) {
     const data = doc.data();
     const status = String(data.status || "").toLowerCase();
     if (currentOrderId === orderId) window.tripChat?.updateTrip("customer", orderId, data);
-
-    if (data.driverLat && data.driverLng) {
-      updateDriverLocationOnMap(data.driverLat, data.driverLng);
-    }
 
     if (status === 'cancelled') {
       showDriverNoticeToPassenger("This trip was cancelled.");
@@ -317,31 +338,15 @@ function getOrderCoordinate(value) {
 }
 
 function renderNativeTripRoute(status, data) {
-  if (!['accepted', 'matched', 'arrived', 'in_progress'].includes(status)) return;
-  if (!directionsService || !directionsRenderer || !mapInstance) return;
-  const driverPosition = data.driverLat && data.driverLng
-    ? { lat: Number(data.driverLat), lng: Number(data.driverLng) }
-    : null;
-  const destination = status === 'in_progress'
-    ? getOrderCoordinate(mobilityDropoffCoord || conciergeDropoffCoord)
-    : getOrderCoordinate(mobilityPickupCoord || conciergePickupCoord);
-  const fallbackOrigin = status === 'in_progress'
-    ? getOrderCoordinate(mobilityPickupCoord || conciergePickupCoord)
-    : getOrderCoordinate(mobilityPickupCoord || conciergePickupCoord);
-  const origin = driverPosition || fallbackOrigin;
-
-  if (!origin || !destination) return;
-  directionsService.route({
-    origin,
-    destination,
-    travelMode: google.maps.TravelMode.DRIVING
-  }, (response, routeStatus) => {
-    if (routeStatus !== 'OK') return;
-    directionsRenderer.setDirections(response);
-    const bounds = new google.maps.LatLngBounds();
-    bounds.extend(origin);
-    bounds.extend(destination);
-    mapInstance.fitBounds(bounds, { top: 80, bottom: 180, left: 40, right: 40 });
+  if (data.category === 'concierge' || !currentOrderId) return;
+  if (directionsRenderer) directionsRenderer.set('directions', null);
+  window.tripMirror?.bind("customer", currentOrderId, {
+    map: () => mapInstance,
+    onState() {
+      const label = document.getElementById('activeTripEta');
+      if (label && !['arrived', 'completed'].includes(lastTripStatus)) label.textContent = "Estimated · not live GPS";
+    },
+    onError: showDriverNoticeToPassenger
   });
 }
 
@@ -639,6 +644,7 @@ function updateDriverLocationOnMap(lat, lng) {
 }
 
 function removeDriverMarker() {
+  window.tripMirror?.stop("customer");
   if (driverAnimFrame) cancelAnimationFrame(driverAnimFrame);
   if (driverMarker) {
     driverMarker.setMap(null);
@@ -654,10 +660,13 @@ async function shareLiveTripStatus() {
     return;
   }
 
-  const shareUrl = `${window.location.origin}/track.html?tripId=${encodeURIComponent(orderId)}`;
+  let token;
+  try { ({ token } = await window.accountAuth.api("shareTrip", { orderId })); }
+  catch (error) { showDriverNoticeToPassenger(error.message || "Unable to share this trip."); return; }
+  const shareUrl = `${window.location.origin}/track.html?tripId=${encodeURIComponent(token)}`;
   const shareData = {
-    title: 'Ride2gether Live Trip Tracking',
-    text: `I am riding with Ride2gether! Track my trip in real-time:`,
+    title: 'Ride2gether Trip Status',
+    text: `I am riding with Ride2gether! View my trip status and estimated position (not live GPS):`,
     url: shareUrl
   };
 
@@ -669,7 +678,7 @@ async function shareLiveTripStatus() {
     }
   } else {
     navigator.clipboard.writeText(shareUrl).then(() => {
-      alert("✅ Tracking link copied to clipboard!\nShare it with your contacts to track your trip live.");
+      alert("Tracking link copied. The map shows an estimated position, not live GPS.");
     }).catch(() => {
       prompt("Copy this live tracking link:", shareUrl);
     });
@@ -681,6 +690,10 @@ function checkViewerTrackingMode() {
   const urlParams = new URLSearchParams(window.location.search);
   const trackOrderId = urlParams.get('track');
   if (!trackOrderId || !db) return;
+  if (!/^[a-f0-9]{64}$/.test(trackOrderId)) {
+    showOrderValidationError("This old tracking link is no longer valid. Ask the passenger for a new link.");
+    return;
+  }
 
   window.isViewerMode = true; // 標記為親友唯讀模式
   const bubble = document.getElementById('pinActionBubble');
@@ -720,37 +733,39 @@ function checkViewerTrackingMode() {
     }
   }, 300);
 
-  db.collection("ride_orders").doc(trackOrderId).onSnapshot(doc => {
+  db.collection("trip_shares").doc(trackOrderId).onSnapshot(doc => {
     if (!doc.exists) {
       alert("Trip not found or has concluded.");
       return;
     }
     const data = doc.data();
-    if (data.driverLat && data.driverLng) {
-      updateDriverLocationOnMap(data.driverLat, data.driverLng);
-      if (mapInstance) {
-        mapInstance.panTo({ lat: parseFloat(data.driverLat), lng: parseFloat(data.driverLng) });
-      }
-    }
+    if (data.tripState) window.tripMirror?.showShared(trackOrderId, data.tripState, {
+      map: () => mapInstance || getOrCreateMap(data.tripState.pickup),
+      onError: showOrderValidationError
+    });
 
     // 訪客頂部即時狀態同步徽章
     const statusBadge = document.getElementById('pinLockStatusBadge');
     const status = String(data.status || '').toLowerCase();
     if (statusBadge && status) {
       if (status === 'matched' || status === 'accepted') {
-        statusBadge.innerText = 'Chauffeur En Route 🚗';
+        statusBadge.innerText = 'Chauffeur En Route · Estimated, not live GPS';
         statusBadge.className = 'text-[11px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-royal border border-blue-200';
       } else if (status === 'arrived') {
         statusBadge.innerText = 'Chauffeur Has Arrived 📍';
         statusBadge.className = 'text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200';
       } else if (status === 'in_progress') {
-        statusBadge.innerText = 'Trip In Progress 🛣️';
+        statusBadge.innerText = 'Trip In Progress · Estimated, not live GPS';
         statusBadge.className = 'text-[11px] font-semibold px-2 py-0.5 rounded-full bg-purple-50 text-purple-600 border border-purple-200';
       } else if (status === 'completed') {
         statusBadge.innerText = 'Trip Completed ✓';
         statusBadge.className = 'text-[11px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-300';
       }
     }
+  }, error => {
+    window.tripMirror?.stop("viewer");
+    console.error("[Viewer] Trip share unavailable:", error.code);
+    showOrderValidationError("This trip link expired or could not be loaded.");
   });
 }
 
@@ -942,11 +957,8 @@ async function cancelAndReset() {
 
   if (db) {
     try {
-      const orderRef = db.collection("ride_orders").doc(targetOrderId);
-      await orderRef.set({
-        status: 'cancelled',
-        cancelledAt: firebase.firestore.FieldValue.serverTimestamp()
-      }, { merge: true });
+      await window.accountAuth.api("cancelOrder", { orderId: targetOrderId });
+      localStorage.removeItem('r2g_booking_request_id');
       console.log('[Passenger] Cancellation written to Firestore:', targetOrderId);
     } catch (err) {
       console.error('[Passenger] Cancellation write failed:', {
@@ -955,6 +967,11 @@ async function cancelAndReset() {
         message: err.message || 'unknown',
         error: err
       });
+      localStorage.setItem('r2g_active_order_id', targetOrderId);
+      currentOrderId = targetOrderId;
+      subscribeToOrder(targetOrderId);
+      showOrderValidationError("Cancellation was not confirmed. Your trip is still active; reconnect and try again.");
+      return;
     }
   } else {
     console.error('[Passenger] Cancellation Firestore write skipped: no db instance.', { orderId: targetOrderId });
@@ -1178,7 +1195,9 @@ function closeLocationPickerModal() {
 
 // --- 任務 3：網頁載入時自動恢復正在進行的訂單 (防跳App或刷新丟失) ---
 function checkActiveOrderOnLoad() {
-  const activeId = localStorage.getItem('r2g_active_order_id');
+  const session = window.accountAuth?.getSession();
+  if (!session) return;
+  const activeId = session.activeOrderId || localStorage.getItem('r2g_active_order_id');
   const urlParams = new URLSearchParams(window.location.search);
 
   // 防止幽靈訂單：id 為空、遺失或仍是 "Generating..." 佔位字串時，
@@ -1219,6 +1238,15 @@ window.addEventListener("DOMContentLoaded", safeInvoke(initAutocomplete, "initAu
 window.addEventListener("load", safeInvoke(initAutocomplete, "initAutocomplete"));
 window.addEventListener("DOMContentLoaded", safeInvoke(checkViewerTrackingMode, "checkViewerTrackingMode"));
 window.addEventListener("DOMContentLoaded", safeInvoke(checkActiveOrderOnLoad, "checkActiveOrderOnLoad"));
+window.addEventListener("accountchange", () => {
+  if (window.accountAuth.getSession()) checkActiveOrderOnLoad();
+  else {
+    if (unsubscribeOrder) unsubscribeOrder();
+    unsubscribeOrder = null;
+    window.tripMirror?.stop("customer");
+    window.tripChat?.clearTrip("customer");
+  }
+});
 window.addEventListener("DOMContentLoaded", safeInvoke(function () {
   document.getElementById('btnTripEndCancel')?.addEventListener('click', closeTripEndConfirmDialog);
   document.getElementById('btnTripEndConfirm')?.addEventListener('click', function () {

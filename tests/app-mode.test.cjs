@@ -35,7 +35,7 @@ function element(classes = "") {
 
 function roster(empty = false, phone = "+639171234567", profile = {}) {
   const docs = empty ? [] : [{
-    id: profile.id || "DRV-001",
+    id: profile.id || phone,
     data: () => ({ phone, name: "Test driver", plate: "TEST 001", model: "Test sedan", ...profile })
   }];
   return { empty, docs, size: docs.length, metadata: { fromCache: false, hasPendingWrites: false } };
@@ -46,7 +46,7 @@ function orderSnapshot(data) {
   return { docs, size: docs.length, forEach: (callback) => docs.forEach(callback) };
 }
 
-function harness({ standalone = false, phone = "09171234567" } = {}) {
+function harness({ standalone = false, phone = "09171234567", authenticated = true } = {}) {
   const html = read(standalone ? "driver.html" : "index.html");
   const elements = new Map();
   const liveHtml = html.replace(/<template\b[^>]*>[\s\S]*?<\/template>/g, "");
@@ -54,7 +54,7 @@ function harness({ standalone = false, phone = "09171234567" } = {}) {
     elements.set(match[1], element(match[0].match(/\bclass="([^"]*)"/)?.[1]));
   }
   const get = (id) => elements.get(id) || null;
-  if (!standalone) get("prefPhone").value = phone;
+  get("prefPhone").value = phone;
   const storage = new Map([["guest_phone", phone], ["user_role", "driver"]]);
   const queries = [];
   const orderListeners = [];
@@ -94,9 +94,9 @@ function harness({ standalone = false, phone = "09171234567" } = {}) {
       assert.equal(name, "ride_orders");
       return {
         where(field, operator, value) {
-          assert.equal(field, "driverPhone");
+          assert.ok(["driverId", "status"].includes(field));
           assert.equal(operator, "==");
-          assert.equal(value, "+639171234567");
+          assert.ok(value === "+639171234567" || value === "pending" || value === "approved-real-id");
           return this;
         },
         limit() { return this; },
@@ -126,6 +126,7 @@ function harness({ standalone = false, phone = "09171234567" } = {}) {
     },
     console: { log() {}, warn: (...args) => warnings.push(args), error: (...args) => errors.push(args) },
     requestAnimationFrame: (callback) => frames.push(callback),
+    navigator: { geolocation: { getCurrentPosition: callback => callback({ coords: { latitude: 0, longitude: 125 } }) } },
     setTimeout: () => 1, clearTimeout() {},
     firebase: { firestore: { FieldValue: { serverTimestamp: () => "timestamp" } } },
     isValidOrderId: passengerValidator,
@@ -137,6 +138,10 @@ function harness({ standalone = false, phone = "09171234567" } = {}) {
   });
   context.google = window.google = { maps: { event: { trigger: (_, event) => mapCalls.push([event]) } } };
   window.open = (...args) => opened.push(args);
+  window.accountAuth = {
+    isDriver: () => authenticated, isOnline: () => true,
+    api: async (action, data) => { writes.push({ action, data }); return data; }
+  };
   vm.runInContext(read("js/driver.js"), context);
   assert.equal(context.isValidOrderId, passengerValidator, "Driver helpers must not replace passenger globals");
   vm.runInContext(read("js/app-mode.js"), context);
@@ -169,7 +174,7 @@ test("unverified and non-roster phones cannot reveal or initialize the driver pa
   assert.equal(h.get("btnSwitchMode").classList.contains("hidden"), true);
 });
 
-test("authorized switches preserve passenger state and attach only one driver listener", async () => {
+test("authorized switches preserve passenger state and attach only one listener per scoped driver query", async () => {
   const h = harness();
   await authorize(h);
   assert.equal(h.orderListeners.length, 0);
@@ -181,7 +186,7 @@ test("authorized switches preserve passenger state and attach only one driver li
   assert.equal(h.get("passengerView").classList.contains("hidden"), true);
   assert.equal(h.get("switchModeText").textContent, "Passenger");
   h.window.driverApp.initialize();
-  assert.equal(h.activeListeners(), 1);
+  assert.equal(h.activeListeners(), 2);
   h.window.toggleAppMode();
   h.flushFrames();
   assert.equal(h.activeListeners(), 0);
@@ -192,7 +197,7 @@ test("authorized switches preserve passenger state and attach only one driver li
   assert.equal(h.get("orderHistoryModal").classList.contains("hidden"), false);
   for (let i = 0; i < 3; i += 1) {
     h.window.toggleAppMode();
-    assert.equal(h.activeListeners(), 1);
+    assert.equal(h.activeListeners(), 2);
     h.window.toggleAppMode();
     assert.equal(h.activeListeners(), 0);
   }
@@ -319,7 +324,7 @@ test("standalone driver page uses the same whitelist and cannot bypass the index
   await authorize(allowed);
   assert.equal(allowed.get("driverView").classList.contains("hidden"), false);
   assert.equal(allowed.get("driverAccessPanel").classList.contains("hidden"), true);
-  assert.equal(allowed.activeListeners(), 1);
+  assert.equal(allowed.activeListeners(), 2);
 });
 
 test("Start Trip preserves navigation, blank destination handling, and existing status writes", async () => {
@@ -329,14 +334,14 @@ test("Start Trip preserves navigation, blank destination handling, and existing 
     h.window.toggleAppMode();
     h.get("activeTripVehicle").textContent = "Passenger vehicle";
     h.orderListeners[0].next(orderSnapshot([{
-      status: "arrived", destination, driverId: "DRV-001", vehicleType: "Driver vehicle"
+      status: "arrived", destination, driverId: "+639171234567", vehicleType: "Driver vehicle"
     }]));
     assert.equal(h.get("activeTripVehicle").textContent, "Passenger vehicle");
     assert.equal(h.get("driverActiveTripVehicle").textContent, "Driver vehicle");
     await h.get("activeTripAction").emit("click");
     assert.equal(h.writes.length, 1);
     assert.equal(h.writes[0].data.status, "in_progress");
-    assert.equal(h.writes[0].options.merge, true);
+    assert.equal(h.writes[0].action, "advanceTrip");
     assert.equal(h.opened.length, destination ? 1 : 0);
     if (destination) {
       assert.deepEqual(h.opened[0], [
@@ -344,6 +349,23 @@ test("Start Trip preserves navigation, blank destination handling, and existing 
       ]);
     }
   }
+});
+
+test("a phase snapshot arriving before its HTTP response cannot leave the next trip action disabled", async () => {
+  const h = harness();
+  await authorize(h);
+  h.window.toggleAppMode();
+  const order = { status: "accepted", driverId: "+639171234567" };
+  h.orderListeners[0].next(orderSnapshot([order]));
+  let finish;
+  h.window.accountAuth.api = () => new Promise(resolve => { finish = resolve; });
+  const pending = h.get("activeTripAction").emit("click");
+  h.orderListeners[0].next(orderSnapshot([{ ...order, status: "arrived" }]));
+  assert.equal(h.get("activeTripAction").disabled, true);
+  finish({ status: "arrived" });
+  await pending;
+  assert.equal(h.get("activeTripAction").disabled, false);
+  assert.equal(h.get("activeTripAction").textContent, "Start Trip");
 });
 
 test("view markup, shared assets, and protected passenger controls remain wired", () => {
@@ -394,7 +416,7 @@ test("registration queries normalize local phone formats and require complete un
   assert.equal(await duplicate, false);
 });
 
-test("claims use the approved profile, not hard-coded identity, and profile updates apply to later claims", async () => {
+test("claims send only one GPS fix and the order ID; identity is resolved by the authenticated backend", async () => {
   const h = harness();
   h.queries[0].resolve(roster(false, "+639171234567", {
     id: "approved-real-id", name: "Roster driver", model: "Roster SUV", plate: "ROSTER 5"
@@ -410,14 +432,13 @@ test("claims use the approved profile, not hard-coded identity, and profile upda
   };
   await claim("real-order");
   const saved = h.writes[0].data;
-  assert.equal(saved.driverId, "approved-real-id");
-  assert.equal(saved.driverName, "Roster driver");
-  assert.equal(saved.driverVehicle, "Roster SUV");
-  assert.equal(saved.driverPlate, "ROSTER 5");
-  assert.equal(saved.driverPhone, "+639171234567");
+  assert.equal(h.writes[0].action, "claimOrder");
+  assert.deepEqual(JSON.parse(JSON.stringify(saved)), { orderId: "real-order", location: { lat: 0, lng: 125 } });
+  assert.equal(h.window.getCurrentDriverProfile().name, "Roster driver");
   h.queries[0].next(roster(false, "+639171234567", { id: "approved-real-id", name: "Updated roster name" }));
   await claim("next-order");
-  assert.equal(h.writes[1].data.driverName, "Updated roster name");
+  assert.equal(h.window.getCurrentDriverProfile().name, "Updated roster name");
+  assert.equal(h.writes[1].data.driverName, undefined);
   h.orderListeners[0].next(orderSnapshot([{
     driverId: "unrelated-id", driverName: "Updated roster name", driverPhone: "+639999999999", status: "arrived"
   }]));

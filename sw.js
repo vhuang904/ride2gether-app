@@ -2,13 +2,21 @@
 // RIDE2GETHER Service Worker
 // ==========================================
 
-const CACHE_NAME = 'ride2gether-cache-v7.31';
+const CACHE_NAME = 'ride2gether-cache-v7.32';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
   './driver.html',
   './css/custom.css',
   './js/config.js',
+  './functions/pricing.js',
+  './js/rates.js',
+  './js/profile.js',
+  './js/map.js',
+  './js/order.js',
+  './js/account.js',
+  './js/trip-motion.js',
+  './js/trip-mirror.js',
   './js/driver.js',
   './js/app-mode.js',
   './js/chat.js',
@@ -20,7 +28,8 @@ const ASSETS_TO_CACHE = [
   './assets/icons/mascot-vip-female.svg',
   'https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap',
   'https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js',
-  'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js'
+  'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js',
+  'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js'
 ];
 
 // 安裝 Service Worker 並快取核心靜態資源
@@ -40,7 +49,7 @@ self.addEventListener('activate', (event) => {
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((cache) => {
-          if (cache !== CACHE_NAME) {
+          if (cache.startsWith('ride2gether-cache-') && cache !== CACHE_NAME) {
             console.log('[SW] 清除過期舊快取:', cache);
             return caches.delete(cache);
           }
@@ -60,6 +69,11 @@ self.addEventListener('fetch', (event) => {
     url.includes('script.google.com') ||
     url.includes('firestore.googleapis.com') ||
     url.includes('firebaseinstallations.googleapis.com') ||
+    url.includes('identitytoolkit.googleapis.com') ||
+    url.includes('securetoken.googleapis.com') ||
+    url.includes('cloudfunctions.net') ||
+    event.request.method !== 'GET' ||
+    event.request.headers.has('Authorization') ||
     url.includes('maps.googleapis.com')
   ) {
     event.respondWith(fetch(event.request));

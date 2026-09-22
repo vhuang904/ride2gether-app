@@ -74,6 +74,7 @@
   }
 
   function isCurrentDriverAuthorized() {
+    if (!window.accountAuth?.isDriver()) return false;
     if (authorizedPhone && authorizedPhone !== currentPhone()) revokeDriverAccess();
     return authorizedPhone !== "" && authorizedPhone === currentPhone();
   }
@@ -83,6 +84,10 @@
     const requestId = verificationId;
     const requestedPhone = normalizeFleetPhone(phone);
     const status = document.getElementById("driverAccessStatus");
+    if (!window.accountAuth?.isDriver()) {
+      if (status) status.textContent = "Registered drivers: sign in with your company PIN.";
+      return false;
+    }
     if (status) status.textContent = "Checking driver access...";
     if (!requestedPhone || requestedPhone !== currentPhone()) {
       if (status) status.textContent = "A registered fleet phone is required.";
@@ -173,6 +178,7 @@
   document.getElementById("prefPhone")?.addEventListener("input", revokeDriverAccess);
   document.getElementById("prefPhone")?.addEventListener("change", () => checkDriverWhitelist());
   window.addEventListener("vipprofilechange", () => checkDriverWhitelist());
+  window.addEventListener("accountchange", () => checkDriverWhitelist());
   window.addEventListener("storage", (event) => {
     if (event.key === "guest_phone" || event.key === "r2g_vip_profile" || event.key === null) {
       revokeDriverAccess();

@@ -1,0 +1,7 @@
+{
+  "indexes": [],
+  "fieldOverrides": [
+    { "collectionGroup": "_auth_challenges", "fieldPath": "deleteAfter", "ttl": true, "indexes": [] },
+    { "collectionGroup": "_ip_limits", "fieldPath": "deleteAfter", "ttl": true, "indexes": [] }
+  ]
+}

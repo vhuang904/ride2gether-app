@@ -10,9 +10,9 @@ function closeProfileModal() {
 }
 
 let currentUserProfile = {
-  name: "Mr. Vincent",
+  name: "VIP Guest",
   gender: "male",
-  phone: "0917-888-9999",
+  phone: "",
   home: {
     address: "Villa Josefina Resort Village, Dumoy, Davao City",
     lat: 7.0512,
@@ -33,7 +33,7 @@ function loadProfile() {
       }
       currentUserProfile.name = parsed.name || "VIP Guest";
       currentUserProfile.gender = parsed.gender || "male";
-      currentUserProfile.phone = parsed.phone || "0917-000-0000";
+      currentUserProfile.phone = parsed.phone || "";
       currentUserProfile.customPlaces = parsed.customPlaces || [];
     } catch(e) { console.warn("Load profile error:", e); }
   }
@@ -53,7 +53,8 @@ function updateHeaderProfileUI() {
   if (avatarEl) avatarEl.innerText = (currentUserProfile.name || "V").charAt(0).toUpperCase();
 
   document.getElementById('prefName').value = currentUserProfile.name || "";
-  document.getElementById('prefPhone').value = currentUserProfile.phone || "";
+  document.getElementById('prefPhone').value = window.accountAuth?.getSession()?.phone || currentUserProfile.phone || "";
+  window.accountAuth?.syncPhone();
   document.getElementById('prefHome').value = (currentUserProfile.home && currentUserProfile.home.address) ? currentUserProfile.home.address : "";
   updateTitleButtonsUI();
   syncConciergePickupPinIcon();
@@ -211,7 +212,7 @@ function deleteCustomPlace(index) {
 function saveProfile() {
   currentUserProfile.name = document.getElementById('prefName').value.trim() || "VIP Guest";
   currentUserProfile.gender = currentUserProfile.gender || "male";
-  currentUserProfile.phone = document.getElementById('prefPhone').value.trim() || "0917-000-0000";
+  currentUserProfile.phone = window.accountAuth?.getSession()?.phone || document.getElementById('prefPhone').value.trim();
   const homeInputVal = document.getElementById('prefHome').value.trim();
 
   if (homeInputVal !== (currentUserProfile.home?.address || '')) {
@@ -234,7 +235,7 @@ function saveProfileToStorage() {
 // 司機名冊驗證由 app-mode.js 在 vipprofilechange 後統一處理。
 function syncGuestIdentityAndRole() {
   const name = currentUserProfile.name || "VIP Guest";
-  const phone = currentUserProfile.phone || "";
+  const phone = window.accountAuth?.getSession()?.phone || "";
   localStorage.setItem('guest_name', name);
   localStorage.setItem('guest_phone', phone);
 
@@ -363,7 +364,7 @@ function closeOrderHistoryModal() {
 function loadOrderHistory() {
   const listEl = document.getElementById('orderHistoryList');
   if (!listEl) return;
-  const phone = currentUserProfile.phone || localStorage.getItem('guest_phone') || '';
+  const phone = window.accountAuth?.getSession()?.phone || '';
   if (!phone || typeof db === 'undefined' || !db) {
     listEl.innerHTML = '<p class="text-center text-xs text-slate-400 py-6">No verified phone number yet. Save your profile first.</p>';
     return;
@@ -378,12 +379,7 @@ function loadOrderHistory() {
     .get()
     .then(snap => {
       const matched = filterAndSortOrderDocs(snap.docs, normalizedPhone);
-      if (matched.length) return renderOrderHistory(listEl, matched);
-      // Fallback: the stored customerPhone may use a different +63/09 prefix or
-      // spacing than the current profile value, so the exact where() match found
-      // nothing. Scan a bounded recent window and match by normalized phone instead.
-      return db.collection('ride_orders').limit(200).get()
-        .then(fallbackSnap => renderOrderHistory(listEl, filterAndSortOrderDocs(fallbackSnap.docs, normalizedPhone)));
+      return renderOrderHistory(listEl, matched);
     })
     .catch(err => {
       console.warn('[Profile] Order history query failed:', err);

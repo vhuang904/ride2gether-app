@@ -117,11 +117,23 @@ function ratesHarness() {
   const context = vm.createContext({
     document: { getElementById: get },
     navigator: { onLine: true },
-    window: { addEventListener: (name, callback) => { events[name] = callback; } },
+    window: {
+      addEventListener: (name, callback) => { events[name] = callback; },
+      accountAuth: {
+        requireSession: () => ({ phone: "+639171111111", role: "customer" }),
+        api: async (action, data) => {
+          assert.equal(action, "createOrder");
+          writes.push({ id: data.orderId, data: plain(data) });
+          return data;
+        }
+      }
+    },
     console: { log() {}, warn() {}, error: (...args) => errors.push(args) },
     firebase: { firestore: { FieldValue: { serverTimestamp: () => "timestamp" } } },
     currentUserProfile: { name: "Test guest", phone: "09171111111" },
-    localStorage: { setItem() {}, removeItem() {} },
+    localStorage: { getItem: () => null, setItem() {}, removeItem() {} },
+    crypto: require("node:crypto").webcrypto,
+    mobilityPickupCoord: null, mobilityDropoffCoord: null,
     GAS_WEBHOOK_URL: "https://example.invalid/test",
     fetch: async () => ({}),
     db: {
@@ -147,6 +159,7 @@ function ratesHarness() {
       }
     }
   });
+  vm.runInContext(read("functions/pricing.js"), context);
   vm.runInContext(read("js/rates.js"), context);
   const h = {
     context, get, events, listeners, writes, errors,
@@ -351,4 +364,41 @@ test("new orders use validated prices rather than edited DOM totals; published c
   h.emit({ RIDE_MOTO: { ...rule, surgeMultiplier: 3 } });
   assert.deepEqual(h.writes, [saved]);
   assert.equal(h.get("estTotal").innerText, "260.00");
+});
+
+test("changed backend quote preserves locations for confirmation and never exposes an uncreated cancellable trip", async () => {
+  const h = ratesHarness();
+  h.loadOrders();
+  h.context.startRatesListener();
+  h.emit();
+  let pendingRenders = 0;
+  h.context.renderPendingOrderView = () => { pendingRenders++; };
+  h.context.window.accountAuth.api = async () => {
+    throw Object.assign(new Error("Review the updated fare."), { code: "PRICE_CHANGED", distance: 6 });
+  };
+  await h.context.requestOrder();
+  assert.equal(h.get("pickupLoc").value, "Pickup");
+  assert.equal(h.get("dropoffLoc").value, "Drop-off");
+  assert.equal(h.get("estTotal").innerText, "170.00");
+  assert.equal(h.get("btnSubmit").disabled, false);
+  assert.equal(vm.runInContext("currentOrderId", h.context), null);
+  assert.equal(pendingRenders, 0);
+});
+test("an in-flight booking blocks duplicates even if another UI update re-enables the submit button", async () => {
+  const h = ratesHarness();
+  h.loadOrders();
+  h.context.startRatesListener();
+  h.emit();
+  let finish, calls = 0;
+  h.context.window.accountAuth.api = (action, payload) => {
+    calls++;
+    return new Promise(resolve => { finish = () => resolve(payload); });
+  };
+  const booking = h.context.requestOrder();
+  h.get("btnSubmit").disabled = false;
+  await h.context.requestOrder();
+  assert.equal(calls, 1);
+  finish();
+  await booking;
+  assert.equal(h.get("btnSubmit").disabled, false);
 });

@@ -1,0 +1,331 @@
+(() => {
+  const auth = firebase.auth();
+  const BINDING_KEY = "r2g_bound_identity";
+  const CHALLENGE_KEY = "r2g_otp_challenge";
+  let session = null;
+  let challenge = null;
+  let challengeRevision = 0;
+  let generation = 0;
+  let busy = false;
+  let serverOffset = 0;
+  let captcha = null;
+  let stopPresence = null;
+  let online = false;
+  const get = id => document.getElementById(id);
+  const clock = () => Date.now() + serverOffset;
+  const normalize = value => {
+    let phone = String(value || "").replace(/[\s()-]/g, "");
+    if (/^09\d{9}$/.test(phone)) phone = "+63" + phone.slice(1);
+    else if (/^9\d{9}$/.test(phone)) phone = "+63" + phone;
+    else if (/^639\d{9}$/.test(phone)) phone = "+" + phone;
+    return /^\+[1-9]\d{7,14}$/.test(phone) ? phone : "";
+  };
+  const controls = get("accountControls");
+  if (controls) controls.innerHTML = `
+    <div id="accountLoginControls" class="space-y-3">
+      <div class="flex gap-2">
+        <button id="btnSendOtp" type="button" class="rounded-xl bg-blue-600 px-3 py-2 text-xs font-bold text-white disabled:opacity-50">Send verification code</button>
+        <button id="btnDriverSignIn" type="button" class="rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-blue-600">Driver PIN login</button>
+      </div>
+      <div id="driverPinFields" class="hidden flex gap-2">
+        <input id="driverPin" type="password" inputmode="numeric" maxlength="6" autocomplete="current-password" aria-label="Company PIN" placeholder="6-digit company PIN" class="min-w-0 flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-base">
+        <button id="btnConfirmPin" type="button" class="rounded-xl bg-blue-600 px-3 py-2 text-xs font-bold text-white disabled:opacity-50">Sign in</button>
+      </div>
+      <div id="otpFields" class="hidden space-y-2">
+        <div class="flex gap-2">
+          <input id="otpCode" type="text" inputmode="numeric" maxlength="6" autocomplete="one-time-code" aria-label="Verification code" placeholder="6-digit code" class="min-w-0 flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-base">
+          <button id="btnConfirmOtp" type="button" class="rounded-xl bg-blue-600 px-3 py-2 text-xs font-bold text-white disabled:opacity-50">Verify</button>
+        </div>
+        <p id="otpCountdown" class="text-xs text-slate-600"></p>
+      </div>
+      <div id="authCaptcha"></div>
+    </div>
+    <p id="phoneBindingNotice" class="hidden text-xs text-slate-600"></p>
+    <button id="btnChangePhone" type="button" class="hidden rounded-xl px-2 py-1 text-xs font-semibold text-blue-600">Change phone number</button>
+    <p id="accountStatus" role="status" class="text-xs text-slate-600"></p>`;
+  function notice(message, error = false) {
+    const node = get("accountStatus");
+    if (node) {
+      node.textContent = message;
+      node.classList.toggle("text-red-600", error);
+      node.classList.toggle("text-slate-600", !error);
+    }
+  }
+  function saveChallenge() {
+    challengeRevision += 1;
+    if (!challenge) { localStorage.removeItem(CHALLENGE_KEY); return; }
+    // Provider timestamps and error metadata must not echo between browser tabs.
+    const fields = ["phone", "challengeId", "resendAt", "expiresAt", "lockedUntil", "pinLockedUntil", "attemptsLeft", "active"];
+    const saved = JSON.stringify(Object.fromEntries(fields.filter(key => challenge[key] !== undefined).map(key => [key, challenge[key]])));
+    if (localStorage.getItem(CHALLENGE_KEY) !== saved) localStorage.setItem(CHALLENGE_KEY, saved);
+  }
+  function mergeChallenge(data) {
+    challenge = { ...challenge, ...data };
+    if (Number.isFinite(data.serverNow)) serverOffset = data.serverNow - Date.now();
+    saveChallenge();
+    render();
+  }
+  async function api(action, payload = {}, publicRequest = false) {
+    const headers = { "Content-Type": "application/json" };
+    if (!publicRequest) {
+      if (!auth.currentUser) throw Object.assign(new Error("Please sign in first."), { code: "SIGN_IN_REQUIRED" });
+      headers.Authorization = `Bearer ${await auth.currentUser.getIdToken()}`;
+    }
+    const response = await fetch(ACCOUNT_API_URL, {
+      method: "POST", headers, body: JSON.stringify({ action, payload }),
+      cache: "no-store", signal: AbortSignal.timeout(55_000)
+    });
+    const result = await response.json();
+    if (Number.isFinite(result.serverNow)) serverOffset = result.serverNow - Date.now();
+    if (!response.ok) {
+      const error = Object.assign(new Error(result.message || "The request failed."), result);
+      console.error("[Account] Request rejected:", action, result.code);
+      if (["SESSION_REVOKED", "SIGN_IN_REQUIRED", "DRIVER_REVOKED", "DRIVER_PIN_REQUIRED"].includes(result.code)) {
+        applySession(null);
+        notice(error.message, true);
+      }
+      throw error;
+    }
+    return result;
+  }
+  function render() {
+    const phone = get("prefPhone");
+    const lockedUntil = Math.max(challenge?.lockedUntil || 0, challenge?.pinLockedUntil || 0);
+    const locked = lockedUntil > clock();
+    if (phone) {
+      if (session) phone.value = session.phone;
+      phone.readOnly = Boolean(session);
+      phone.disabled = !session && (busy || locked || Boolean(challenge?.challengeId && challenge.expiresAt > clock()));
+    }
+    get("accountLoginControls")?.classList.toggle("hidden", Boolean(session));
+    get("btnChangePhone")?.classList.toggle("hidden", !session || session.role === "driver");
+    const binding = get("phoneBindingNotice");
+    if (binding) {
+      binding.classList.toggle("hidden", !session);
+      binding.textContent = session?.role === "driver"
+        ? "司機帳號綁定，變更門號請洽營運團隊辦理" : "Phone verified and bound to your account.";
+    }
+    const badge = get("identityBadge");
+    if (badge) badge.textContent = session ? "Phone verified" : "Guest";
+    const resend = Math.ceil(Math.max(0, (challenge?.resendAt || 0) - clock()) / 1000);
+    const cooldown = Math.ceil(Math.max(0, lockedUntil - clock()) / 1000);
+    const expiry = Math.ceil(Math.max(0, (challenge?.expiresAt || 0) - clock()) / 1000);
+    const send = get("btnSendOtp");
+    if (send) {
+      send.disabled = busy || locked || resend > 0;
+      send.textContent = locked ? `Locked (${cooldown}s)` : resend ? `Resend (${resend}s)` : "Send verification code";
+    }
+    get("otpFields")?.classList.toggle("hidden", !challenge?.challengeId);
+    if (get("otpCode")) get("otpCode").disabled = busy || locked || expiry === 0 || challenge?.active === false;
+    if (get("btnConfirmOtp")) get("btnConfirmOtp").disabled = busy || locked || expiry === 0 || challenge?.active === false;
+    if (get("driverPin")) get("driverPin").disabled = busy || locked;
+    if (get("btnConfirmPin")) get("btnConfirmPin").disabled = busy || locked;
+    if (get("otpCountdown")) get("otpCountdown").textContent = locked ? `Try again in ${cooldown}s.`
+      : expiry ? `Code expires in ${expiry}s.` : "Code expired. Request a new code.";
+    const availability = get("btnDriverAvailability");
+    if (availability) {
+      availability.disabled = !session || busy;
+      availability.textContent = online ? "🟢 Online — listening" : "🚫 Paused — not accepting";
+      availability.setAttribute("aria-pressed", String(online));
+    }
+  }
+  function applySession(value) {
+    session = value ? Object.freeze(value) : null;
+    if (stopPresence) stopPresence();
+    stopPresence = null;
+    online = false;
+    if (session) {
+      localStorage.setItem(BINDING_KEY, JSON.stringify({ phone: session.phone, role: session.role }));
+      localStorage.setItem("guest_phone", session.phone);
+      challenge = null;
+      saveChallenge();
+      if (typeof currentUserProfile !== "undefined") {
+        currentUserProfile.phone = session.phone;
+        saveProfileToStorage();
+      }
+      if (session.role === "driver") {
+        stopPresence = db.collection("_driver_work").doc(session.phone).onSnapshot(doc => {
+          online = doc.exists && doc.data().online === true;
+          render();
+          window.dispatchEvent(new Event("driveravailabilitychange"));
+        }, error => {
+          online = false;
+          console.error("[Account] Availability read failed:", error);
+          notice("Unable to check availability. New orders are paused.", true);
+          render();
+          window.dispatchEvent(new Event("driveravailabilitychange"));
+        });
+      }
+    } else localStorage.removeItem(BINDING_KEY);
+    render();
+    window.dispatchEvent(new Event("accountchange"));
+  }
+  async function restore(user) {
+    const request = ++generation;
+    if (!user) { applySession(null); return; }
+    try {
+      const current = await api("session");
+      if (request !== generation) return;
+      applySession(current);
+      notice("Signed in. Your phone is locked.");
+    } catch (error) {
+      if (request !== generation) return;
+      applySession(null);
+      notice(error.message, true);
+    }
+  }
+  async function signIn(result) {
+    get("driverPin").value = "";
+    get("otpCode").value = "";
+    await auth.signInWithCustomToken(result.token);
+  }
+  async function perform(work) {
+    if (busy) return;
+    busy = true;
+    render();
+    try { await work(); }
+    catch (error) {
+      console.error("[Account] Operation failed:", error.code || error.name);
+      notice(error.message || "Unable to complete the request. Please retry.", true);
+    } finally { busy = false; render(); }
+  }
+  async function sendOtp() {
+    if (get("btnSendOtp")?.disabled) return;
+    const phone = normalize(get("prefPhone")?.value);
+    if (!phone) { notice("Enter a valid phone number.", true); return; }
+    mergeChallenge({ phone, resendAt: clock() + 60_000 });
+    await perform(async () => {
+      try {
+        if (captcha) captcha.clear();
+        captcha = new firebase.auth.RecaptchaVerifier("authCaptcha", { size: "normal" });
+        const recaptchaToken = await captcha.verify();
+        const result = await api("otpSend", { phone, recaptchaToken }, true);
+        mergeChallenge({ ...result, phone, active: true });
+        notice("Verification code sent.");
+      } catch (error) {
+        mergeChallenge({ ...error, phone });
+        throw error;
+      } finally {
+        if (captcha) captcha.clear();
+        captcha = null;
+      }
+    });
+  }
+  async function confirmOtp() {
+    if (get("btnConfirmOtp")?.disabled) return;
+    await perform(async () => {
+      try {
+        await signIn(await api("otpConfirm", { challengeId: challenge?.challengeId, code: get("otpCode").value.trim() }, true));
+      } catch (error) {
+        mergeChallenge(error);
+        if (["EXPIRED", "SIGN_IN_UNAVAILABLE"].includes(error.code)) mergeChallenge({ active: false, expiresAt: clock() });
+        if (error.code === "INVALID_CODE") {
+          error.message = error.attemptsLeft === 2 ? "驗證碼錯誤，剩餘 2 次機會"
+            : error.attemptsLeft === 1 ? "驗證碼錯誤，剩餘 1 次機會，再次錯誤將作廢"
+              : "驗證碼已作廢，請於 5 分鐘後重新驗證";
+          if (error.attemptsLeft === 0) get("otpCode").value = "";
+        }
+        throw error;
+      }
+    });
+  }
+  async function loginDriver() {
+    if (get("btnConfirmPin")?.disabled) return;
+    await perform(async () => {
+      try {
+        const result = await api("driverLogin", { phone: normalize(get("prefPhone").value), pin: get("driverPin").value }, true);
+        await signIn(result);
+      } catch (error) {
+        get("driverPin").value = "";
+        if (error.lockedUntil) mergeChallenge({ pinLockedUntil: error.lockedUntil });
+        throw error;
+      }
+    });
+  }
+  async function changePhone() {
+    if (!session || session.role === "driver") return;
+    if (!window.confirm("Change phone number? This signs you out and clears this device's saved profile, places and trip cache.")) return;
+    await perform(async () => {
+      await api("changePhone");
+      generation += 1;
+      window.tripChat?.close();
+      window.driverApp?.stop();
+      window.tripMirror?.stopAll();
+      if (typeof unsubscribeOrder === "function") unsubscribeOrder();
+      if (typeof stopDispatchTimer === "function") stopDispatchTimer();
+      await auth.signOut();
+      await db.terminate();
+      await db.clearPersistence();
+      for (const key of Object.keys(localStorage)) {
+        if (/^(r2g_|ride2gether_|guest_)/.test(key) || key === "user_role") localStorage.removeItem(key);
+      }
+      for (const key of Object.keys(sessionStorage)) {
+        if (/^(r2g_|ride2gether_|guest_)/.test(key)) sessionStorage.removeItem(key);
+      }
+      if ("caches" in window) {
+        for (const key of await caches.keys()) if (key.startsWith("ride2gether-cache-")) await caches.delete(key);
+      }
+      window.location.replace(new URL("index.html", window.location.href).href);
+    });
+  }
+  async function setOnline() {
+    if (session?.role !== "driver") return;
+    await perform(async () => {
+      const result = await api("setOnline", { online: !online });
+      online = result.online;
+      window.dispatchEvent(new Event("driveravailabilitychange"));
+    });
+  }
+  window.accountAuth = {
+    api, getSession: () => session, isDriver: () => session?.role === "driver", isOnline: () => online, serverTime: clock,
+    syncPhone: render, changePhone, setOnline,
+    requireSession() {
+      if (!session) {
+        if (typeof openProfileModal === "function") openProfileModal();
+        throw new Error("Verify your phone or sign in with your driver PIN first.");
+      }
+      return session;
+    }
+  };
+  get("btnSendOtp")?.addEventListener("click", sendOtp);
+  get("btnConfirmOtp")?.addEventListener("click", confirmOtp);
+  get("btnConfirmPin")?.addEventListener("click", loginDriver);
+  get("btnDriverSignIn")?.addEventListener("click", () => get("driverPinFields").classList.toggle("hidden"));
+  get("btnChangePhone")?.addEventListener("click", changePhone);
+  get("btnDriverAvailability")?.addEventListener("click", setOnline);
+  window.addEventListener("vipprofilechange", render);
+  window.addEventListener("online", () => restore(auth.currentUser));
+  window.addEventListener("storage", event => {
+    if (event.key === CHALLENGE_KEY) restoreChallenge();
+  });
+  async function restoreChallenge() {
+    const revision = ++challengeRevision;
+    try {
+      challenge = JSON.parse(localStorage.getItem(CHALLENGE_KEY) || "null");
+      if (challenge?.phone && get("prefPhone") && !session) get("prefPhone").value = challenge.phone;
+      render();
+      if (challenge?.challengeId && !session) {
+        const state = await api("otpStatus", { challengeId: challenge.challengeId }, true);
+        if (revision === challengeRevision && !session) mergeChallenge(state);
+      }
+    } catch (error) {
+      if (revision !== challengeRevision || session) return;
+      console.error("[Account] Challenge restore failed:", error.code || error.name);
+      if (challenge) challenge.active = false;
+      notice("Unable to restore verification. Reconnect or request a new code after the countdown.", true);
+      render();
+    }
+  }
+  restoreChallenge();
+  setInterval(render, 1000);
+  auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).then(() => {
+    auth.onAuthStateChanged(restore, error => {
+      applySession(null);
+      console.error("[Account] Authentication listener failed:", error.code);
+      notice("Unable to restore sign-in. Please reconnect.", true);
+    });
+  }).catch(error => {
+    console.error("[Account] Persistent sign-in unavailable:", error.code);
+    notice("This browser cannot keep you signed in. Allow website storage and reload.", true);
+  });
+})();

@@ -1,7 +1,5 @@
 (() => {
 const DRIVER_ORDERS_COLLECTION = "ride_orders";
-// 'male' | 'female'：決定乘客端 Layer 2 懸浮氣泡展示的司機頭像圖示。
-const DRIVER_GENDER = "male";
 const pendingClaims = new Set();
 const DISMISSED_ORDERS_KEY = "ride2gether_driver_dismissed_orders";
 const dismissedOrderIds = new Set();
@@ -12,6 +10,11 @@ const ACTIVE_TRIP_STATUSES = new Set(["accepted", "arrived", "in_progress"]);
 let activeTrip = null;
 let noticeTimer = null;
 let unsubscribeOrders = null;
+let unsubscribePending = null;
+let ownedDocs = [];
+let pendingDocs = [];
+let advancing = false;
+let activeTripState = null;
 let listenerGeneration = 0;
 let driverPanelInitialized = false;
 let historyRequestId = 0;
@@ -92,8 +95,10 @@ function showDriverNotice(message) {
 }
 
 function clearActiveTrip() {
+  window.tripMirror?.stop("driver");
   window.tripChat?.clearTrip("driver");
   activeTrip = null;
+  activeTripState = null;
   document.getElementById("activeTripContainer").classList.add("hidden");
 }
 
@@ -108,18 +113,30 @@ function renderActiveTrip(order) {
   document.getElementById("activeTripDropoff").textContent = order.dropoff || order.destination || "Not provided";
   document.getElementById("driverActiveTripVehicle").textContent = order.vehicleType || order.serviceName || "Standard ride";
   document.getElementById("activeTripFare").textContent = formatFare(order.estimatedFare ?? order.fare ?? order.totalPay);
-  action.disabled = false;
+  action.disabled = advancing;
   action.textContent = status === "accepted"
     ? "Arrived at Pickup"
     : status === "arrived"
       ? "Start Trip"
       : "Complete Trip";
   container.classList.remove("hidden");
+  const nav = document.getElementById("driverPickupNavigation");
+  if (nav) nav.classList.toggle("hidden", status !== "accepted");
+  window.tripMirror?.bind("driver", order.id, {
+    map: window.tripMirror.getDriverMap,
+    onState(state) {
+      activeTripState = state;
+      const earnings = document.getElementById("driverTripEarnings");
+      if (earnings) earnings.textContent = formatFare(state.driverEarnings);
+      if (nav && state.pickup) nav.href = `https://www.google.com/maps/dir/?api=1&destination=${state.pickup.lat},${state.pickup.lng}&travelmode=driving`;
+    },
+    onError: showDriverNotice
+  });
 }
 
 async function advanceActiveTrip() {
   if (!requireDriverPanelAccess()) return;
-  if (!activeTrip) return;
+  if (!activeTrip || advancing) return;
   if (!isValidOrderId(activeTrip.id)) {
     console.warn("[Driver] Skipping trip advance: invalid activeTrip.id.", activeTrip.id);
     return;
@@ -143,27 +160,43 @@ async function advanceActiveTrip() {
   }
 
   const action = document.getElementById("activeTripAction");
+  const orderId = activeTrip.id;
+  const generation = listenerGeneration;
+  advancing = true;
   action.disabled = true;
   action.textContent = "Updating...";
   try {
-    await db.collection(DRIVER_ORDERS_COLLECTION).doc(activeTrip.id).set({
-      status: nextStatus,
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-      ...(nextStatus === "completed" ? { completedAt: firebase.firestore.FieldValue.serverTimestamp() } : {})
-    }, { merge: true });
-    if (nextStatus === "completed") {
+    const result = await window.accountAuth.api("advanceTrip", { orderId, status: nextStatus });
+    if (generation !== listenerGeneration || !hasDriverPanelAccess()) return;
+    if (nextStatus === "completed" && (!activeTrip || activeTrip.id === orderId)) {
+      showSettlement(result);
       clearActiveTrip();
       showDriverNotice("Trip completed. Ready for the next order.");
     }
   } catch (error) {
     console.error("[Driver] Unable to advance trip:", error);
+    if (generation !== listenerGeneration || !hasDriverPanelAccess()) return;
     action.disabled = false;
     action.textContent = "Try again";
-    showDriverNotice("Unable to update trip status.");
+    showDriverNotice(error.message || "Unable to update trip status.");
+  } finally {
+    advancing = false;
+    if (generation === listenerGeneration && activeTrip?.id === orderId && hasDriverPanelAccess()) {
+      renderActiveTrip(activeTrip);
+    }
   }
 }
 
+function showSettlement(state) {
+  const card = document.getElementById("driverSettlement");
+  if (!card) return;
+  document.getElementById("settlementTotal").textContent = formatFare(state.totalFare);
+  document.getElementById("settlementEarnings").textContent = formatFare(state.driverEarnings);
+  card.classList.remove("hidden");
+}
+
 function renderOrders(snapshot) {
+  if (!snapshot) return;
   const container = document.getElementById("ordersContainer");
   const count = document.getElementById("orderCount");
   const pendingOrders = [];
@@ -193,6 +226,7 @@ function renderOrders(snapshot) {
       clearActiveTrip();
       showDriverNotice("Passenger cancelled the active trip.");
     } else if (belongsToDriver && status === "completed" && activeTrip?.id === doc.id) {
+      if (activeTripState) showSettlement(activeTripState);
       clearActiveTrip();
     }
     if (status === "pending" && !dismissedOrderIds.has(doc.id) && !isStaleOrder(createdAtMillis)) {
@@ -252,6 +286,7 @@ function renderOrders(snapshot) {
 
 async function claimOrder(orderId, button) {
   if (!requireDriverPanelAccess()) return;
+  if (!window.accountAuth.isOnline()) { showDriverNotice("Go online before accepting an order."); return; }
   const profile = window.getCurrentDriverProfile();
   if (!isValidOrderId(orderId)) {
     console.warn("[Driver] Ignoring claim request: invalid orderId.", orderId);
@@ -263,16 +298,15 @@ async function claimOrder(orderId, button) {
   button.textContent = "Processing...";
 
   try {
-    await db.collection(DRIVER_ORDERS_COLLECTION).doc(orderId).update({
-      status: "accepted",
-      driverId: profile.id,
-      driverName: profile.name,
-      driverVehicle: profile.model,
-      driverPlate: profile.plate,
-      driverPhone: profile.phone,
-      driverGender: DRIVER_GENDER,
-      acceptedAt: firebase.firestore.FieldValue.serverTimestamp()
+    const location = await new Promise((resolve, reject) => {
+      if (!navigator.geolocation) { reject(new Error("Location is unavailable on this device.")); return; }
+      navigator.geolocation.getCurrentPosition(
+        position => resolve({ lat: position.coords.latitude, lng: position.coords.longitude }),
+        () => reject(new Error("Allow location access to accept a trip. Your location is saved only once.")),
+        { enableHighAccuracy: true, timeout: 15_000, maximumAge: 0 }
+      );
     });
+    await window.accountAuth.api("claimOrder", { orderId, location });
     button.textContent = "Order accepted";
 
     // Notify GAS/Telegram after successful accept; failures never block the Firestore dispatch flow.
@@ -313,14 +347,13 @@ async function claimOrder(orderId, button) {
     console.error("Unable to accept order:", error);
     button.disabled = false;
     button.textContent = "Accept order";
-    document.getElementById("driverStatus").textContent = "Unable to accept that order. Please try again.";
+    document.getElementById("driverStatus").textContent = error.message || "Unable to accept that order. Please try again.";
     pendingClaims.delete(orderId);
   }
 }
 
 async function dismissOrder(orderId) {
   if (!requireDriverPanelAccess()) return;
-  const profile = window.getCurrentDriverProfile();
   if (!isValidOrderId(orderId)) {
     console.warn("[Driver] Ignoring dismiss request: invalid orderId.", orderId);
     return;
@@ -330,20 +363,6 @@ async function dismissOrder(orderId) {
   renderOrders(lastOrderSnapshot);
   showDriverNotice("Order dismissed from this panel.");
 
-  try {
-    await db.collection(DRIVER_ORDERS_COLLECTION).doc(orderId).set({
-      status: "closed",
-      closedAt: firebase.firestore.FieldValue.serverTimestamp(),
-      closedBy: profile.id
-    }, { merge: true });
-  } catch (error) {
-    console.error("[Driver] Unable to close dismissed order:", {
-      orderId,
-      code: error.code || "unknown",
-      message: error.message || "unknown",
-      error
-    });
-  }
 }
 
 let lastOrderSnapshot = null;
@@ -368,15 +387,12 @@ function listenForPendingOrders() {
   if (!requireDriverPanelAccess() || unsubscribeOrders) return;
   const generation = ++listenerGeneration;
   document.getElementById("driverStatus").textContent = "Connecting to pending orders...";
-  console.log(`[Driver] Listening to ${DRIVER_ORDERS_COLLECTION} without composite index query.`);
-
-  unsubscribeOrders = db.collection(DRIVER_ORDERS_COLLECTION).onSnapshot(
+  unsubscribeOrders = db.collection(DRIVER_ORDERS_COLLECTION).where("driverId", "==", window.getCurrentDriverProfile().id).onSnapshot(
     (snapshot) => {
       if (generation !== listenerGeneration || !hasDriverPanelAccess()) return;
       console.log(`[Driver] Order snapshot received: ${snapshot.size} documents.`);
-      lastOrderSnapshot = snapshot;
-      renderOrders(snapshot);
-      document.getElementById("driverStatus").textContent = "Connected. Listening for new pending orders.";
+      ownedDocs = snapshot.docs || [];
+      renderCombinedOrders();
     },
     (error) => {
       if (generation !== listenerGeneration || !hasDriverPanelAccess()) return;
@@ -385,7 +401,38 @@ function listenForPendingOrders() {
       document.getElementById("driverStatus").textContent = `Connection error: ${error.message || "Unable to load orders."}`;
     }
   );
+  listenForAvailableOrders();
 }
+
+function renderCombinedOrders() {
+  const docs = [...ownedDocs, ...pendingDocs.filter(doc => !ownedDocs.some(owned => owned.id === doc.id))];
+  lastOrderSnapshot = { docs, size: docs.length, forEach: callback => docs.forEach(callback) };
+  renderOrders(lastOrderSnapshot);
+  document.getElementById("driverStatus").textContent = window.accountAuth.isOnline()
+    ? "Connected. Listening for new pending orders." : "Paused. Your active trip remains available.";
+}
+
+function listenForAvailableOrders() {
+  if (unsubscribePending) unsubscribePending();
+  unsubscribePending = null;
+  pendingDocs = [];
+  if (!hasDriverPanelAccess() || !unsubscribeOrders) return;
+  renderCombinedOrders();
+  if (!window.accountAuth.isOnline()) return;
+  const generation = listenerGeneration;
+  unsubscribePending = db.collection(DRIVER_ORDERS_COLLECTION).where("status", "==", "pending").onSnapshot(snapshot => {
+    if (generation !== listenerGeneration || !hasDriverPanelAccess() || !window.accountAuth.isOnline()) return;
+    pendingDocs = snapshot.docs;
+    renderCombinedOrders();
+  }, error => {
+    if (generation !== listenerGeneration) return;
+    pendingDocs = [];
+    renderCombinedOrders();
+    console.error("[Driver] Available orders failed:", error);
+    showDriverNotice("Unable to listen for new orders. Reconnect or toggle availability.");
+  });
+}
+window.addEventListener("driveravailabilitychange", listenForAvailableOrders);
 
 function handleDriverOrderClick(event) {
   if (!requireDriverPanelAccess()) return;
@@ -437,7 +484,11 @@ function stopDriverPanel() {
   listenerGeneration += 1;
   historyRequestId += 1;
   if (unsubscribeOrders) unsubscribeOrders();
+  if (unsubscribePending) unsubscribePending();
+  unsubscribePending = null;
   unsubscribeOrders = null;
+  ownedDocs = [];
+  pendingDocs = [];
   lastOrderSnapshot = null;
   observedOrderStatuses.clear();
   clearActiveTrip();
@@ -502,19 +553,13 @@ function loadDriverOrderHistory() {
   // No orderBy() paired with where(): avoids requiring a Firestore composite index.
   // Sorting and phone-format reconciliation both happen client-side instead.
   db.collection(DRIVER_ORDERS_COLLECTION)
-    .where("driverPhone", "==", profile.phone)
+    .where("driverId", "==", profile.id)
     .limit(50)
     .get()
     .then((snap) => {
       if (requestId !== historyRequestId || !hasDriverPanelAccess()) return;
       const matched = filterAndSortDriverOrderDocs(snap.docs, normalizedPhone, profile);
-      if (matched.length) return renderDriverOrderHistory(listEl, matched);
-      // Fallback: scan a bounded window and match id/normalized phone.
-      return db.collection(DRIVER_ORDERS_COLLECTION).limit(200).get()
-        .then((fallbackSnap) => {
-          if (requestId !== historyRequestId || !hasDriverPanelAccess()) return;
-          renderDriverOrderHistory(listEl, filterAndSortDriverOrderDocs(fallbackSnap.docs, normalizedPhone, profile));
-        });
+      return renderDriverOrderHistory(listEl, matched);
     })
     .catch((err) => {
       console.warn("[Driver] Order history query failed:", err);

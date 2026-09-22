@@ -2,12 +2,15 @@
 
 ## Passenger / driver views
 
-`index.html` starts in passenger mode. The mode switch appears only after a
-server-side lookup of the current VIP phone (`prefPhone`, or `guest_phone` on
-the standalone driver page) matches `drivers.phone`. The `drivers` collection
-is populated by the administrator-installed Sheet sync described below.
-No test-phone allowlist or cached
-`user_role` grants access.
+**The authentication/mirror-map upgrade is local-only until explicitly
+authorized for deployment. Do not push this frontend to production before
+the backend, rules, PIN provisioning and GAS compatibility checks below.**
+
+`index.html` starts in passenger mode. Registered drivers sign in in the
+VIP profile using their registered phone and six-digit company PIN; the same
+form is available on `driver.html`. There is no driver self-registration or
+online document/KYC application. Drivers_Master remains the sole approval
+list. PIN hashes live separately, not in the Sheet or public roster.
 
 `js/app-mode.js` owns the view switch and client-side access guard. Phone edits,
 failed verification, or removal from the live roster revoke access and stop
@@ -15,15 +18,27 @@ the driver order listener. Both `index.html` and the existing `driver.html`
 use this guard. Returning to passenger mode preserves its form, trip tracking,
 timers and map center; the header history button follows the current mode.
 
-This is a UI gate, not authentication: VIP phone/localStorage values are
-editable. Production authorization still requires verified identity and
-Firestore security rules/backend enforcement. Driver ID, name, phone, vehicle
-and plate now come from the unique synchronized profile, not fixed identity
-constants. Existing order field names remain unchanged. Legacy orders match
-by driver ID or normalized phone, never by display name alone. The existing
-default avatar gender remains unchanged because Drivers_Master has no gender
-column. Profile edits/revocation are observed live, and dismissed cards are
-stored separately for each driver.
+Firebase Auth LOCAL persistence restores sign-in after closing the browser.
+`r2g_bound_identity` in localStorage is a display cache, never an authorization
+credential; neither it nor `user_role` grants access. No plaintext PIN or OTP
+is stored. Both modes lock the verified phone. Drivers have no change-phone
+button; operations must handle number changes and PIN rotation. Online/pause
+is saved on the server and affects only new dispatches, not ongoing trips.
+Dismissal is local to the driver; it no longer closes another driver's
+potential booking globally.
+
+Cloud Functions verifies PINs with salted scrypt, issues a Firebase custom
+token tied to a private app session, and rechecks the current roster and PIN
+version. Firestore rules enforce the same conditions. Revocation, disabling
+credentials or rotating a PIN invalidates old driver sessions. Auth refresh
+tokens are managed by the Firebase SDK, not a handcrafted role flag.
+Trip mutations recheck the private session inside their transaction, so a
+concurrent number reset cannot create an order after revocation. Failed token
+signing revokes the unfinished session and reports a retryable sign-in error.
+Driver ID is the normalized phone. Name, phone, vehicle and plate are resolved
+server-side from the current roster. Existing Sheet columns are unchanged.
+Legacy history queries are scoped by normalized customerPhone/driverId;
+unscoped collection-scan fallbacks are intentionally removed.
 
 Run the isolated view/access regression checks with
 `node --test tests/app-mode.test.cjs`. They use mocked Firestore, storage and
@@ -45,12 +60,10 @@ roles/trips, losing driver access, or completing/cancelling the trip detaches
 the listener and clears the drawer. Read-only tracking visitors cannot chat.
 Read/write failures are shown inside the drawer; failed sends keep the draft.
 
-Firestore rules must separately authorize reads and creates in this
-subcollection for verified trip participants, validate the sender and fields,
-and reject messages after the trip ends. Parent-document permissions do not
-automatically apply to subcollections. This frontend change does not deploy
-rules or add authentication; editable VIP phone values are not proof of
-identity. No spreadsheet or existing order fields are modified.
+`firestore.rules` authorizes verified participants, validates sender and
+message fields, and rejects new messages after the trip ends. Orders and fare
+snapshots are writable only by the backend. Rules are checked locally with
+the Firestore emulator; they have not been deployed by this local upgrade.
 
 Run both regression suites with
 `node --test tests/app-mode.test.cjs tests/chat.test.cjs`. The chat suite uses
@@ -170,15 +183,12 @@ installed triggers.
    a one-minute trigger reconciles formula, import or API changes. Delivery is
    subject to Apps Script scheduling/quotas, not instantaneous or guaranteed
    within exactly one minute. Keep other project triggers intact.
-6. Authentication/rules remain a separate, unfinished phase and are required
-   before accepting untrusted production traffic. Clients must not write
-   `drivers` or `rate_config`. Do not solve
-   permission errors by allowing public writes or exposing the full roster.
-   Verified participants need scoped order/chat access. Client phone matching
-   is still only a UI gate; this phase has not made it secure authentication.
-   The existing public GAS `findDriverProfile` fallback and unauthenticated
-   order endpoints also require review in that phase; this module does not
-   change their behavior.
+6. Deploy the authenticated backend/rules only after the release gate below.
+   Clients must not write `drivers` or `rate_config`. Do not solve permission
+   errors by allowing public writes or exposing the full roster.
+   The production GAS order/callback source is not in this repository:
+   its `findDriverProfile` fallback and unauthenticated writes must be
+   reconciled before deployment. This Sheet sync does not change them.
 7. Verify that published rates and approved driver profiles are readable
    through the frontend's configured paths before releasing it. A website
    push alone does **not** install GAS triggers or grant Firebase access.
@@ -195,3 +205,130 @@ listener receives the removal; it does not cancel that driver's trip.
 Run all local checks with `node --test tests/*.test.cjs`. Apps Script and
 Firestore are mocked; no administrator credentials or production writes are
 required for these checks.
+
+## Passenger phone verification
+
+The browser obtains a Firebase reCAPTCHA token. The backend calls Firebase
+Phone Auth, keeps `sessionInfo` private and returns only an opaque challenge.
+Sending immediately disables the button for 60 seconds. Backend transactions
+enforce the same per-phone resend limit across tabs, reloads and cleared
+storage. The app challenge expires after 300 seconds. Three incorrect
+six-digit codes destroy its redemption capability and impose a 300-second
+per-phone lock. Infrastructure errors do not count as wrong codes.
+
+This is **application-level expiry and revocation**, not a claim to change
+Firebase's native SMS token lifetime. A directly obtained Firebase Phone
+Auth ID token does not grant access: rules require the server-issued
+`appSessionId` and a matching, unrevoked private session. Initial verification
+requests are additionally limited to 20/hour/IP. Driver PIN guesses use
+three attempts and a five-minute lock as well.
+
+The challenge/cooldown cache contains no OTP or provider session. Reload
+reconciles it with the server; cross-tab synchronization omits changing server
+timestamps to prevent request echo loops. After success, the phone is readonly. Passenger
+Change phone requires confirmation, revokes the app session, signs out,
+clears this application's profile/places/trip cache and Firestore persistence,
+and reloads. Unrelated origin storage is retained. A passenger must finish
+or cancel an active trip before changing numbers. Drivers cannot use this
+endpoint or passenger OTP to bypass PIN login.
+
+Private collections: `_driver_credentials`, `_auth_sessions`,
+`_auth_challenges`, `_auth_limits`, `_ip_limits`, `_customer_work`,
+`_driver_work`. Clients can only read their own driver availability.
+TTL policies remove old challenges and IP rate-limit records; session
+revocation/expiry checks never depend on the asynchronous TTL deletion job.
+Long-lived sessions and per-phone counters require an operator retention
+policy; do not prune active sessions to satisfy a TTL blindly.
+
+## Trip mirror and immutable fares
+
+The backend calculates the booking route and fare using Sheet pricing.
+`functions/pricing.js` is the one shared pricing implementation used by the
+browser and server. Distance uses the existing one-decimal-kilometer rounding.
+A changed quote is rejected for review, never silently charged.
+Its pickup/destination inputs remain available for review and resubmission;
+the pending trip/cancel UI appears only after the booking is confirmed.
+Total Fare and Driver Earnings are frozen in
+`ride_orders/{orderId}/trip_state/current`; later rate changes cannot reprice it.
+Repeated booking IDs are idempotent, and one passenger cannot create multiple
+active bookings. Completion/cancellation releases the work lock.
+Cancellation rechecks the assigned driver if a concurrent claim wins, so the
+new driver's work lock is also released.
+
+Accept order requests one fresh GPS fix (`getCurrentPosition`, no
+`watchPosition`). If location is unavailable/denied, acceptance stops with an
+explicit error. The backend transaction checks online status, current
+approval, pending order and driver work lock before assigning it. Simultaneous
+claims cannot overwrite another driver. The GPS fix is stored once.
+
+The shared trip subdocument holds encoded route geometry, duration and server
+phase-start times. Accepted -> arrived -> in_progress -> completed maps to
+pickup -> waiting -> delivery -> completed. `trip-motion.js` interpolates by
+distance along the route in each browser, with a 90% cap until an explicit
+arrival/completion. Arrival snaps to pickup; start changes to the destination
+route; completion shows only the two frozen settlement amounts.
+`trip-mirror.js` renders via the existing Google Maps SDK, cleans up animation
+frames/listeners, and never writes position updates to Firestore.
+Each distinct phase route is framed once; queued callbacks from a replaced
+trip cannot update its replacement's map or settlement.
+The UI explicitly says **Estimated position — not live GPS**. Concierge
+retains its existing passenger no-large-map presentation.
+
+Open Google Maps to pickup uses route coordinates. Start Trip preserves the
+existing destination navigation shortcut. Public sharing now uses a random
+256-bit capability in `trip_shares`, excluding phone numbers, account UID,
+fare and earnings. Share documents update only on trip transitions and expire
+after 24 hours (one hour after completion/cancellation). Old order-ID-only
+share URLs are rejected. Anyone holding a new share URL can see its route;
+share it only with trusted contacts.
+
+## Local checks and deployment gate
+
+Use Node 22 for Functions (matching `functions/package.json`) and Java 21
+for the Firestore emulator. In PowerShell use `npm.cmd`/`npx.cmd` if script
+execution policy prevents invoking npm.ps1:
+
+```powershell
+npm.cmd ci
+npm.cmd ci --prefix functions
+npm.cmd test
+npm.cmd run test:rules
+npx.cmd playwright install chromium
+npm.cmd run test:e2e
+```
+
+If an installed Chrome is preferred, set `$env:PLAYWRIGHT_CHANNEL = 'chrome'`.
+Rules tests explicitly target `demo-ride2gether`, never production.
+Browser E2E uses real app pages with mocked Firebase/Maps/SMS transport and
+the actual backend service state machines; it sends no SMS and creates no
+production orders. The emulator independently exercises real Firestore
+rules, including forbidden reads/writes and spoofed chat senders.
+
+**No deployment or main push is authorized yet.** Before release:
+
+1. Obtain Firebase administrator authorization and approve any SMS/Functions/
+   Maps billing. Enable Phone Auth, PH SMS region policy and production
+   authorized domains. Configure `IDENTITY_WEB_API_KEY`, exact `APP_ORIGINS`
+   and the Secret Manager `MAPS_SERVER_KEY` (Directions REST enabled; separate
+   from the referrer-restricted browser key). Enable custom-token signing/IAM
+   for the Functions service account. Never commit credentials or PINs.
+2. Use Application Default Credentials and an explicit
+   `GOOGLE_CLOUD_PROJECT` with `node functions\provision-pin.js` at an operator
+   terminal. It accepts only an existing approved phone and reads the PIN
+   twice without echo or command-line arguments. Rotation creates a new
+   credential version. Drivers_Master's eight columns remain unchanged.
+3. Obtain and integrate the actual production GAS doPost/Telegram callbacks.
+   They must authenticate callers, check the current order atomically, and
+   use the same work-lock/phase/snapshot contract. Anonymous legacy writes
+   will be rejected by these rules; privileged legacy handlers must not
+   overwrite server-authoritative fares or driver ownership. Browser
+   notification and the two-second Telegram button-lock retry are retained,
+   but no-cors notifications are not an authentication boundary or proof of
+   successful delivery. Do not deploy until this integration is verified.
+4. Drain or explicitly migrate old active orders before the cutover: they
+   lack the immutable trip snapshot/work locks. Never compute an old driver's
+   earnings from today's rates. Reconcile historical raw-phone fields before
+   enabling the scoped history queries; do not reopen public collection scans.
+5. Validate backend, rules, reCAPTCHA/SMS, PIN provisioning and Maps on a
+   staging project, then obtain release approval. Only then deploy Firebase,
+   commit/merge/push main, and confirm Pages and mobile end-to-end behavior.

@@ -1,0 +1,15 @@
+{
+  "functions": [{
+    "source": "functions",
+    "codebase": "ride2gether",
+    "ignore": ["node_modules", ".env.*", ".secret.local", "*-debug.log", "admin/**"]
+  }],
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "emulators": {
+    "firestore": { "host": "127.0.0.1", "port": 8087 },
+    "ui": { "enabled": false }
+  }
+}
