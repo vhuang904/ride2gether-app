@@ -23,7 +23,8 @@ function encode(points) {
   }
   return result;
 }
-async function setup(context, { driver = false, driverPin = "654321", store = memoryStore(), customerPhone = phone } = {}) {
+async function setup(context, { driver = false, driverPin = "654321", store = memoryStore(), customerPhone = phone,
+  route: routeLookup } = {}) {
   if (!firestoreClients.has(store)) firestoreClients.set(store, new Set());
   const clients = firestoreClients.get(store);
   clients.add(context);
@@ -52,10 +53,10 @@ async function setup(context, { driver = false, driverPin = "654321", store = me
     verifyToken: async token => JSON.parse(token)
   };
   const accounts = createAuthService({ store, identity, now: () => clock });
-  const trips = createTripService({ store, now: () => clock, route: async (origin, destination) => ({
+  const trips = createTripService({ store, now: () => clock, route: routeLookup || (async (origin, destination) => ({
     polyline: typeof origin === "object" ? encode([origin, destination]) : "_p~iF~ps|U_ulLnnqC_mqNvxq`@", distanceMeters: 5000, durationSeconds: 100,
     start: { lat: 38.5, lng: -120.2 }, end: { lat: 43.252, lng: -126.453 }
-  }) });
+  })) });
   await context.route("**/*", async route => {
     const url = new URL(route.request().url());
     if (url.hostname === "127.0.0.1" && url.pathname === "/__test/firestore") {
@@ -541,24 +542,7 @@ test("claim performs one GPS read; paused active driver completes both phases wi
   });
   await loginDriver(page, "/driver.html");
   await expect(page.locator("#driverView")).toBeVisible();
-  await page.evaluate(() => {
-    window.__mapPaths = [];
-    window.__vehiclePosition = null;
-    window.google = { maps: {
-      Map: class { fitBounds() {} panToBounds() {} },
-      LatLngBounds: class { extend() {} },
-      event: { trigger() {} },
-      Polyline: class {
-        setPath(points) { window.__mapPaths.push(points); }
-        setMap() {}
-      },
-      Marker: class {
-        getPosition() { return window.__vehiclePosition ? { toJSON: () => window.__vehiclePosition } : null; }
-        setPosition(point) { window.__vehiclePosition = point; }
-        setMap() {}
-      }
-    } };
-  });
+  await mockTripMap(page);
   await page.locator("#btnDriverOn").click();
   await page.locator(".claim-order").click();
   await expect(page.locator("#activeTripContainer")).toBeVisible();
@@ -956,9 +940,29 @@ async function mockTripMap(page, passenger = false) {
     window.__mapPaths = [];
     window.__vehiclePosition = null;
     window.google = { maps: {
-      Map: class { fitBounds() {} panToBounds() {} setOptions() {} },
+      Map: class {
+        fitBounds() {
+          this.zoom = 22;
+          setTimeout(() => google.maps.event.trigger(this, "idle"), 0);
+        }
+        panToBounds() {}
+        setOptions() {}
+        getZoom() { return this.zoom; }
+        setZoom(value) { this.zoom = value; window.__mapZoom = value; }
+      },
       LatLngBounds: class { extend() {} },
-      event: { trigger() {} },
+      event: {
+        trigger(target, event) {
+          if (event !== "idle") return;
+          const callback = target.idle;
+          target.idle = null;
+          callback?.();
+        },
+        addListenerOnce(target, event, callback) {
+          if (event === "idle") target.idle = callback;
+          return { remove() { target.idle = null; } };
+        }
+      },
       Polyline: class {
         setPath(points) { window.__mapPaths.push(points); }
         setMap() {}
@@ -974,8 +978,18 @@ async function mockTripMap(page, passenger = false) {
   }, passenger);
 }
 
-test("ARRIVED snaps both clients, notifies a minimized passenger, and requires Start Trip before delivery", async ({ page, context, browser }) => {
-  const h = await setup(context, { driver: true });
+for (const nearby of [false, true]) {
+test(`${nearby ? "Short pickup: " : ""}ARRIVED snaps both clients, notifies a minimized passenger, and requires Start Trip before delivery`, async ({ page, context, browser }) => {
+  const pickup = nearby ? { lat: 10.30012, lng: 123.8 } : { lat: 38.5, lng: -120.2 };
+  const destination = { lat: 10.33, lng: 123.83 };
+  const h = await setup(context, { driver: true, route: nearby ? async origin => ({
+    polyline: typeof origin === "object"
+      ? encode([origin, { lat: 10.3001, lng: 123.8 }])
+      : encode([pickup, { lat: 10.32, lng: 123.82 }, destination]),
+    distanceMeters: typeof origin === "object" ? 14 : 5000, durationSeconds: 100,
+    start: typeof origin === "object" ? origin : pickup,
+    end: typeof origin === "object" ? pickup : destination
+  }) : undefined });
   const customerPhone = "+639171234599";
   const passengerContext = await browser.newContext({ baseURL: "http://127.0.0.1:4175", serviceWorkers: "block" });
   try {
@@ -996,11 +1010,21 @@ test("ARRIVED snaps both clients, notifies a minimized passenger, and requires S
     await page.locator("#btnDriverOn").click();
     await page.locator(".claim-order").click();
     await expect(page.locator("#activeTripAction")).toHaveText("I have arrived at pickup");
-    await expect(page.locator("#driverPickupNavigation")).toHaveAttribute("href", /destination=38.5,-120.2/);
+    await expect(page.locator("#driverPickupNavigation")).toHaveAttribute("href",
+      `https://www.google.com/maps/dir/?api=1&destination=${pickup.lat},${pickup.lng}&travelmode=driving`);
     await expect(passenger.locator("#activeTripTitle")).toHaveText("Driver accepted your trip");
     for (const client of [page, passenger]) {
-      await expect.poll(() => client.evaluate(() => window.__mapPaths.at(-1)?.length)).toBe(2);
+      await expect.poll(() => client.evaluate(() => window.__mapPaths.at(-1)?.length)).toBe(nearby ? 3 : 2);
+      await expect.poll(() => client.evaluate(() => window.__mapZoom)).toBe(17);
+      if (nearby) {
+        await expect.poll(() => client.evaluate(() => window.__vehiclePosition)).toEqual(pickup);
+        await expect.poll(() => client.evaluate(() => window.__mapPaths.at(-1)?.at(-1))).toEqual(pickup);
+      }
     }
+    expect(h.store.docs.get("ride_orders/OD-arrival1").status).toBe("accepted");
+    expect(h.store.docs.get("ride_orders/OD-arrival1/trip_state/current").phase).toBe("pickup");
+    await expect(passenger.locator("#tripArrivalNotice")).toBeHidden();
+    expect(h.requests.filter(r => r.action === "advanceTrip")).toHaveLength(0);
     await passenger.locator("#btnMinimizeTrip").click();
     await expect(passenger.locator("#activeTripPanel")).toBeHidden();
     await page.locator("#activeTripAction").click();
@@ -1011,7 +1035,7 @@ test("ARRIVED snaps both clients, notifies a minimized passenger, and requires S
     await expect(passenger.getByRole("alert")).toHaveText("Your driver has arrived at the pickup point. Please proceed to your ride.");
     await expect(passenger.locator("#activeTripPanel")).toBeHidden();
     for (const client of [page, passenger]) {
-      await expect.poll(() => client.evaluate(() => window.__vehiclePosition)).toEqual({ lat: 38.5, lng: -120.2 });
+      await expect.poll(() => client.evaluate(() => window.__vehiclePosition)).toEqual(pickup);
     }
     expect(h.store.docs.get("ride_orders/OD-arrival1/trip_state/current").phase).toBe("waiting");
     expect(h.requests.filter(r => r.action === "advanceTrip").map(r => r.payload.status)).toEqual(["arrived"]);
@@ -1036,6 +1060,7 @@ test("ARRIVED snaps both clients, notifies a minimized passenger, and requires S
     await passengerContext.close();
   }
 });
+}
 
 test("passenger-first login switches explicitly without resetting OTP limits or revealing driver access", async ({ page, context }) => {
   const h = await setup(context);

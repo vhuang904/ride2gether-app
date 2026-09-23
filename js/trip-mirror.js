@@ -1,4 +1,6 @@
 (() => {
+  const NEAR_PICKUP_METERS = 30;
+  const MAX_AUTO_ZOOM = 17;
   const bindings = new Map();
   let driverMap = null;
   function getDriverMap() {
@@ -14,6 +16,7 @@
     if (!b) return;
     bindings.delete(role);
     b.unsubscribe?.();
+    b.viewportListener?.remove();
     cancelAnimationFrame(b.frame);
     b.marker?.setMap(null);
     b.line?.setMap(null);
@@ -24,6 +27,8 @@
     b.options.onState?.(state);
     cancelAnimationFrame(b.frame);
     if (["pending", "cancelled", "awaiting_location"].includes(state.phase)) {
+      b.viewportListener?.remove();
+      b.viewportListener = null;
       b.marker?.setMap(null);
       b.line?.setMap(null);
       b.marker = null;
@@ -39,7 +44,12 @@
       b.options.onError?.("Trip route is unavailable. Please contact dispatch.");
       return;
     }
-    const key = `${state.phase}:${route.polyline}`;
+    const nearPickup = Boolean(state.phase === "pickup" && state.pickup
+      && Number.isFinite(route.distanceMeters) && route.distanceMeters >= 0
+      && route.distanceMeters <= NEAR_PICKUP_METERS && b.path.total <= NEAR_PICKUP_METERS
+      && TripMotion.measurePath([b.path.points[0], state.pickup]).total <= NEAR_PICKUP_METERS);
+    const atPickup = nearPickup || state.phase === "waiting";
+    const key = `${state.phase}:${route.polyline}:${nearPickup}`;
     const waitingSince = Date.now();
     let transitionStart = null;
     let oldPosition = null;
@@ -61,27 +71,39 @@
         transitionStart = Date.now();
         b.routeKey = key;
         if (!b.line) b.line = new google.maps.Polyline({ map, strokeColor: "#2563eb", strokeWeight: 5, strokeOpacity: 0.85 });
-        b.line.setPath(b.path.points);
+        const displayPath = atPickup ? [...b.path.points, state.pickup] : b.path.points;
+        b.line.setPath(displayPath);
         if (!b.marker) b.marker = new google.maps.Marker({ map, title: "Estimated position — not live GPS", label: "🚘" });
         const bounds = new google.maps.LatLngBounds();
-        b.path.points.forEach(p => bounds.extend(p));
+        displayPath.forEach(p => bounds.extend(p));
         google.maps.event.trigger(map, "resize");
-        if (!b.hasFramed || routeChanged) { map.fitBounds(bounds, 50); b.hasFramed = true; }
+        if (!b.hasFramed || routeChanged) {
+          b.viewportListener?.remove();
+          // fitBounds sets zoom asynchronously; clamp only its initial framing, not manual zoom.
+          const listener = google.maps.event.addListenerOnce(map, "idle", () => {
+            if (bindings.get(b.role) !== b || b.viewportListener !== listener) return;
+            b.viewportListener = null;
+            if (map.getZoom() > MAX_AUTO_ZOOM) map.setZoom(MAX_AUTO_ZOOM);
+          });
+          b.viewportListener = listener;
+          map.fitBounds(bounds, 50);
+          b.hasFramed = true;
+        }
         else map.panToBounds(bounds, 50);
       }
       const clock = window.accountAuth?.serverTime?.() || Date.now();
       const progress = TripMotion.phaseProgress(state, clock);
-      let position = state.phase === "waiting" ? state.pickup
+      let position = atPickup ? state.pickup
         : state.phase === "completed" ? state.destination : TripMotion.atProgress(b.path, progress);
       const transition = Math.min(1, (Date.now() - transitionStart) / 700);
-      if (oldPosition && transition < 1 && state.phase !== "waiting") {
+      if (oldPosition && transition < 1 && !atPickup) {
         const t = transition * transition * (3 - 2 * transition);
         position = { lat: oldPosition.lat + (position.lat - oldPosition.lat) * t,
           lng: oldPosition.lng + (position.lng - oldPosition.lng) * t };
       }
       b.marker.setPosition(position);
-      if (["pickup", "delivery"].includes(state.phase)
-          || (state.phase !== "waiting" && transition < 1)) b.frame = requestAnimationFrame(tick);
+      if (!atPickup && (["pickup", "delivery"].includes(state.phase)
+          || transition < 1)) b.frame = requestAnimationFrame(tick);
     }
     tick();
   }

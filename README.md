@@ -379,6 +379,15 @@ route; completion shows only the two frozen settlement amounts.
 frames/listeners, and never writes position updates to Firestore.
 Each distinct phase route is framed once; queued callbacks from a replaced
 trip cannot update its replacement's map or settlement.
+Automatic route framing is capped at zoom 17; drivers and passengers can still
+zoom manually. For pickup routes of at most 30 metres (both reported road distance
+and decoded geometry), with the route origin within 30 metres of pickup, the
+estimated car is drawn at the pickup point immediately on both clients and shared
+maps. The displayed line ends at that same point. This is a visual proximity
+adjustment only: the order stays accepted, no arrival notification is sent, and
+the driver must still select **I have arrived at pickup**. Longer pickup routes
+and all delivery routes retain the 90% progress cap. No additional GPS reads or
+Firestore position writes are introduced.
 The UI explicitly says **Estimated position — not live GPS**. Concierge
 retains its existing passenger no-large-map presentation.
 
