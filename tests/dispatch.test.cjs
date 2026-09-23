@@ -152,6 +152,16 @@ test("webhook acknowledgements avoid ContentService redirects without changing b
   assert.equal(h.sync().status, "SUCCESS");
   assert.equal(h.directWebhookReply, false);
 });
+test("webhook installation uses the configured production URL when the editor returns a development URL", () => {
+  const h = harness();
+  h.context.ScriptApp.getService = () => ({ getUrl: () => "https://script.google.com/macros/s/dev-deployment/dev" });
+  assert.throws(() => h.context.installTelegramClaimWebhook(), /DEPLOY_WEB_APP_FIRST/);
+  assert.equal(h.requests.length, 0);
+  h.context.TELEGRAM_WEB_APP_URL = "https://script.google.com/macros/s/production-deployment/exec";
+  assert.equal(h.context.installTelegramClaimWebhook().installed, true);
+  assert.equal(h.requests[0].body.url,
+    "https://script.google.com/macros/s/production-deployment/exec?telegram_secret=test-webhook-secret");
+});
 test("claimed and offline callback errors show truthful popups, never success or unauthorized changes", () => {
   for (const code of ["ALREADY_CLAIMED", "DRIVER_OFFLINE", "TELEGRAM_NOT_LINKED"]) {
     const h = harness();

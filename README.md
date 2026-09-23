@@ -451,6 +451,8 @@ Before release:
    Populate each participating driver's unique numeric `Telegram_ID` in
    Drivers_Master and sync; blank, duplicate or unlinked IDs cannot claim in
    Telegram (web-only drivers may leave it blank). Usernames are never identity.
+   Set `TELEGRAM_WEB_APP_URL` in the private GAS configuration to the existing
+   published `/exec` deployment URL (the editor may return a different `/dev` URL).
    Run `installTelegramClaimWebhook` as the deployment owner after publishing.
    It retains a random `TELEGRAM_WEBHOOK_SECRET` in Script Properties and installs
    the existing `/exec` URL with that secret; pending updates are not dropped.

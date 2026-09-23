@@ -1,4 +1,4 @@
-// Production configuration supplies TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID and FIREBASE_PROJECT_ID.
+// Production configuration supplies TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, TELEGRAM_WEB_APP_URL and FIREBASE_PROJECT_ID.
 // Order ownership, fares, GPS and phase transitions are written only by the authenticated API.
 function dispatchJson_(value) {
   return ContentService.createTextOutput(JSON.stringify(value)).setMimeType(ContentService.MimeType.JSON);
@@ -199,8 +199,10 @@ function installTelegramClaimWebhook() {
     secret = (Utilities.getUuid() + Utilities.getUuid()).replace(/-/g, "");
     properties.setProperty("TELEGRAM_WEBHOOK_SECRET", secret);
   }
-  const url = ScriptApp.getService().getUrl();
-  if (!url || !url.endsWith("/exec")) throw new Error("DEPLOY_WEB_APP_FIRST");
+  const url = typeof TELEGRAM_WEB_APP_URL === "string" ? TELEGRAM_WEB_APP_URL : ScriptApp.getService().getUrl();
+  if (!/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(url || "")) {
+    throw new Error("DEPLOY_WEB_APP_FIRST");
+  }
   dispatchTelegram_("setWebhook", { url: url + "?telegram_secret=" + encodeURIComponent(secret),
     allowed_updates: ["callback_query"], drop_pending_updates: false });
   return { installed: true };
