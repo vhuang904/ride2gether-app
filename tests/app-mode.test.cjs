@@ -103,7 +103,8 @@ function harness({ standalone = false, phone = "09171234567", authenticated = tr
         get() {
           return new Promise((resolve, reject) => historyQueries.push({ resolve, reject }));
         },
-        onSnapshot(next, error) {
+        onSnapshot(...args) {
+          const [next, error] = typeof args[0] === "function" ? args : args.slice(1);
           const listener = { next, error, active: true };
           orderListeners.push(listener);
           return () => { listener.active = false; };
@@ -142,7 +143,7 @@ function harness({ standalone = false, phone = "09171234567", authenticated = tr
   window.accountAuth = {
     isDriver: () => authenticated, isOnline: () => true,
     notifyDispatch: async () => {},
-    api: async (action, data) => { writes.push({ action, data }); return data; }
+    api: async (action, data) => { writes.push({ action, data }); return action === "claimOrder" ? { accepted: true } : data; }
   };
   vm.runInContext(read("js/driver.js"), context);
   assert.equal(context.isValidOrderId, passengerValidator, "Driver helpers must not replace passenger globals");

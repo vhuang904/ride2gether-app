@@ -8,6 +8,7 @@ const { AppError } = require("../../functions/errors");
 const { memoryStore } = require("../support/store.cjs");
 const phone = "+639171234567";
 const sdk = fs.readFileSync(path.join(__dirname, "../support/browser-firebase.js"), "utf8");
+const firestoreClients = new WeakMap();
 function encode(points) {
   let lat = 0, lng = 0, result = "";
   function number(delta) {
@@ -22,6 +23,10 @@ function encode(points) {
   return result;
 }
 async function setup(context, { driver = false, driverPin = "654321", store = memoryStore(), customerPhone = phone } = {}) {
+  if (!firestoreClients.has(store)) firestoreClients.set(store, new Set());
+  const clients = firestoreClients.get(store);
+  clients.add(context);
+  context.on("close", () => clients.delete(context));
   const requests = [];
   let clock = Date.now();
   const rate = { nameEn: "Moto Express", base: 40, baseKm: 2, perKm: 10, surgeMultiplier: 1.5,
@@ -84,6 +89,11 @@ async function setup(context, { driver = false, driverPin = "654321", store = me
         await route.fulfill({ json: { ...value, serverNow: clock } });
       } catch (error) {
         await route.fulfill({ status: error.status || 500, json: { code: error.code, message: error.message, ...error.details, serverNow: clock } });
+      }
+      if (["createOrder", "claimOrder", "advanceTrip"].includes(action)) {
+        // Emulate Firestore pushing committed changes to every subscribed client.
+        await Promise.all([...clients].flatMap(client => client.pages())
+          .map(client => client.evaluate(() => window.__refreshFirestore?.())));
       }
       return;
     }
@@ -560,7 +570,7 @@ test("claim performs one GPS read; paused active driver completes both phases wi
   expect(h.requests.filter(r => r.action === "claimOrder")).toHaveLength(1);
   expect(h.requests.filter(r => r.action === "advanceTrip").map(r => r.payload.status)).toEqual(["arrived", "in_progress", "completed"]);
 });
-test("Telegram links preserve PIN and online gates and never claim or request GPS automatically", async ({ page, context }) => {
+test("Telegram claim resumes once after PIN and online gates, without a second Accept tap", async ({ page, context }) => {
   const h = await setup(context, { driver: true });
   const customer = { uid: "passenger", phone: "+639171234599", role: "customer", sessionId: "d".repeat(64), revoked: false };
   h.store.docs.set(`_auth_sessions/${customer.sessionId}`, customer);
@@ -575,14 +585,17 @@ test("Telegram links preserve PIN and online gates and never claim or request GP
   await expect(page.locator("#driverView")).toBeVisible();
   await expect(page.locator("#btnDriverAvailability")).toContainText("Paused");
   await expect(page.locator(".claim-order")).toHaveCount(0);
-  await page.locator("#btnDriverAvailability").click();
-  await expect(page.locator('[data-order-card-id="OD-telegram1"]')).toContainText("Opened from Telegram");
+  await expect(page.locator("#driverStatus")).toContainText("Go online");
   expect(h.requests.filter(r => r.action === "claimOrder")).toHaveLength(0);
   expect(await page.evaluate(() => window.__gpsCalls)).toBe(0);
-  await page.locator(".claim-order").click();
+  await page.locator("#btnDriverAvailability").click();
   await expect(page.locator("#activeTripContainer")).toBeVisible();
   expect(h.requests.filter(r => r.action === "claimOrder")).toHaveLength(1);
   expect(await page.evaluate(() => window.__gpsCalls)).toBe(1);
+  await page.reload();
+  await expect(page.locator("#activeTripContainer")).toBeVisible();
+  expect(h.requests.filter(r => r.action === "claimOrder")).toHaveLength(1);
+  expect(await page.evaluate(() => window.__gpsCalls)).toBe(0);
 });
 
 async function loginPassenger(page, customerPhone = phone) {
@@ -594,6 +607,156 @@ async function loginPassenger(page, customerPhone = phone) {
   await page.locator("#btnConfirmOtp").click();
   await expect(page.locator("#accountLoginControls")).toBeHidden();
 }
+
+for (const entry of ["Telegram", "page button"]) {
+  test(`passenger booking -> ${entry} claim -> automatic accepted card across two browsers`, async ({ page, context, browser }) => {
+    const h = await setup(context, { driver: true });
+    await loginDriver(page, "/driver.html");
+    await expect(page.locator("#driverView")).toBeVisible();
+    await page.locator("#btnDriverAvailability").click();
+    await expect(page.locator("#btnDriverAvailability")).toContainText("Online");
+    const passengerContext = await browser.newContext({ baseURL: "http://127.0.0.1:4175", serviceWorkers: "block" });
+    try {
+      const customerPhone = "+639171234599";
+      await setup(passengerContext, { store: h.store, customerPhone });
+      let failedLiveRead = false;
+      if (entry === "Telegram") {
+        await passengerContext.route("**/__test/firestore?**", async route => {
+          const key = new URL(route.request().url()).searchParams.get("path");
+          if (!failedLiveRead && /^ride_orders\/OD-[^/]+$/.test(key)) {
+            failedLiveRead = true;
+            await route.fulfill({ status: 503, body: "Temporary stream failure" });
+          } else await route.fallback();
+        });
+      }
+      const passenger = await passengerContext.newPage();
+      await loginPassenger(passenger, customerPhone);
+      await passenger.evaluate(() => closeProfileModal());
+      await passenger.locator("#card-RIDE_MOTO").click();
+      await passenger.locator("#pickupLoc").fill("Pickup Hotel");
+      await passenger.locator("#dropoffLoc").fill("Airport");
+      await passenger.evaluate(() => { document.getElementById("distance").value = "5"; calculateEstimate(); });
+      await passenger.locator("#btnSubmit").click();
+      await expect(passenger.locator("#activeTripTitle")).toHaveText("Finding a chauffeur for you");
+      const orderId = await passenger.evaluate(() => localStorage.getItem("r2g_active_order_id"));
+      expect(h.store.docs.get(`ride_orders/${orderId}`).status).toBe("pending");
+      if (entry === "Telegram") {
+        await expect(passenger.locator("#orderValidationError")).toContainText("Reconnecting automatically");
+        await expect(passenger.locator("#orderValidationError")).toBeVisible();
+      }
+      if (entry === "Telegram") await page.goto(`/driver.html?order=${orderId}`);
+      else await page.locator(`[data-order-card-id="${orderId}"] .claim-order`).click();
+      await expect(page.locator("#activeTripStatus")).toHaveText("accepted");
+      await expect(passenger.locator("#activeTripTitle")).toHaveText("Driver accepted your trip");
+      await expect(passenger.locator("#activeTripDriverName")).toHaveText("Chauffeur: Roster Driver");
+      await expect(passenger.locator("#activeTripVehicle")).toHaveText("Sedan");
+      await expect(passenger.locator("#activeTripPlate")).toHaveText("TEST 1");
+      await expect(passenger.locator("#activeTripPendingSlot")).toBeHidden();
+      await expect(passenger.locator("#orderValidationError")).toBeHidden();
+      expect(h.store.docs.get(`ride_orders/${orderId}`).status).toBe("accepted");
+      expect(h.store.docs.get(`ride_orders/${orderId}`).driverId).toBe(phone);
+      expect(h.requests.filter(request => request.action === "claimOrder")).toHaveLength(1);
+      expect(await page.evaluate(() => window.__gpsCalls)).toBe(1);
+      expect(await passenger.evaluate(() => window.__gpsCalls)).toBe(0);
+      expect(await passenger.evaluate(() => dispatchTimer)).toBeNull();
+    } finally {
+      await passengerContext.close();
+    }
+  });
+}
+
+async function seedTelegramTrip(h) {
+  const customer = { uid: "passenger", phone: "+639171234599", role: "customer", sessionId: "d".repeat(64), revoked: false };
+  h.store.docs.set(`_auth_sessions/${customer.sessionId}`, customer);
+  await h.trips.createOrder(customer, {
+    orderId: "OD-telegram1", category: "mobility", serviceId: "RIDE_MOTO", origin: "Pickup", destination: "Airport",
+    itemCost: 0, tip: 0, totalPay: 155
+  });
+}
+
+test("denied Telegram GPS never claims or retries silently; the same card allows an explicit retry", async ({ page, context }) => {
+  const h = await setup(context, { driver: true });
+  await seedTelegramTrip(h);
+  await loginDriver(page, "/driver.html?order=OD-telegram1");
+  await expect(page.locator("#driverView")).toBeVisible();
+  await page.evaluate(() => {
+    navigator.geolocation.getCurrentPosition = (_, failure) => { window.__gpsCalls++; failure({ code: 1 }); };
+  });
+  await page.locator("#btnDriverAvailability").click();
+  await expect(page.locator("#driverNotice")).toContainText("Allow location");
+  expect(h.store.docs.get("ride_orders/OD-telegram1").status).toBe("pending");
+  expect(h.requests.filter(request => request.action === "claimOrder")).toHaveLength(0);
+  await page.evaluate(() => window.__refreshFirestore());
+  expect(await page.evaluate(() => window.__gpsCalls)).toBe(1);
+  await page.evaluate(() => {
+    navigator.geolocation.getCurrentPosition = callback => {
+      window.__gpsCalls++; callback({ coords: { latitude: 10.3, longitude: 123.8 } });
+    };
+  });
+  await page.locator(".claim-order").click();
+  await expect(page.locator("#activeTripStatus")).toHaveText("accepted");
+  expect(h.requests.filter(request => request.action === "claimOrder")).toHaveLength(1);
+});
+
+test("a Telegram claim cannot continue if the driver pauses while GPS is pending", async ({ page, context }) => {
+  const h = await setup(context, { driver: true });
+  await seedTelegramTrip(h);
+  await loginDriver(page, "/driver.html?order=OD-telegram1");
+  await expect(page.locator("#driverView")).toBeVisible();
+  await page.evaluate(() => {
+    navigator.geolocation.getCurrentPosition = callback => { window.__gpsCalls++; window.__finishGps = callback; };
+  });
+  await page.locator("#btnDriverAvailability").click();
+  await expect.poll(() => page.evaluate(() => window.__gpsCalls)).toBe(1);
+  await page.evaluate(() => window.__refreshFirestore());
+  expect(await page.evaluate(() => window.__gpsCalls)).toBe(1);
+  await page.locator("#btnDriverAvailability").click();
+  await expect(page.locator("#btnDriverAvailability")).toContainText("Paused");
+  await page.evaluate(() => window.__finishGps({ coords: { latitude: 10.3, longitude: 123.8 } }));
+  await expect(page.locator("#driverNotice")).toContainText("availability changed");
+  expect(h.store.docs.get("ride_orders/OD-telegram1").status).toBe("pending");
+  expect(h.requests.filter(request => request.action === "claimOrder")).toHaveLength(0);
+});
+
+test("an unavailable Telegram target cannot auto-claim a different pending order", async ({ page, context }) => {
+  const h = await setup(context, { driver: true });
+  await seedTelegramTrip(h);
+  await loginDriver(page, "/driver.html?order=OD-missing1");
+  await expect(page.locator("#driverView")).toBeVisible();
+  await page.locator("#btnDriverAvailability").click();
+  await expect(page.locator("#driverStatus")).toContainText("no longer available");
+  await expect(page.locator(".claim-order")).toHaveCount(1);
+  expect(h.store.docs.get("ride_orders/OD-telegram1").status).toBe("pending");
+  expect(h.requests.filter(request => request.action === "claimOrder")).toHaveLength(0);
+  expect(await page.evaluate(() => window.__gpsCalls)).toBe(0);
+});
+
+test("Telegram waits for a server snapshot and can claim an older still-pending target only once", async ({ page, context }) => {
+  const h = await setup(context, { driver: true });
+  await seedTelegramTrip(h);
+  const order = h.store.docs.get("ride_orders/OD-telegram1");
+  order.createdAt = Date.now() - 600_000;
+  let cached = true;
+  await context.route("**/__test/firestore?**", async route => {
+    const url = new URL(route.request().url());
+    if (url.searchParams.get("path") === "ride_orders" && url.searchParams.get("filters").includes('"pending"')) {
+      await route.fulfill({ json: { metadata: { fromCache: cached }, docs: order.status === "pending"
+        ? [{ id: "OD-telegram1", exists: true, value: order }] : [] } });
+    } else await route.fallback();
+  });
+  await loginDriver(page, "/driver.html?order=OD-telegram1");
+  await expect(page.locator("#driverView")).toBeVisible();
+  await page.locator("#btnDriverAvailability").click();
+  await expect(page.locator(".claim-order")).toHaveCount(1);
+  expect(await page.evaluate(() => window.__gpsCalls)).toBe(0);
+  expect(h.requests.filter(request => request.action === "claimOrder")).toHaveLength(0);
+  cached = false;
+  await page.evaluate(() => window.__refreshFirestore());
+  await expect(page.locator("#activeTripStatus")).toHaveText("accepted");
+  await page.evaluate(() => window.__refreshFirestore());
+  expect(await page.evaluate(() => window.__gpsCalls)).toBe(1);
+  expect(h.requests.filter(request => request.action === "claimOrder")).toHaveLength(1);
+});
 
 test("booking shows only the inclusive total and automatically reconnects prices without a fee card", async ({ page, context }) => {
   await setup(context);
@@ -716,7 +879,6 @@ test("ARRIVED snaps both clients, notifies a minimized passenger, and requires S
     await page.locator(".claim-order").click();
     await expect(page.locator("#activeTripAction")).toHaveText("I have arrived at pickup");
     await expect(page.locator("#driverPickupNavigation")).toHaveAttribute("href", /destination=38.5,-120.2/);
-    await passenger.evaluate(() => window.__refreshFirestore());
     await expect(passenger.locator("#activeTripTitle")).toHaveText("Driver accepted your trip");
     for (const client of [page, passenger]) {
       await expect.poll(() => client.evaluate(() => window.__mapPaths.at(-1)?.length)).toBe(2);
@@ -727,7 +889,6 @@ test("ARRIVED snaps both clients, notifies a minimized passenger, and requires S
     await expect(page.locator("#activeTripStatus")).toHaveText("arrived");
     await expect(page.locator("#activeTripAction")).toHaveText("Passenger on board / Start Trip");
     await expect(page.locator("#driverPickupNavigation")).toBeHidden();
-    await passenger.evaluate(() => window.__refreshFirestore());
     await expect(passenger.locator("#tripArrivalNotice")).toBeVisible();
     await expect(passenger.getByRole("alert")).toHaveText("Your driver has arrived at the pickup point. Please proceed to your ride.");
     await expect(passenger.locator("#activeTripPanel")).toBeHidden();
@@ -741,7 +902,6 @@ test("ARRIVED snaps both clients, notifies a minimized passenger, and requires S
     await expect(passenger.locator("#tripArrivalNotice")).toBeVisible();
     await page.locator("#activeTripAction").click();
     await expect(page.locator("#activeTripStatus")).toHaveText("in progress");
-    await passenger.evaluate(() => window.__refreshFirestore());
     await expect(passenger.locator("#tripArrivalNotice")).toBeHidden();
     await expect(passenger.locator("#activeTripTitle")).toHaveText("Heading to destination");
     for (const client of [page, passenger]) {
@@ -749,7 +909,6 @@ test("ARRIVED snaps both clients, notifies a minimized passenger, and requires S
     }
     await page.locator("#activeTripAction").click();
     await expect(page.locator("#driverSettlement")).toBeVisible();
-    await passenger.evaluate(() => window.__refreshFirestore());
     await expect(passenger.locator("#activeTripTitle")).toHaveText("Trip Completed");
     await expect(passenger.locator("#tripArrivalNotice")).toBeHidden();
     expect(h.requests.filter(r => r.action === "advanceTrip").map(r => r.payload.status)).toEqual(["arrived", "in_progress", "completed"]);

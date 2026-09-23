@@ -5,7 +5,7 @@ const path = require("node:path");
 const vm = require("node:vm");
 const { createDriverPinSync } = require("../../functions/driver-pin-sync");
 const { initializeTestEnvironment, assertSucceeds, assertFails } = require("@firebase/rules-unit-testing");
-const { doc, collection, getDoc, getDocs, setDoc, query, where, serverTimestamp } = require("firebase/firestore");
+const { doc, collection, getDoc, getDocs, setDoc, query, where, serverTimestamp, onSnapshot } = require("firebase/firestore");
 let env;
 const phone = "+639171234567";
 const sessions = { customer: "a".repeat(64), driver: "b".repeat(64), stranger: "c".repeat(64) };
@@ -63,6 +63,33 @@ test("scoped queries work, collection scans and unrelated completed trips fail",
 test("order identity, fare and trip snapshots cannot be client-forged", async () => {
   for (const key of ["ride_orders/OD-owned1", "ride_orders/OD-owned1/trip_state/current"]) {
     await assertFails(setDoc(doc(db("driver"), key), { driverId: phone, status: "accepted", totalPay: 1 }));
+  }
+});
+test("a passenger's real Firestore listener receives pending to accepted without resubscribing", { timeout: 15000 }, async () => {
+  const orderPath = "ride_orders/OD-stream1";
+  const pending = { customerPhone: "+639171234500", status: "pending" };
+  await env.withSecurityRulesDisabled(context => setDoc(doc(context.firestore(), orderPath), pending));
+  const seen = [];
+  let receivedPending, receivedAccepted, rejectPending, rejectAccepted;
+  const first = new Promise((resolve, reject) => { receivedPending = resolve; rejectPending = reject; });
+  const accepted = new Promise((resolve, reject) => { receivedAccepted = resolve; rejectAccepted = reject; });
+  const result = Promise.all([first, accepted]);
+  const stop = onSnapshot(doc(db("customer"), orderPath), snapshot => {
+    seen.push(snapshot.data().status);
+    if (snapshot.data().status === "pending") receivedPending();
+    if (snapshot.data().status === "accepted") receivedAccepted(snapshot.data());
+  }, error => { rejectPending(error); rejectAccepted(error); });
+  try {
+    await first;
+    await env.withSecurityRulesDisabled(context => setDoc(doc(context.firestore(), orderPath), {
+      ...pending, status: "accepted", driverId: phone, driverName: "Roster Driver", driverVehicle: "Sedan", driverPlate: "TEST 1"
+    }));
+    const [, order] = await result;
+    assert.equal(order.driverName, "Roster Driver");
+    assert.equal(order.driverPlate, "TEST 1");
+    assert.deepEqual([...new Set(seen)], ["pending", "accepted"]);
+  } finally {
+    stop();
   }
 });
 test("chat allows only trip participants with their real sender role", async () => {

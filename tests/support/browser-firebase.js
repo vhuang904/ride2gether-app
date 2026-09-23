@@ -3,7 +3,7 @@
   const listeners = new Set();
   function ref(path, filters = [], count = Infinity) {
     const hydrate = raw => ({
-      id: raw.id, exists: raw.exists, metadata: { fromCache: false, hasPendingWrites: false },
+      id: raw.id, exists: raw.exists, metadata: { fromCache: false, hasPendingWrites: false, ...raw.metadata },
       data: () => raw.value,
       docs: raw.docs?.map(item => hydrate(item)),
       size: raw.docs?.length || 0,
@@ -25,7 +25,16 @@
         const next = typeof args[0] === "function" ? args[0] : args[1];
         const error = typeof args[0] === "function" ? args[1] : args[2];
         let active = true;
-        const listener = async () => { try { const data = await api.get(); if (active) next(data); } catch (e) { if (active) error?.(e); } };
+        const listener = async () => {
+          try { const data = await api.get(); if (active) next(data); }
+          catch (e) {
+            if (active) {
+              active = false;
+              listeners.delete(listener);
+              error?.(e);
+            }
+          }
+        };
         listeners.add(listener);
         listener();
         return () => { active = false; listeners.delete(listener); };

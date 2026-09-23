@@ -19,6 +19,9 @@ let listenerGeneration = 0;
 let driverPanelInitialized = false;
 let historyRequestId = 0;
 const requestedOrderId = new URLSearchParams(window.location.search).get("order");
+let requestedClaimAttempted = false;
+let requestedClaimUnavailable = false;
+let claimFeedback = "";
 
 function hasDriverPanelAccess() {
   return typeof window.isCurrentDriverAuthorized === "function"
@@ -231,7 +234,8 @@ function renderOrders(snapshot) {
       if (activeTripState) showSettlement(activeTripState);
       clearActiveTrip();
     }
-    if (status === "pending" && !dismissedOrderIds.has(doc.id) && !isStaleOrder(createdAtMillis)) {
+    if (status === "pending" && !dismissedOrderIds.has(doc.id)
+        && (doc.id === requestedOrderId || !isStaleOrder(createdAtMillis))) {
       pendingOrders.push({
         id: doc.id,
         ...order,
@@ -258,7 +262,7 @@ function renderOrders(snapshot) {
       <div class="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p class="font-mono text-xs font-semibold text-blue-600">${displayValue(order.id)}</p>
-          ${order.id === requestedOrderId ? '<p class="mt-1 text-xs font-semibold text-blue-600">Opened from Telegram — review and accept below.</p>' : ''}
+          ${order.id === requestedOrderId ? '<p class="mt-1 text-xs font-semibold text-blue-600">Telegram claim — accepting after sign-in, online status and location approval.</p>' : ''}
           <h3 class="mt-1 text-base font-bold text-slate-900">${displayValue(order.vehicleType || order.serviceName || order.vehicle, "Standard ride")}</h3>
         </div>
         <div class="flex items-start gap-2">
@@ -281,8 +285,9 @@ function renderOrders(snapshot) {
         </div>
       </dl>
       <button type="button" data-order-id="${escapeHtml(order.id)}"
+        ${pendingClaims.has(order.id) ? 'disabled' : ''}
         class="claim-order mt-5 w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700 active:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300">
-        Accept order
+        ${pendingClaims.has(order.id) ? 'Processing...' : 'Accept order'}
       </button>
     </article>
   `).join("");
@@ -296,7 +301,11 @@ async function claimOrder(orderId, button) {
     return;
   }
   if (pendingClaims.has(orderId)) return;
+  if (orderId === requestedOrderId) requestedClaimAttempted = true;
   pendingClaims.add(orderId);
+  claimFeedback = "";
+  const generation = listenerGeneration;
+  const driverId = window.getCurrentDriverProfile().id;
   button.disabled = true;
   button.textContent = "Processing...";
 
@@ -309,7 +318,13 @@ async function claimOrder(orderId, button) {
         { enableHighAccuracy: true, timeout: 15_000, maximumAge: 0 }
       );
     });
-    await window.accountAuth.api("claimOrder", { orderId, location });
+    if (generation !== listenerGeneration || !hasDriverPanelAccess()
+        || window.getCurrentDriverProfile().id !== driverId || !window.accountAuth.isOnline()) {
+      throw new Error("Driver access or availability changed. Go online and retry accepting the order.");
+    }
+    const result = await window.accountAuth.api("claimOrder", { orderId, location });
+    if (result.accepted !== true) throw new Error("The server did not confirm this claim. Please retry.");
+    if (generation !== listenerGeneration || !hasDriverPanelAccess()) return;
     button.textContent = "Order accepted";
 
     // Notify GAS/Telegram after successful accept; failures never block the Firestore dispatch flow.
@@ -336,11 +351,35 @@ async function claimOrder(orderId, button) {
     }
   } catch (error) {
     console.error("Unable to accept order:", error);
-    button.disabled = false;
-    button.textContent = "Accept order";
-    document.getElementById("driverStatus").textContent = error.message || "Unable to accept that order. Please try again.";
-    pendingClaims.delete(orderId);
+    if (generation === listenerGeneration && hasDriverPanelAccess()) {
+      button.disabled = false;
+      button.textContent = "Accept order";
+      pendingClaims.delete(orderId);
+      claimFeedback = error.message || "Unable to accept that order. Please try again.";
+      document.getElementById("driverStatus").textContent = claimFeedback;
+      showDriverNotice(claimFeedback);
+      renderCombinedOrders();
+    }
   }
+}
+
+function continueTelegramClaim(snapshot) {
+  if (!requestedOrderId || requestedClaimAttempted || !hasDriverPanelAccess()
+      || !window.accountAuth.isOnline() || snapshot.metadata?.fromCache || snapshot.metadata?.hasPendingWrites) return;
+  if (!/^OD-[a-zA-Z0-9-]{6,80}$/.test(requestedOrderId)) {
+    requestedClaimAttempted = true;
+    claimFeedback = "This Telegram trip link is invalid.";
+    document.getElementById("driverStatus").textContent = claimFeedback;
+    return;
+  }
+  const order = snapshot.docs.find(doc => doc.id === requestedOrderId);
+  requestedClaimUnavailable = !order;
+  if (!order) {
+    renderCombinedOrders();
+    return;
+  }
+  const button = document.querySelector(`[data-order-card-id="${requestedOrderId}"] .claim-order`);
+  if (button) claimOrder(requestedOrderId, button);
 }
 
 async function dismissOrder(orderId) {
@@ -399,8 +438,13 @@ function renderCombinedOrders() {
   const docs = [...ownedDocs, ...pendingDocs.filter(doc => !ownedDocs.some(owned => owned.id === doc.id))];
   lastOrderSnapshot = { docs, size: docs.length, forEach: callback => docs.forEach(callback) };
   renderOrders(lastOrderSnapshot);
-  document.getElementById("driverStatus").textContent = window.accountAuth.isOnline()
-    ? "Connected. Listening for new pending orders." : "Paused. Your active trip remains available.";
+  document.getElementById("driverStatus").textContent = claimFeedback || (window.accountAuth.isOnline()
+    ? requestedClaimUnavailable && activeTrip?.id !== requestedOrderId
+      ? "The Telegram trip is no longer available to accept. It may already be claimed or cancelled."
+      : "Connected. Listening for new pending orders."
+    : requestedOrderId && !requestedClaimAttempted
+      ? "Telegram claim ready. Go online to accept this trip with your current location."
+      : "Paused. Your active trip remains available.");
 }
 
 function listenForAvailableOrders() {
@@ -411,10 +455,11 @@ function listenForAvailableOrders() {
   renderCombinedOrders();
   if (!window.accountAuth.isOnline()) return;
   const generation = listenerGeneration;
-  unsubscribePending = db.collection(DRIVER_ORDERS_COLLECTION).where("status", "==", "pending").onSnapshot(snapshot => {
+  unsubscribePending = db.collection(DRIVER_ORDERS_COLLECTION).where("status", "==", "pending").onSnapshot({ includeMetadataChanges: true }, snapshot => {
     if (generation !== listenerGeneration || !hasDriverPanelAccess() || !window.accountAuth.isOnline()) return;
     pendingDocs = snapshot.docs;
     renderCombinedOrders();
+    continueTelegramClaim(snapshot);
   }, error => {
     if (generation !== listenerGeneration) return;
     pendingDocs = [];
@@ -483,6 +528,9 @@ function stopDriverPanel() {
   pendingDocs = [];
   lastOrderSnapshot = null;
   observedOrderStatuses.clear();
+  pendingClaims.clear();
+  claimFeedback = "";
+  requestedClaimUnavailable = false;
   clearActiveTrip();
   closeDriverOrderHistory();
   if (noticeTimer) clearTimeout(noticeTimer);

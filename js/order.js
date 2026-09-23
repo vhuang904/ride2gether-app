@@ -163,36 +163,68 @@ function subscribeToOrder(orderId) {
   if (unsubscribeOrder) unsubscribeOrder();
   window.tripChat?.clearTrip("customer");
 
-  unsubscribeOrder = db.collection("ride_orders").doc(orderId).onSnapshot(doc => {
-    if (!doc.exists) {
-      if (currentOrderId === orderId) window.tripChat?.clearTrip("customer");
-      return;
-    }
-    const data = doc.data();
-    const status = String(data.status || "").toLowerCase();
-    if (currentOrderId === orderId) window.tripChat?.updateTrip("customer", orderId, data);
+  let stopped = false;
+  let detach = null;
+  let retryTimer = null;
+  let retryDelay = 1000;
+  let attempt = 0;
+  const reconnectMessage = 'Live trip updates interrupted. Reconnecting automatically...';
+  unsubscribeOrder = () => {
+    stopped = true;
+    if (retryTimer !== null) clearTimeout(retryTimer);
+    if (detach) detach();
+    if (document.getElementById('orderValidationError')?.textContent === reconnectMessage) clearOrderValidationError();
+  };
+  const current = () => !stopped && currentOrderId === orderId;
+  function retry(error, request) {
+    if (!current() || request !== attempt) return;
+    attempt += 1;
+    if (detach) detach();
+    detach = null;
+    console.error("[Passenger] Live order listener failed:", error);
+    showOrderValidationError(reconnectMessage);
+    retryTimer = setTimeout(() => {
+      retryTimer = null;
+      connect();
+    }, retryDelay);
+    retryDelay = Math.min(retryDelay * 2, 30_000);
+  }
+  function connect() {
+    if (!current()) return;
+    const request = ++attempt;
+    try {
+      detach = db.collection("ride_orders").doc(orderId).onSnapshot(doc => {
+        if (!current() || request !== attempt) return;
+        retryDelay = 1000;
+        if (document.getElementById('orderValidationError')?.textContent === reconnectMessage) clearOrderValidationError();
+        if (!doc.exists) {
+          window.tripChat?.clearTrip("customer");
+          return;
+        }
+        const data = doc.data();
+        const status = String(data.status || "").toLowerCase();
+        window.tripChat?.updateTrip("customer", orderId, data);
 
-    if (status === 'cancelled') {
-      showDriverNoticeToPassenger("This trip was cancelled.");
-      resetAppToIdle();
-      return;
+        if (status === 'cancelled') {
+          showDriverNoticeToPassenger("This trip was cancelled.");
+          resetAppToIdle();
+          return;
+        }
+        if (status === 'pending') {
+          renderPendingOrderView(orderId);
+          return;
+        }
+        if (['accepted', 'matched', 'arrived', 'in_progress', 'completed'].includes(status)) {
+          stopDispatchTimer();
+          renderNativeTripView(status, data);
+          // Keep listening until the passenger confirms the settlement card.
+        }
+      }, error => retry(error, request));
+    } catch (error) {
+      retry(error, request);
     }
-    if (status === 'pending') {
-      renderPendingOrderView(orderId);
-      return;
-    }
-    if (['accepted', 'matched', 'arrived', 'in_progress', 'completed'].includes(status)) {
-      // 每次 snapshot 更新（包含司機座標移動）都重新渲染，
-      // 讓地圖鏡頭與底部卡片持續跟隨最新行程階段。
-      renderNativeTripView(status, data);
-      // Keep the listener active until the passenger confirms the settlement card.
-    }
-  }, err => {
-    if (currentOrderId === orderId) window.tripChat?.clearTrip("customer");
-    console.error("Realtime listener error:", err);
-    const statusText = document.getElementById('dispatchStatusText');
-    if (statusText) statusText.innerText = `Live order update failed: ${err.message || 'connection error'}`;
-  });
+  }
+  connect();
 }
 
 function renderPendingOrderView(orderId) {
@@ -803,9 +835,11 @@ function startDispatchTimeoutChecker() {
     if ((dispatchStage === 1 || dispatchStage === 2) && elapsed >= STAGE_DURATION_MS) {
       clearInterval(dispatchTimer);
 
-      if (currentOrderId && db) {
+      const waitingOrderId = currentOrderId;
+      if (waitingOrderId && db) {
         try {
-          const docSnap = await db.collection("ride_orders").doc(currentOrderId).get();
+          const docSnap = await db.collection("ride_orders").doc(waitingOrderId).get();
+          if (waitingOrderId !== currentOrderId || !dispatchStartTime) return;
           if (docSnap.exists) {
             const data = docSnap.data();
             const matchedStatuses = ['accepted', 'matched', 'arrived', 'in_progress', 'completed'];
@@ -821,6 +855,7 @@ function startDispatchTimeoutChecker() {
         }
       }
 
+      if (waitingOrderId !== currentOrderId || !dispatchStartTime) return;
       if (dispatchStage === 1) {
         showTimeoutStage1UI();
       } else {
@@ -1213,6 +1248,7 @@ function checkActiveOrderOnLoad() {
   }
 
   if (!urlParams.has('track')) {
+    if (currentOrderId === activeId && unsubscribeOrder) return;
     currentOrderId = activeId;
     renderPendingOrderView(activeId);
     subscribeToOrder(activeId);

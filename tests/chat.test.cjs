@@ -67,7 +67,8 @@ function backend() {
         assert.equal(name, "ride_orders", "Chat must never modify another collection");
         return {
           where() { return this; },
-          onSnapshot(next, error) {
+          onSnapshot(...args) {
+            const [next, error] = typeof args[0] === "function" ? args : args.slice(1);
             const listener = { next, error, active: true };
             driverListeners.push(listener);
             return () => { listener.active = false; };

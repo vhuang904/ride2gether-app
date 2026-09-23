@@ -428,8 +428,18 @@ Before release:
    validate the current participant session before reading canonical values.
    It mirrors those values to `Orders_Master` and Telegram and only patches
    Telegram message metadata in Firestore, never fares, ownership or phases.
-   Cards open `driver.html?order=...`; the driver must sign in, go online and
-   explicitly accept with one GPS fix. Old callback buttons only refresh their
+   Cards open `driver.html?order=...` with a claim intent. After PIN sign-in,
+   roster verification and going online, the page automatically accepts only
+   that trip with one GPS fix through the existing atomic `claimOrder` API.
+   Already-online drivers continue immediately; paused drivers must choose
+   Online first. No extra Accept tap is required. Permission/GPS/claim failures
+   stay visible and allow a manual retry, never an automatic retry loop.
+   Unavailable trips are reported without claiming another order. A committed
+   `ride_orders/{orderId}` snapshot, not Telegram delivery, drives the
+   passenger's accepted card and driver details. Failed passenger subscriptions
+   reconnect with 1–30 second backoff; replaced listeners cannot render stale
+   trips, and acceptance cancels the pending dispatch timeout.
+   Old callback buttons only refresh their
    known card and show an alert, never claim or advance a trip. Notifications
    cover booking, claim, cancellation and each phase; the two-second claim
    retry and a post-send status reread cover delayed Telegram delivery.
