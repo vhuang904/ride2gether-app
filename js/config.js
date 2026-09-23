@@ -1,5 +1,5 @@
 // --- 1. SERVICE WORKER 版本控管 ---
-const APP_VERSION = 'ride2gether-cache-v7.37';
+const APP_VERSION = 'ride2gether-cache-v7.38';
 const ACCOUNT_API_URL = 'https://asia-southeast1-gen-lang-client-0194528491.cloudfunctions.net/api';
 
 if ('serviceWorker' in navigator) {

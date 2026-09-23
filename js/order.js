@@ -370,9 +370,11 @@ function renderNativeTripRoute(status, data) {
   if (directionsRenderer) directionsRenderer.set('directions', null);
   window.tripMirror?.bind("customer", currentOrderId, {
     map: () => mapInstance,
-    onState() {
+    onState(state) {
       const label = document.getElementById('activeTripEta');
-      if (label && !['arrived', 'completed'].includes(lastTripStatus)) label.textContent = "Estimated · not live GPS";
+      if (label && !['arrived', 'completed'].includes(lastTripStatus)) {
+        label.textContent = state.phase === "awaiting_location" ? "Waiting for driver location" : "Estimated · not live GPS";
+      }
     },
     onError: showDriverNoticeToPassenger
   });

@@ -125,3 +125,20 @@ test("queued snapshots from a replaced trip cannot change state, report errors o
   client.publish({ phase: "pending" });
   assert.equal(states.length, 1);
 });
+test("awaiting driver location never renders a delivery route or fictional car and pickup resumes after one attachment", () => {
+  const client = browser();
+  client.mirror.bind("test", "OD-native1", { map: () => client.map });
+  const state = { phase: "awaiting_location", phaseStartedAt: 1000,
+    delivery: { polyline: encoded, durationSeconds: 100 } };
+  client.publish(state);
+  client.tick(100_000);
+  assert.equal(client.markers.length, 0);
+  assert.equal(client.lines.length, 0);
+  assert.equal(client.frames.size, 0);
+  client.publish({ ...state, phase: "pickup", pickupRoute: { polyline: encoded, durationSeconds: 100 } });
+  assert.equal(client.markers.length, 1);
+  client.publish(state);
+  assert.equal(client.markers[0].map, null);
+  assert.equal(client.lines[0].map, null);
+  assert.equal(client.frames.size, 0);
+});

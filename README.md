@@ -62,6 +62,15 @@ rather than claiming the driver is offline. Already-revoked credentials can
 still be cleared. Sign-out never cancels an existing server-side trip or
 changes a fare snapshot; signing in again restores any ongoing trip. Online/pause
 is saved on the server and affects only new dispatches, not ongoing trips.
+Both driver views provide side-by-side **Driver Mode On** and **Driver Mode Off**
+buttons. The confirmed on-duty button lights green; the confirmed off-duty button
+lights red. Both buttons are disabled during an update; errors retain the confirmed
+state and remain visible for retry. Tapping the selected state does not toggle it.
+While Driver Mode is open and on duty, new server-confirmed pending trips display a
+**New trip available** banner with View orders and Dismiss actions. Repeated snapshots
+do not repeat the alert; off-duty drivers, active-trip drivers, own bookings,
+dismissed trips and stale trips do not trigger it. This is an in-app foreground
+alert, not a background or lock-screen push notification.
 Dismissal is local to the driver; it no longer closes another driver's
 potential booking globally.
 
@@ -346,11 +355,19 @@ active bookings. Completion/cancellation releases the work lock.
 Cancellation rechecks the assigned driver if a concurrent claim wins, so the
 new driver's work lock is also released.
 
-Accept order requests one fresh GPS fix (`getCurrentPosition`, no
+The web Accept order button requests one fresh GPS fix (`getCurrentPosition`, no
 `watchPosition`). If location is unavailable/denied, acceptance stops with an
 explicit error. The backend transaction checks online status, current
 approval, pending order and driver work lock before assigning it. Simultaneous
 claims cannot overwrite another driver. The GPS fix is stored once.
+Telegram-native claims instead atomically assign the driver first, with phase
+`awaiting_location`. The passenger immediately sees the accepted driver; neither
+map displays a fictional vehicle or delivery-route animation. Opening the owned
+trip in a PIN-authenticated driver page obtains the one GPS fix and calls
+`attachPickupLocation`. Location denial has an explicit retry button, not an
+automatic permission loop. The backend rechecks ownership, credentials and phase
+after route lookup; repeated calls cannot overwrite the first location or restart
+the pickup clock. Arrival is unavailable until location has been attached.
 
 The shared trip subdocument holds encoded route geometry, duration and server
 phase-start times. Accepted -> arrived -> in_progress -> completed maps to
@@ -428,19 +445,35 @@ Before release:
    validate the current participant session before reading canonical values.
    It mirrors those values to `Orders_Master` and Telegram and only patches
    Telegram message metadata in Firestore, never fares, ownership or phases.
-   Cards open `driver.html?order=...` with a claim intent. After PIN sign-in,
-   roster verification and going online, the page automatically accepts only
-   that trip with one GPS fix through the existing atomic `claimOrder` API.
-   Already-online drivers continue immediately; paused drivers must choose
-   Online first. No extra Accept tap is required. Permission/GPS/claim failures
-   stay visible and allow a manual retry, never an automatic retry loop.
-   Unavailable trips are reported without claiming another order. A committed
+   New CLAIM buttons use Telegram callbacks, not URL buttons. Configure the
+   `telegramClaim` function with the same operator audience/email allowlist as
+   PIN sync and `TELEGRAM_DISPATCH_CHAT_ID` matching the production group.
+   Populate each participating driver's unique numeric `Telegram_ID` in
+   Drivers_Master and sync; blank, duplicate or unlinked IDs cannot claim in
+   Telegram (web-only drivers may leave it blank). Usernames are never identity.
+   Run `installTelegramClaimWebhook` as the deployment owner after publishing.
+   It retains a random `TELEGRAM_WEBHOOK_SECRET` in Script Properties and installs
+   the existing `/exec` URL with that secret; pending updates are not dropped.
+   Never log or commit the full secret-bearing webhook URL.
+   Callback acknowledgements use HtmlService for a direct HTTP response;
+   authenticated browser synchronization retains its JSON response.
+   GAS rejects unverified callbacks before reading orders, then sends its Google
+   identity token to `telegramClaim`. The backend resolves the unique driver,
+   rechecks current roster linkage, enabled credentials, online state, work lock,
+   canonical message/chat and pending status inside the claim transaction.
+   Only after acceptance commits does Telegram show the success popup and
+   replace CLAIM with **OPEN TRIP**. The driver taps Open Trip to enter the
+   PIN-protected page and supply location; Telegram cannot automatically launch
+   an arbitrary external website after a callback alert.
+   Existing URL cards remain compatible: the authenticated online driver page
+   continues the old claim intent once with GPS. Failures allow explicit retry.
+   Unavailable trips never cause another order to be claimed. A committed
    `ride_orders/{orderId}` snapshot, not Telegram delivery, drives the
    passenger's accepted card and driver details. Failed passenger subscriptions
    reconnect with 1–30 second backoff; replaced listeners cannot render stale
    trips, and acceptance cancels the pending dispatch timeout.
-   Old callback buttons only refresh their
-   known card and show an alert, never claim or advance a trip. Notifications
+   Old status callback buttons only refresh their
+   known card and show an alert, never advance a trip. Notifications
    cover booking, claim, cancellation and each phase; the two-second claim
    retry and a post-send status reread cover delayed Telegram delivery.
    Browser no-cors completion is not proof of successful delivery; inspect

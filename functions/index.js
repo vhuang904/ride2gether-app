@@ -10,6 +10,7 @@ const { AppError, requireValue } = require("./errors");
 const { OAuth2Client } = require("google-auth-library");
 const { createDriverPinSync, createDriverPinSyncHandler, firestoreUpdateTime } = require("./driver-pin-sync");
 const { DRIVER_SECRETS } = require("./pin");
+const { createTelegramClaimHandler } = require("./telegram-claim");
 initializeApp();
 const db = getFirestore(), auth = getAuth();
 const mapsKey = defineSecret("MAPS_SERVER_KEY");
@@ -17,6 +18,7 @@ const identityKey = defineString("IDENTITY_WEB_API_KEY");
 const allowedOrigins = defineString("APP_ORIGINS", { default: "https://ride2gether.ph,https://www.ride2gether.ph" });
 const syncAudience = defineString("SHEET_SYNC_OAUTH_CLIENT_ID", { default: "" });
 const syncOperators = defineString("SHEET_SYNC_OPERATOR_EMAILS", { default: "" });
+const telegramChatId = defineString("TELEGRAM_DISPATCH_CHAT_ID", { default: "" });
 const store = {
   async get(path) { const doc = await db.doc(path).get(); return doc.exists ? doc.data() : null; },
   async atomic(paths, callback) {
@@ -112,6 +114,16 @@ exports.prepareDriverPins = onRequest({
   })(input)
 }));
 
+exports.telegramClaim = onRequest({ region: "asia-southeast1", invoker: "public", maxInstances: 3, timeoutSeconds: 30 },
+  createTelegramClaimHandler({
+    config: () => ({ audience: syncAudience.value(),
+      operators: syncOperators.value().split(",").map(value => value.trim().toLowerCase()).filter(Boolean),
+      chatId: telegramChatId.value() }),
+    verifyToken: async (token, audience) => (await operatorAuth.verifyIdToken({ idToken: token, audience })).getPayload(),
+    findDrivers: async id => (await db.collection("drivers").where("telegramId", "==", id).limit(2).get()).docs,
+    claim: input => trips.claimTelegramOrder(input)
+  }));
+
 exports.api = onRequest({ region: "asia-southeast1", secrets: [mapsKey], maxInstances: 5, timeoutSeconds: 60 }, async (req, res) => {
   res.set("Cache-Control", "no-store");
   res.set("Vary", "Origin");
@@ -145,6 +157,7 @@ exports.api = onRequest({ region: "asia-southeast1", secrets: [mapsKey], maxInst
         createOrder: () => trips.createOrder(session, payload),
         setOnline: () => trips.setOnline(session, payload.online),
         claimOrder: () => trips.claimOrder(session, payload),
+        attachPickupLocation: () => trips.attachPickupLocation(session, payload),
         advanceTrip: () => trips.advance(session, payload),
         cancelOrder: () => trips.cancel(session, payload),
         dispatchOrder: () => trips.dispatchOrder(session, payload),

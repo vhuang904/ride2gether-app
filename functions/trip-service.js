@@ -131,21 +131,66 @@ function createTripService({ store, route, now = Date.now, stamp = () => new Dat
     const paths = driverPaths(session);
     return transaction(session, [path, mp, ...paths], (get, put) => {
       const profile = checkDriver(session, get);
-      const order = get(path), state = get(mp), work = get(paths[2]) || {};
-      if (order?.driverId === session.phone && active.has(order.status)) return { accepted: true };
-      requireValue(work.online, "DRIVER_OFFLINE", "Go online before accepting an order.", 409);
+      return commitClaim(get, put, session.phone, profile, orderId, { gps, pickupRoute });
+    });
+  }
+
+  function commitClaim(get, put, phone, profile, orderId, { gps, pickupRoute } = {}) {
+      const path = op(orderId), mp = meta(orderId), wp = `_driver_work/${phone}`;
+      const order = get(path), state = get(mp), work = get(wp) || {};
+      if (order?.driverId === phone && active.has(order.status)) return { accepted: true };
+      requireValue(work.online, "DRIVER_OFFLINE", "Go online in Driver Mode before accepting an order.", 409);
       requireValue(!work.activeOrderId, "ACTIVE_TRIP", "Complete your active trip first.", 409);
       requireValue(order?.status === "pending", "ALREADY_CLAIMED", "Trip already claimed or unavailable.", 409);
-      requireValue(order.customerPhone !== session.phone, "OWN_ORDER", "You cannot accept your own booking.", 409);
-      const updated = { ...order, status: "accepted", driverId: session.phone, driverPhone: session.phone,
+      requireValue(state?.pickup, "LEGACY_TRIP", "This trip needs dispatch assistance.");
+      requireValue(order.customerPhone !== phone, "OWN_ORDER", "You cannot accept your own booking.", 409);
+      const updated = { ...order, status: "accepted", driverId: phone, driverPhone: phone,
         driverName: profile.name, driverVehicle: profile.model, driverPlate: profile.plate,
-        driverGender: "male", driverLat: gps.lat, driverLng: gps.lng, acceptedAt: stamp() };
+        driverGender: "male", ...(gps ? { driverLat: gps.lat, driverLng: gps.lng } : {}), acceptedAt: stamp() };
+      const trip = { ...state, ...(pickupRoute ? { pickupRoute } : {}),
+        phase: pickupRoute ? "pickup" : "awaiting_location", phaseStartedAt: now() };
+      put(path, updated);
+      put(mp, trip);
+      put(wp, { ...work, activeOrderId: orderId });
+      updateShare(put, updated, trip);
+      return { accepted: true };
+  }
+
+  async function claimTelegramOrder({ orderId, phone, telegramId, chatId, messageId }) {
+    const path = op(orderId), mp = meta(orderId), paths = driverPaths({ phone });
+    return store.atomic([path, mp, ...paths], (get, put) => {
+      const profile = get(paths[0]), credential = get(paths[1]), order = get(path);
+      requireValue(profile && profile.telegramId === telegramId && credential?.enabled,
+        "DRIVER_REVOKED", "Your Telegram account is not linked to an approved driver. Contact operations.", 403);
+      requireValue(order && String(order.telegramChatId) === chatId && String(order.telegramMessageId) === messageId,
+        "INVALID_CALLBACK", "This dispatch card is no longer valid.", 403);
+      return commitClaim(get, put, phone, profile, orderId);
+    });
+  }
+
+  async function attachPickupLocation(session, { orderId, location }) {
+    requireValue(session.role === "driver", "DRIVER_REQUIRED", "Only an approved driver may do this.", 403);
+    const gps = coordinate(location), path = op(orderId), mp = meta(orderId);
+    const initial = await transaction(session, [path, mp], get => {
+      requireValue(get(path)?.driverId === session.phone, "FORBIDDEN", "This is not your trip.", 403);
+      requireValue(get(path).status === "accepted", "INVALID_TRANSITION", "This trip is no longer awaiting pickup.", 409);
+      return get(mp);
+    });
+    requireValue(initial?.pickup, "LEGACY_TRIP", "This trip needs dispatch assistance.");
+    if (initial.pickupRoute) return { locationAttached: true };
+    const pickupRoute = await route(gps, initial.pickup);
+    return transaction(session, [path, mp], (get, put) => {
+      const order = get(path), state = get(mp);
+      requireValue(order?.driverId === session.phone, "FORBIDDEN", "This is not your trip.", 403);
+      requireValue(order.status === "accepted", "INVALID_TRANSITION", "This trip is no longer awaiting pickup.", 409);
+      if (state.pickupRoute) return { locationAttached: true };
+      requireValue(state.phase === "awaiting_location", "INVALID_TRANSITION", "This trip is not awaiting location.", 409);
+      const updated = { ...order, driverLat: gps.lat, driverLng: gps.lng };
       const trip = { ...state, pickupRoute, phase: "pickup", phaseStartedAt: now() };
       put(path, updated);
       put(mp, trip);
-      put(paths[2], { ...work, activeOrderId: orderId });
       updateShare(put, updated, trip);
-      return { accepted: true };
+      return { locationAttached: true };
     });
   }
 
@@ -164,6 +209,7 @@ function createTripService({ store, route, now = Date.now, stamp = () => new Dat
       }
       requireValue(({ accepted: "arrived", arrived: "in_progress", in_progress: "completed" })[order.status] === status,
         "INVALID_TRANSITION", "The trip has changed. Refresh its status.", 409);
+      requireValue(state.phase !== "awaiting_location", "GPS_REQUIRED", "Enable location in Driver Mode before continuing.", 409);
       const next = { ...order, status, updatedAt: stamp(), ...(status === "completed" ? { completedAt: stamp() } : {}) };
       const trip = { ...state, phase: { arrived: "waiting", in_progress: "delivery", completed: "completed" }[status],
         phaseStartedAt: now() };
@@ -230,6 +276,6 @@ function createTripService({ store, route, now = Date.now, stamp = () => new Dat
       return { order };
     });
   }
-  return { createOrder, setOnline, claimOrder, advance, cancel, share, dispatchOrder };
+  return { createOrder, setOnline, claimOrder, claimTelegramOrder, attachPickupLocation, advance, cancel, share, dispatchOrder };
 }
 module.exports = { createTripService, coordinate };

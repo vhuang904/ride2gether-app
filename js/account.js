@@ -13,6 +13,9 @@
   let captcha = null;
   let stopPresence = null;
   let online = false;
+  let presenceReady = false;
+  let availabilityTarget = null;
+  let availabilityError = "";
   const get = id => document.getElementById(id);
   const clock = () => Date.now() + serverOffset;
   const normalize = value => {
@@ -154,11 +157,28 @@
     if (get("driverPinCountdown")) get("driverPinCountdown").textContent = locked ? `Try again in ${cooldown}s.` : "";
     if (get("otpCountdown")) get("otpCountdown").textContent = locked ? `Try again in ${cooldown}s.`
       : expiry ? `Code expires in ${expiry}s.` : "Code expired. Request a new code.";
-    const availability = get("btnDriverAvailability");
-    if (availability) {
-      availability.disabled = !session || busy;
-      availability.textContent = online ? "🟢 Online — listening" : "🚫 Paused — not accepting";
-      availability.setAttribute("aria-pressed", String(online));
+    for (const [id, lightId, value, color] of [
+      ["btnDriverOn", "driverOnLight", true, "bg-emerald-500"],
+      ["btnDriverOff", "driverOffLight", false, "bg-red-500"]
+    ]) {
+      const button = get(id), light = get(lightId);
+      const selected = session?.role === "driver" && presenceReady && online === value;
+      if (button) {
+        button.disabled = session?.role !== "driver" || !presenceReady || busy;
+        button.setAttribute("aria-pressed", String(selected));
+        for (const style of ["border-blue-600", "bg-blue-50", "text-slate-900"]) button.classList.toggle(style, selected);
+        for (const style of ["border-slate-200", "bg-white", "text-slate-600"]) button.classList.toggle(style, !selected);
+      }
+      light?.classList.toggle(color, selected);
+      light?.classList.toggle("bg-slate-300", !selected);
+    }
+    const availabilityStatus = get("driverAvailabilityStatus");
+    if (availabilityStatus) {
+      availabilityStatus.textContent = availabilityError || (availabilityTarget !== null
+        ? "Updating work status..." : !presenceReady ? "Checking work status..."
+          : online ? "On duty. Listening for new trips." : "Off duty. Your active trip remains available.");
+      availabilityStatus.classList.toggle("text-red-600", Boolean(availabilityError));
+      availabilityStatus.classList.toggle("text-slate-600", !availabilityError);
     }
   }
   function setLoginMode(mode) {
@@ -173,6 +193,8 @@
     if (stopPresence) stopPresence();
     stopPresence = null;
     online = false;
+    presenceReady = false;
+    availabilityError = "";
     if (session) {
       localStorage.setItem(BINDING_KEY, JSON.stringify({ phone: session.phone, role: session.role }));
       localStorage.setItem("guest_phone", session.phone);
@@ -185,10 +207,13 @@
       if (session.role === "driver") {
         stopPresence = db.collection("_driver_work").doc(session.phone).onSnapshot(doc => {
           online = doc.exists && doc.data().online === true;
+          presenceReady = true;
           render();
           window.dispatchEvent(new Event("driveravailabilitychange"));
         }, error => {
           online = false;
+          presenceReady = true;
+          availabilityError = "Unable to check work status. Select Driver Mode On or Off to retry.";
           console.error("[Account] Availability read failed:", error);
           notice("Unable to check availability. New orders are paused.", true);
           render();
@@ -343,12 +368,24 @@
       }
     });
   }
-  async function setOnline() {
-    if (session?.role !== "driver") return;
+  async function setOnline(target) {
+    if (session?.role !== "driver" || !presenceReady || busy || typeof target !== "boolean"
+        || (target === online && !availabilityError)) return;
     await perform(async () => {
-      const result = await api("setOnline", { online: !online });
-      online = result.online;
-      window.dispatchEvent(new Event("driveravailabilitychange"));
+      availabilityError = "";
+      availabilityTarget = target;
+      render();
+      try {
+        const result = await api("setOnline", { online: target });
+        if (result.online !== target) throw new Error("Work status was not confirmed. Please retry.");
+        online = result.online;
+        window.dispatchEvent(new Event("driveravailabilitychange"));
+      } catch (error) {
+        availabilityError = error.message || "Unable to update work status. Please retry.";
+        throw error;
+      } finally {
+        availabilityTarget = null;
+      }
     });
   }
   window.accountAuth = {
@@ -369,7 +406,8 @@
   get("btnPassengerSignIn")?.addEventListener("click", () => setLoginMode("passenger"));
   get("btnChangePhone")?.addEventListener("click", changePhone);
   get("btnSignOut")?.addEventListener("click", signOut);
-  get("btnDriverAvailability")?.addEventListener("click", setOnline);
+  get("btnDriverOn")?.addEventListener("click", () => setOnline(true));
+  get("btnDriverOff")?.addEventListener("click", () => setOnline(false));
   window.addEventListener("vipprofilechange", render);
   window.addEventListener("online", () => restore(auth.currentUser));
   window.addEventListener("storage", event => {

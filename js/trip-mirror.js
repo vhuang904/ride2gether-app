@@ -23,7 +23,14 @@
     b.state = state;
     b.options.onState?.(state);
     cancelAnimationFrame(b.frame);
-    if (state.phase === "pending" || state.phase === "cancelled") return;
+    if (["pending", "cancelled", "awaiting_location"].includes(state.phase)) {
+      b.marker?.setMap(null);
+      b.line?.setMap(null);
+      b.marker = null;
+      b.line = null;
+      b.routeKey = null;
+      return;
+    }
     const route = ["pickup", "waiting"].includes(state.phase) ? state.pickupRoute : state.delivery;
     try {
       b.path = TripMotion.measurePath(TripMotion.decodePolyline(route?.polyline));

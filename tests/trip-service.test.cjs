@@ -207,3 +207,93 @@ test("claim racing cancellation releases the newly assigned driver work lock", a
   assert.equal(h.store.docs.get(`_driver_work/${phone}`).activeOrderId, null);
   assert.equal(h.store.docs.get("ride_orders/OD-test001").status, "cancelled");
 });
+
+async function telegramTrip() {
+  const h = setup();
+  await h.create();
+  h.store.docs.get(`drivers/${phone}`).telegramId = "1234567";
+  Object.assign(h.store.docs.get("ride_orders/OD-test001"), { telegramChatId: "-100000", telegramMessageId: "42" });
+  h.callback = { orderId: h.input.orderId, phone, telegramId: "1234567", chatId: "-100000", messageId: "42" };
+  h.nativeClaim = () => h.service.claimTelegramOrder(h.callback);
+  h.attach = () => h.service.attachPickupLocation(driver, { orderId: h.input.orderId, location: { lat: 0, lng: 125 } });
+  return h;
+}
+test("Telegram acceptance notifies the passenger before any GPS or pickup route, with unchanged fare", async () => {
+  const h = await telegramTrip();
+  await h.service.setOnline(driver, true);
+  assert.equal((await h.nativeClaim()).accepted, true);
+  const order = h.store.docs.get("ride_orders/OD-test001");
+  assert.equal(order.status, "accepted");
+  assert.equal(order.driverName, "Real roster");
+  assert.equal(order.driverLat, undefined);
+  assert.equal(h.state().phase, "awaiting_location");
+  assert.equal(h.state().pickupRoute, undefined);
+  assert.equal(h.state().totalFare, 155);
+  assert.equal(h.state().driverEarnings, 114.5);
+  assert.equal(h.calls(), 1);
+  const before = structuredClone(h.state());
+  await h.nativeClaim();
+  assert.deepEqual(h.state(), before);
+  await assert.rejects(h.service.advance(driver, { orderId: h.input.orderId, status: "arrived" }), { code: "GPS_REQUIRED" });
+  await h.service.setOnline(driver, false);
+  await h.attach();
+  assert.equal(h.state().phase, "pickup");
+  assert.equal(h.store.docs.get("ride_orders/OD-test001").driverLat, 0);
+  const startedAt = h.state().phaseStartedAt;
+  h.tick(5000);
+  await h.service.attachPickupLocation(driver, { orderId: h.input.orderId, location: { lat: 2, lng: 124 } });
+  assert.equal(h.state().phaseStartedAt, startedAt);
+  assert.equal(h.store.docs.get("ride_orders/OD-test001").driverLat, 0);
+  assert.equal(h.calls(), 2, "repeat attachment never recomputes or overwrites the one GPS fix");
+});
+test("native claim rejects offline, unlinked, revoked, forged cards, self orders and work conflicts", async () => {
+  const h = await telegramTrip();
+  await assert.rejects(h.nativeClaim(), { code: "DRIVER_OFFLINE" });
+  await h.service.setOnline(driver, true);
+  for (const input of [{ ...h.callback, telegramId: "7654321" }, { ...h.callback, phone: secondPhone }]) {
+    await assert.rejects(h.service.claimTelegramOrder(input), { code: "DRIVER_REVOKED" });
+  }
+  for (const input of [{ ...h.callback, chatId: "-100001" }, { ...h.callback, messageId: "99" }]) {
+    await assert.rejects(h.service.claimTelegramOrder(input), { code: "INVALID_CALLBACK" });
+  }
+  h.store.docs.get(`driver_auth_secrets/${phone}`).enabled = false;
+  await assert.rejects(h.nativeClaim(), { code: "DRIVER_REVOKED" });
+  h.store.docs.get(`driver_auth_secrets/${phone}`).enabled = true;
+  h.store.docs.get(`_driver_work/${phone}`).activeOrderId = "OD-another";
+  await assert.rejects(h.nativeClaim(), { code: "ACTIVE_TRIP" });
+  h.store.docs.get(`_driver_work/${phone}`).activeOrderId = null;
+  h.store.docs.get("ride_orders/OD-test001").customerPhone = phone;
+  await assert.rejects(h.nativeClaim(), { code: "OWN_ORDER" });
+  assert.equal(h.store.docs.get("ride_orders/OD-test001").status, "pending");
+});
+test("web and Telegram claims share the atomic lock, and a late web claim cannot replace native ownership", async () => {
+  const h = await telegramTrip();
+  await h.service.setOnline(driver, true);
+  const other = h.grant({ ...driver, phone: secondPhone, sessionId: "c".repeat(64) });
+  await h.service.setOnline(other, true);
+  const results = await Promise.allSettled([h.nativeClaim(),
+    h.service.claimOrder(other, { orderId: h.input.orderId, location: { lat: 1, lng: 125 } })]);
+  assert.equal(results.filter(result => result.status === "fulfilled").length, 1);
+  assert.equal(results.find(result => result.status === "rejected").reason.code, "ALREADY_CLAIMED");
+  assert.equal(h.store.docs.get("ride_orders/OD-test001").driverId, phone);
+  assert.equal(h.state().phase, "awaiting_location");
+});
+test("deferred location is owner-only and rechecks revocation or cancellation after route lookup", async () => {
+  for (const conflict of ["revoked", "cancelled"]) {
+    const h = await telegramTrip();
+    await h.service.setOnline(driver, true);
+    await h.nativeClaim();
+    const other = h.grant({ ...driver, phone: secondPhone, sessionId: "c".repeat(64) });
+    await assert.rejects(h.service.attachPickupLocation(other, { orderId: h.input.orderId, location: { lat: 0, lng: 125 } }),
+      { code: "FORBIDDEN" });
+    const service = createTripService({ store: h.store, route: async () => {
+      if (conflict === "revoked") h.store.docs.get(`_auth_sessions/${driver.sessionId}`).revoked = true;
+      else await h.service.cancel(customer, { orderId: h.input.orderId });
+      return { polyline: points };
+    } });
+    await assert.rejects(service.attachPickupLocation(driver, { orderId: h.input.orderId, location: { lat: 0, lng: 125 } }),
+      { code: conflict === "revoked" ? "SESSION_REVOKED" : "INVALID_TRANSITION" });
+    assert.equal(h.store.docs.get("ride_orders/OD-test001").driverLat, undefined);
+    assert.equal(h.state().pickupRoute, undefined);
+  }
+});

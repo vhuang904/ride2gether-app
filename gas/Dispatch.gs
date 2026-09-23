@@ -73,7 +73,10 @@ function dispatchTelegram_(method, body) {
 
 function dispatchMarkup_(order) {
   return { inline_keyboard: order.status === "pending" ? [[{
-    text: "CLAIM THIS ORDER — OPEN DRIVER MODE",
+    text: "CLAIM THIS ORDER",
+    callback_data: "CLAIM_" + order.orderId
+  }]] : ["accepted", "arrived", "in_progress"].includes(order.status) ? [[{
+    text: "OPEN TRIP",
     url: "https://ride2gether.ph/driver.html?order=" + encodeURIComponent(order.orderId)
   }]] : [] };
 }
@@ -94,7 +97,7 @@ function dispatchText_(order) {
     + "<b>Notes:</b> " + html(String(order.notes || "None").slice(0, 500)) + "\n\n"
     + "<b>Status:</b> " + html(order.status.replace("_", " ")) + "\n"
     + (order.driverName ? "<b>Driver:</b> " + html(order.driverName) + "\n" : "")
-    + (order.status === "pending" ? "Sign in to Driver Mode, go online and accept with location enabled."
+    + (order.status === "pending" ? "Linked, online drivers can claim here. Open the trip after confirmation to enable location."
       : "This trip is no longer open for claiming.");
 }
 
@@ -139,7 +142,7 @@ function dispatchSync_(id) {
   dispatchWriteSheet_(order);
 }
 
-function dispatchLegacyCallback_(query) {
+function dispatchCallback_(query) {
   const match = /^(?:CLAIM_|STATUS_(?:ARRIVED|TRANSIT|COMPLETED)_)(OD-[a-zA-Z0-9-]{6,80})$/.exec(query.data || "");
   if (!match || !query.message || String(query.message.chat.id) !== String(TELEGRAM_CHAT_ID)) {
     throw new Error("INVALID_CALLBACK");
@@ -147,40 +150,91 @@ function dispatchLegacyCallback_(query) {
   const order = dispatchReadOrder_(match[1]);
   if (String(order.telegramMessageId) !== String(query.message.message_id)
       || String(order.telegramChatId) !== String(TELEGRAM_CHAT_ID)) throw new Error("INVALID_CALLBACK_MESSAGE");
-  // Legacy buttons can only refresh a known card; they cannot claim or advance a trip.
-  dispatchTelegram_("editMessageReplyMarkup", {
-    chat_id: TELEGRAM_CHAT_ID, message_id: order.telegramMessageId, reply_markup: dispatchMarkup_(order)
+  if (!query.data.startsWith("CLAIM_")) {
+    dispatchTelegram_("answerCallbackQuery", {
+      callback_query_id: query.id, show_alert: true, text: "Open Driver Mode to update your trip."
+    });
+    dispatchSync_(order.orderId);
+    return;
+  }
+  if (!query.from || !Number.isSafeInteger(query.from.id) || query.from.id <= 0 || query.from.is_bot) {
+    throw new Error("INVALID_CALLBACK_DRIVER");
+  }
+  const token = ScriptApp.getIdentityToken();
+  if (!token) throw new Error("DISPATCH_IDENTITY_MISSING");
+  const response = UrlFetchApp.fetch("https://asia-southeast1-" + FIREBASE_PROJECT_ID + ".cloudfunctions.net/telegramClaim", {
+    method: "post", contentType: "application/json", muteHttpExceptions: true, followRedirects: false,
+    headers: { Authorization: "Bearer " + token },
+    payload: JSON.stringify({ orderId: order.orderId, telegramId: String(query.from.id),
+      chatId: String(query.message.chat.id), messageId: String(query.message.message_id) })
   });
-  dispatchTelegram_("answerCallbackQuery", {
-    callback_query_id: query.id, show_alert: true,
-    text: order.status === "pending" ? "Open Driver Mode to sign in and accept this trip."
-      : "⚠️ Trip already claimed by another driver."
-  });
+  const result = JSON.parse(response.getContentText());
+  const accepted = response.getResponseCode() === 200 && result.accepted === true;
+  try {
+    dispatchTelegram_("answerCallbackQuery", {
+      callback_query_id: query.id, show_alert: true,
+      text: accepted ? "Trip accepted! The passenger has been notified. Tap OPEN TRIP to enable location."
+        : result.code === "ALREADY_CLAIMED" ? "⚠️ Trip already claimed by another driver."
+          : String(result.message || "Unable to confirm this claim. Please retry.").slice(0, 200)
+    });
+  } finally {
+    // Always reconcile the card, even if Telegram's callback acknowledgement has expired.
+    dispatchSync_(order.orderId);
+  }
+}
+
+function dispatchVerifyWebhook_(event) {
+  const expected = PropertiesService.getScriptProperties().getProperty("TELEGRAM_WEBHOOK_SECRET");
+  const supplied = event && event.parameter && event.parameter.telegram_secret;
+  if (!expected || typeof supplied !== "string" || supplied.length !== expected.length) throw new Error("INVALID_WEBHOOK");
+  let difference = 0;
+  for (let i = 0; i < expected.length; i++) difference |= expected.charCodeAt(i) ^ supplied.charCodeAt(i);
+  if (difference !== 0) throw new Error("INVALID_WEBHOOK");
+}
+
+function installTelegramClaimWebhook() {
+  const properties = PropertiesService.getScriptProperties();
+  let secret = properties.getProperty("TELEGRAM_WEBHOOK_SECRET");
+  if (!secret) {
+    secret = (Utilities.getUuid() + Utilities.getUuid()).replace(/-/g, "");
+    properties.setProperty("TELEGRAM_WEBHOOK_SECRET", secret);
+  }
+  const url = ScriptApp.getService().getUrl();
+  if (!url || !url.endsWith("/exec")) throw new Error("DEPLOY_WEB_APP_FIRST");
+  dispatchTelegram_("setWebhook", { url: url + "?telegram_secret=" + encodeURIComponent(secret),
+    allowed_updates: ["callback_query"], drop_pending_updates: false });
+  return { installed: true };
 }
 
 function doPost(event) {
   const lock = LockService.getScriptLock();
   let acquired = false;
+  let callback = false;
+  let result;
   try {
     const contents = event && event.postData && event.postData.contents;
     if (typeof contents !== "string" || contents.length > 20000) throw new Error("INVALID_REQUEST");
     const data = JSON.parse(contents);
     if (!data || typeof data !== "object") throw new Error("INVALID_REQUEST");
-    if (!data.callback_query) {
+    callback = Boolean(data.callback_query);
+    if (callback) dispatchVerifyWebhook_(event);
+    else {
       if (data.action !== "SYNC_ORDER") throw new Error("UNSUPPORTED_ACTION");
       dispatchAuthorize_(data);
     }
     lock.waitLock(30000);
     acquired = true;
-    if (data.callback_query) dispatchLegacyCallback_(data.callback_query);
+    if (data.callback_query) dispatchCallback_(data.callback_query);
     else dispatchSync_(data.orderId);
-    return dispatchJson_({ status: "SUCCESS" });
+    result = { status: "SUCCESS" };
   } catch (error) {
-    console.error("Dispatch failed; order state was not modified.", /^[A-Z_]+$/.test(error.message) ? error.message : "DISPATCH_FAILED");
-    return dispatchJson_({ status: "ERROR", code: "DISPATCH_FAILED" });
+    console.error("Dispatch failed; verify the canonical order state.", /^[A-Z_]+$/.test(error.message) ? error.message : "DISPATCH_FAILED");
+    result = { status: "ERROR", code: "DISPATCH_FAILED" };
   } finally {
     if (acquired) lock.releaseLock();
   }
+  // ContentService redirects; Telegram requires a direct webhook acknowledgement.
+  return callback ? HtmlService.createHtmlOutput(JSON.stringify(result)) : dispatchJson_(result);
 }
 
 function doGet() {

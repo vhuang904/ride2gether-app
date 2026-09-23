@@ -22,6 +22,10 @@ const requestedOrderId = new URLSearchParams(window.location.search).get("order"
 let requestedClaimAttempted = false;
 let requestedClaimUnavailable = false;
 let claimFeedback = "";
+const locationAttempts = new Set();
+const notifiedOrderIds = new Set();
+let locatingOrderId = null;
+let pendingGeneration = 0;
 
 function hasDriverPanelAccess() {
   return typeof window.isCurrentDriverAuthorized === "function"
@@ -108,7 +112,9 @@ function clearActiveTrip() {
 
 function renderActiveTrip(order) {
   window.tripChat?.updateTrip("driver", order.id, order);
+  if (activeTrip?.id !== order.id) activeTripState = null;
   activeTrip = order;
+  document.getElementById("driverIncomingOrderNotice").classList.add("hidden");
   const container = document.getElementById("activeTripContainer");
   const status = String(order.status || "").toLowerCase();
   const action = document.getElementById("activeTripAction");
@@ -133,14 +139,67 @@ function renderActiveTrip(order) {
       const earnings = document.getElementById("driverTripEarnings");
       if (earnings) earnings.textContent = formatFare(state.driverEarnings);
       if (nav && state.pickup) nav.href = `https://www.google.com/maps/dir/?api=1&destination=${state.pickup.lat},${state.pickup.lng}&travelmode=driving`;
+      updateLocationAction();
+      if (state.phase === "awaiting_location" && !locationAttempts.has(order.id)) completePickupLocation();
     },
     onError: showDriverNotice
   });
+  updateLocationAction();
+}
+
+function updateLocationAction() {
+  if (!activeTrip) return;
+  const action = document.getElementById("activeTripAction");
+  if (activeTripState?.phase === "awaiting_location") {
+    action.disabled = locatingOrderId === activeTrip.id;
+    action.textContent = action.disabled ? "Getting your location..." : "Enable location to continue";
+  } else {
+    action.disabled = advancing;
+    action.textContent = activeTrip.status === "accepted" ? "I have arrived at pickup"
+      : activeTrip.status === "arrived" ? "Passenger on board / Start Trip" : "Complete Trip";
+  }
+}
+
+function readDriverLocation() {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) { reject(new Error("Location is unavailable on this device.")); return; }
+    navigator.geolocation.getCurrentPosition(
+      position => resolve({ lat: position.coords.latitude, lng: position.coords.longitude }),
+      () => reject(new Error("Allow location access to continue your trip. Your location is saved only once.")),
+      { enableHighAccuracy: true, timeout: 15_000, maximumAge: 0 }
+    );
+  });
+}
+
+async function completePickupLocation() {
+  if (!hasDriverPanelAccess() || !activeTrip || activeTripState?.phase !== "awaiting_location" || locatingOrderId) return;
+  const orderId = activeTrip.id, generation = listenerGeneration;
+  locationAttempts.add(orderId);
+  locatingOrderId = orderId;
+  updateLocationAction();
+  try {
+    const location = await readDriverLocation();
+    if (generation !== listenerGeneration || !hasDriverPanelAccess() || activeTrip?.id !== orderId) return;
+    const result = await window.accountAuth.api("attachPickupLocation", { orderId, location });
+    if (result.locationAttached !== true) throw new Error("Location was not confirmed. Please retry.");
+    window.accountAuth.notifyDispatch(orderId).catch(error => console.warn("[Driver] Location sync failed:", error));
+  } catch (error) {
+    console.error("[Driver] Pickup location failed:", error);
+    if (generation === listenerGeneration && hasDriverPanelAccess()) {
+      showDriverNotice(error.message || "Unable to save your location. Tap Enable location to retry.");
+    }
+  } finally {
+    if (generation === listenerGeneration) {
+      locatingOrderId = null;
+      if (activeTrip?.id === orderId) renderActiveTrip(activeTrip);
+    }
+  }
 }
 
 async function advanceActiveTrip() {
   if (!requireDriverPanelAccess()) return;
   if (!activeTrip || advancing) return;
+  if (activeTripState?.phase === "awaiting_location") { await completePickupLocation(); return; }
   if (!isValidOrderId(activeTrip.id)) {
     console.warn("[Driver] Skipping trip advance: invalid activeTrip.id.", activeTrip.id);
     return;
@@ -310,14 +369,7 @@ async function claimOrder(orderId, button) {
   button.textContent = "Processing...";
 
   try {
-    const location = await new Promise((resolve, reject) => {
-      if (!navigator.geolocation) { reject(new Error("Location is unavailable on this device.")); return; }
-      navigator.geolocation.getCurrentPosition(
-        position => resolve({ lat: position.coords.latitude, lng: position.coords.longitude }),
-        () => reject(new Error("Allow location access to accept a trip. Your location is saved only once.")),
-        { enableHighAccuracy: true, timeout: 15_000, maximumAge: 0 }
-      );
-    });
+    const location = await readDriverLocation();
     if (generation !== listenerGeneration || !hasDriverPanelAccess()
         || window.getCurrentDriverProfile().id !== driverId || !window.accountAuth.isOnline()) {
       throw new Error("Driver access or availability changed. Go online and retry accepting the order.");
@@ -444,24 +496,30 @@ function renderCombinedOrders() {
       : "Connected. Listening for new pending orders."
     : requestedOrderId && !requestedClaimAttempted
       ? "Telegram claim ready. Go online to accept this trip with your current location."
-      : "Paused. Your active trip remains available.");
+      : "Off duty. Your active trip remains available.");
 }
 
 function listenForAvailableOrders() {
+  const pendingRequest = ++pendingGeneration;
   if (unsubscribePending) unsubscribePending();
   unsubscribePending = null;
   pendingDocs = [];
   if (!hasDriverPanelAccess() || !unsubscribeOrders) return;
   renderCombinedOrders();
-  if (!window.accountAuth.isOnline()) return;
+  if (!window.accountAuth.isOnline()) {
+    document.getElementById("driverIncomingOrderNotice").classList.add("hidden");
+    return;
+  }
   const generation = listenerGeneration;
   unsubscribePending = db.collection(DRIVER_ORDERS_COLLECTION).where("status", "==", "pending").onSnapshot({ includeMetadataChanges: true }, snapshot => {
-    if (generation !== listenerGeneration || !hasDriverPanelAccess() || !window.accountAuth.isOnline()) return;
+    if (generation !== listenerGeneration || pendingRequest !== pendingGeneration
+        || !hasDriverPanelAccess() || !window.accountAuth.isOnline()) return;
     pendingDocs = snapshot.docs;
     renderCombinedOrders();
     continueTelegramClaim(snapshot);
+    notifyIncomingOrders(snapshot);
   }, error => {
-    if (generation !== listenerGeneration) return;
+    if (generation !== listenerGeneration || pendingRequest !== pendingGeneration) return;
     pendingDocs = [];
     renderCombinedOrders();
     console.error("[Driver] Available orders failed:", error);
@@ -469,6 +527,24 @@ function listenForAvailableOrders() {
   });
 }
 window.addEventListener("driveravailabilitychange", listenForAvailableOrders);
+
+function notifyIncomingOrders(snapshot) {
+  if (snapshot.metadata?.fromCache || snapshot.metadata?.hasPendingWrites) return;
+  const notice = document.getElementById("driverIncomingOrderNotice");
+  const eligible = snapshot.docs.filter(doc => {
+    const order = doc.data();
+    return order.status === "pending" && order.customerPhone !== window.getCurrentDriverProfile().phone
+      && !dismissedOrderIds.has(doc.id) && !isStaleOrder(getCreatedAtMillis(order.createdAt))
+      && !pendingClaims.has(doc.id);
+  });
+  if (activeTrip || !eligible.length) { notice.classList.add("hidden"); return; }
+  const incoming = eligible.filter(doc => !notifiedOrderIds.has(doc.id));
+  if (!incoming.length) return;
+  incoming.forEach(doc => notifiedOrderIds.add(doc.id));
+  document.getElementById("driverIncomingOrderText").textContent = incoming.length === 1
+    ? "New trip available" : `${incoming.length} new trips available`;
+  notice.classList.remove("hidden");
+}
 
 function handleDriverOrderClick(event) {
   if (!requireDriverPanelAccess()) return;
@@ -499,6 +575,8 @@ function initializeDriverPanel() {
   if (dismissedOrderProfileId !== profile.id) {
     dismissedOrderProfileId = profile.id;
     dismissedOrderIds.clear();
+    notifiedOrderIds.clear();
+    locationAttempts.clear();
     try {
       const cached = JSON.parse(localStorage.getItem(`${DISMISSED_ORDERS_KEY}:${profile.id}`) || "[]");
       if (!Array.isArray(cached)) throw new Error("Dismissed order cache must be an array.");
@@ -512,6 +590,12 @@ function initializeDriverPanel() {
     document.getElementById("ordersContainer").addEventListener("click", handleDriverOrderClick);
     document.getElementById("activeTripAction").addEventListener("click", advanceActiveTrip);
     document.getElementById("clearAllOrders").addEventListener("click", clearAllOrders);
+    document.getElementById("btnDismissIncomingOrders").addEventListener("click", () =>
+      document.getElementById("driverIncomingOrderNotice").classList.add("hidden"));
+    document.getElementById("btnViewIncomingOrders").addEventListener("click", () => {
+      document.getElementById("driverIncomingOrderNotice").classList.add("hidden");
+      document.getElementById("ordersContainer").scrollIntoView({ behavior: "smooth", block: "start" });
+    });
     driverPanelInitialized = true;
   }
   listenForPendingOrders();
@@ -531,6 +615,8 @@ function stopDriverPanel() {
   pendingClaims.clear();
   claimFeedback = "";
   requestedClaimUnavailable = false;
+  locatingOrderId = null;
+  document.getElementById("driverIncomingOrderNotice").classList.add("hidden");
   clearActiveTrip();
   closeDriverOrderHistory();
   if (noticeTimer) clearTimeout(noticeTimer);
